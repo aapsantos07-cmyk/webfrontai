@@ -30,9 +30,9 @@ service cloud.firestore {
       allow create: if request.auth.uid == clientId;
 
       // 4. Regular Clients: Update specific fields
-      // 👇 FIXED: Added 'clientUploads' to the allowed list 👇
+      // 👇 FIXED: Use 'diff' to check ONLY the fields being changed, not the whole doc
       allow update: if request.auth.uid == clientId 
-                    && request.resource.data.keys().hasOnly(['name', 'notifications', 'clientUploads']);
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'notifications', 'clientUploads']);
     }
 
     // Default Deny
