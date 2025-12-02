@@ -36,31 +36,54 @@ const convertToBase64 = (file) => {
   });
 };
 
-// --- Helper: Intersection Observer Hook for Animations ---
-function useOnScreen(ref, rootMargin = "0px") {
-  const [isIntersecting, setIntersecting] = useState(false);
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setIntersecting(true); },
-      { rootMargin }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => { if (ref.current) observer.unobserve(ref.current); };
-  }, [ref, rootMargin]);
-  return isIntersecting;
+// --- ERROR BOUNDARY (Catches the "Black Screen" crash) ---
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-red-900 text-white p-10 font-mono">
+          <h1 className="text-3xl font-bold mb-4">⚠️ CRITICAL SYSTEM ERROR</h1>
+          <p className="mb-4">The application crashed. Here is the debug info:</p>
+          <div className="bg-black p-6 rounded border border-red-500 overflow-auto mb-6">
+            <code className="text-red-300">{this.state.error.toString()}</code>
+          </div>
+          <h2 className="text-xl font-bold mb-2">How to fix:</h2>
+          <ul className="list-disc ml-6 space-y-2">
+            <li>If the error says <b>"FIRESTORE (12.6.0)"</b>, you are on a broken version.</li>
+            <li>Run this command in your terminal: <span className="bg-black px-2 py-1 rounded text-green-400">npm install firebase@11.0.2</span></li>
+            <li>Then clear your browser cache/data and reload.</li>
+          </ul>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-8 bg-white text-black px-6 py-3 rounded font-bold hover:bg-gray-200"
+          >
+            Reload Page
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children; 
+  }
 }
 
+// --- DEBUG FADEIN (Removed animation to prevent hidden content) ---
 const FadeIn = ({ children, delay = 0, className = "" }) => {
-  const ref = useRef(null);
-  const isVisible = useOnScreen(ref, "-50px");
   return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={`transition-all duration-700 ease-out transform ${
-        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-      } ${className}`}
-    >
+    <div className={`transform translate-y-0 opacity-100 ${className}`}>
       {children}
     </div>
   );
@@ -934,7 +957,6 @@ export default function App() {
   const [currentClientData, setCurrentClientData] = useState(null); 
   const [appLoading, setAppLoading] = useState(true); 
   const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: "aapsantos07@gmail.com", maintenanceMode: false });
-  const isSigningUp = useRef(false);
 
   // 1. AUTH STATE LISTENER (PERSISTENCE)
   useEffect(() => {
@@ -948,9 +970,6 @@ export default function App() {
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       clearTimeout(safetyTimer); // Clear timeout if auth responds
-
-      // PREVENT RACE CONDITION: Don't read user doc if we are currently signing up
-      if (isSigningUp.current) return;
 
       if (user) {
         const isMaster = user.email.toLowerCase() === 'aapsantos07@gmail.com';
@@ -1040,7 +1059,6 @@ export default function App() {
     try {
         let user; let uid;
         if (isSignUp) {
-            isSigningUp.current = true; // LOCK LISTENER to prevent race condition
             const userCredential = await createUserWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
             const role = isMasterAdmin ? 'admin' : 'client';
             const clientData = {
@@ -1050,7 +1068,6 @@ export default function App() {
             };
             await setDoc(doc(db, "clients", uid), clientData); 
             handleLogin(role, clientData);
-            isSigningUp.current = false; // UNLOCK
         } else {
             const userCredential = await signInWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
             const clientDocSnap = await getDoc(doc(db, "clients", uid));
@@ -1067,7 +1084,6 @@ export default function App() {
         }
         return { error: null };
     } catch (firebaseError) {
-        isSigningUp.current = false; // Unlock if error
         console.error("Auth Error:", firebaseError);
         if (firebaseError.code === 'auth/email-already-in-use') return { error: "Email already in use." };
         if (firebaseError.code === 'auth/invalid-credential') return { error: "Invalid email or password." };
@@ -1084,11 +1100,11 @@ export default function App() {
   }
 
   return (
-    <>
+    <ErrorBoundary>
       {view === 'landing' && <LandingPage onLogin={() => setView('auth')} />}
       {view === 'auth' && <AuthScreen onAuthSubmit={handleAuthSubmit} onBack={() => setView('landing')} maintenanceMode={adminSettings.maintenanceMode} />}
       {view === 'portal' && currentClientData && <ClientPortal onLogout={() => signOut(auth)} clientData={currentClientData} onUpdateClient={handleClientUpdate} onDeleteAccount={handleClientDelete} />}
       {view === 'admin' && <AdminPortal onLogout={() => signOut(auth)} clients={clients} setClients={setClients} adminSettings={adminSettings} setAdminSettings={setAdminSettings} />}
-    </>
+    </ErrorBoundary>
   );
 }
