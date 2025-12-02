@@ -71,7 +71,7 @@ function Card({ children, className = '' }) {
   return <div className={`bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 p-8 rounded-2xl hover:border-zinc-700 transition-colors duration-300 ${className}`}>{children}</div>;
 }
 
-// --- AI Chat Widget (MOVED TO TOP TO PREVENT ERRORS) ---
+// --- AI Chat Widget ---
 function AIChatDemo() {
   const [messages, setMessages] = useState([{ role: 'ai', text: "Hello. I am WEBFRONT_AI. How can I assist your agency today?" }]);
   const [input, setInput] = useState('');
@@ -106,13 +106,11 @@ function AIChatDemo() {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setInput('');
     setIsTyping(true);
-
     const systemPrompt = `You are WEBFRONT_AI, the on-site AI Receptionist for **WebFront AI**. 
     Your only job is to talk to visitors about WebFront AI, our services, pricing, and process, and help them decide to book a strategy call.
     IMPORTANT RULES:
     1. **Keep your answers SHORT.** Maximum 2-3 sentences.
     2. Use **bold** syntax.`;
-
     const response = await callGemini(userMsg, systemPrompt);
     setMessages(prev => [...prev, { role: 'ai', text: response }]);
     setIsTyping(false);
@@ -121,41 +119,16 @@ function AIChatDemo() {
   return (
     <div className="w-full max-w-md bg-black border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[500px]">
       <div className="bg-zinc-900 p-4 border-b border-zinc-800 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="font-mono text-sm text-zinc-400">WEBFRONT_AI</span>
-        </div>
+        <div className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div><span className="font-mono text-sm text-zinc-400">WEBFRONT_AI</span></div>
         <Sparkles size={18} className="text-blue-400" />
       </div>
       <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 font-sans text-sm">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-zinc-800 text-zinc-200 rounded-bl-none'}`}>
-              {formatMessage(m.text)}
-            </div>
-          </div>
-        ))}
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center">
-              <Loader2 size={14} className="animate-spin text-zinc-500" />
-              <span className="text-xs text-zinc-500 ml-2">Thinking...</span>
-            </div>
-          </div>
-        )}
+        {messages.map((m, i) => (<div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[80%] p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-zinc-800 text-zinc-200 rounded-bl-none'}`}>{formatMessage(m.text)}</div></div>))}
+        {isTyping && (<div className="flex justify-start"><div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center"><Loader2 size={14} className="animate-spin text-zinc-500" /><span className="text-xs text-zinc-500 ml-2">Thinking...</span></div></div>)}
       </div>
       <div className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2">
-        <input 
-          type="text" 
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }}
-          placeholder="Ask about pricing, services..."
-          className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors"
-        />
-        <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors">
-          <Send size={18} />
-        </button>
+        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }} placeholder="Ask about pricing..." className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors" />
+        <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors"><Send size={18} /></button>
       </div>
     </div>
   );
@@ -173,67 +146,33 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true); setError('');
+    e.preventDefault(); setIsLoading(true); setError('');
     const { error: submitError } = await onAuthSubmit(isSignUp, email, password, name);
-    setIsLoading(false);
-    if (submitError) setError(submitError);
+    setIsLoading(false); if (submitError) setError(submitError);
   };
 
   const handlePasswordReset = async (e) => {
-    e.preventDefault();
-    if (!email) { setError("Please enter your email address first."); return; }
+    e.preventDefault(); if (!email) { setError("Please enter your email address first."); return; }
     setIsLoading(true); setError(''); setSuccessMessage('');
-    try {
-      await sendPasswordResetEmail(auth, email);
-      setSuccessMessage("Password reset email sent! Check your inbox.");
-      setIsLoading(false);
-    } catch (err) {
-      setIsLoading(false);
-      setError(err.code === 'auth/user-not-found' ? "No account found." : "Failed to send email.");
-    }
+    try { await sendPasswordResetEmail(auth, email); setSuccessMessage("Password reset email sent! Check your inbox."); setIsLoading(false); } catch (err) { setIsLoading(false); setError(err.code === 'auth/user-not-found' ? "No account found." : "Failed to send email."); }
   };
 
   return (
     <div className="min-h-screen bg-black text-white font-sans flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-blue-900/20 rounded-full blur-[100px] -z-10"></div>
       <div className="w-full max-w-md animate-fade-in-up">
-        <div className="text-center mb-8">
-           <div className="inline-flex items-center justify-center w-12 h-12 bg-white text-black rounded-xl mb-4"><Cpu size={24} /></div>
-           <h1 className="text-2xl font-bold tracking-tighter">{isForgotPassword ? 'Reset Password' : (isSignUp ? 'Create Account' : 'Welcome Back')}</h1>
-           <p className="text-zinc-500 mt-2">{isForgotPassword ? 'Enter your email to receive a reset link' : (isSignUp ? 'Join WebFront AI today' : 'Sign in to your WebFront Dashboard')}</p>
-        </div>
+        <div className="text-center mb-8"><div className="inline-flex items-center justify-center w-12 h-12 bg-white text-black rounded-xl mb-4"><Cpu size={24} /></div><h1 className="text-2xl font-bold tracking-tighter">{isForgotPassword ? 'Reset Password' : (isSignUp ? 'Create Account' : 'Welcome Back')}</h1><p className="text-zinc-500 mt-2">{isForgotPassword ? 'Enter your email to receive a reset link' : (isSignUp ? 'Join WebFront AI today' : 'Sign in to your WebFront Dashboard')}</p></div>
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
           {maintenanceMode && !isSignUp && !isForgotPassword && (<div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 p-3 rounded-lg mb-4 text-sm flex items-center gap-2"><AlertTriangle size={16} /> Maintenance Mode Active</div>)}
           <form onSubmit={isForgotPassword ? handlePasswordReset : handleSubmit} className="space-y-4">
             {error && <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded-lg border border-red-500/20">{error}</div>}
             {successMessage && <div className="bg-green-500/10 text-green-500 text-sm p-3 rounded-lg border border-green-500/20">{successMessage}</div>}
-            {isSignUp && !isForgotPassword && (
-              <div className="animate-fade-in">
-                <label className="block text-sm text-zinc-400 mb-2 font-medium">Full Name / Company</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="e.g. Acme Corp" required={isSignUp} />
-              </div>
-            )}
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2 font-medium">Email Address</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="name@company.com" required />
-            </div>
-            {!isForgotPassword && (
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm text-zinc-400 font-medium">Password</label>
-                  {!isSignUp && (<button type="button" onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMessage(''); }} className="text-xs text-blue-400 hover:text-blue-300">Forgot Password?</button>)}
-                </div>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="••••••••" required />
-              </div>
-            )}
-            <button type="submit" disabled={isLoading} className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
-              {isLoading ? <><Loader2 size={16} className="animate-spin mr-1"/> Processing...</> : (isForgotPassword ? 'Send Reset Link' : <><span className="mr-1">{isSignUp ? 'Create Account' : 'Sign In'}</span> <ArrowRight size={16} /></>)}
-            </button>
+            {isSignUp && !isForgotPassword && (<div className="animate-fade-in"><label className="block text-sm text-zinc-400 mb-2 font-medium">Full Name / Company</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="e.g. Acme Corp" required={isSignUp} /></div>)}
+            <div><label className="block text-sm text-zinc-400 mb-2 font-medium">Email Address</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="name@company.com" required /></div>
+            {!isForgotPassword && (<div><div className="flex justify-between items-center mb-2"><label className="block text-sm text-zinc-400 font-medium">Password</label>{!isSignUp && (<button type="button" onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMessage(''); }} className="text-xs text-blue-400 hover:text-blue-300">Forgot Password?</button>)}</div><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="••••••••" required /></div>)}
+            <button type="submit" disabled={isLoading} className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed">{isLoading ? <><Loader2 size={16} className="animate-spin mr-1"/> Processing...</> : (isForgotPassword ? 'Send Reset Link' : <><span className="mr-1">{isSignUp ? 'Create Account' : 'Sign In'}</span> <ArrowRight size={16} /></>)}</button>
           </form>
-          <div className="mt-6 text-center text-sm text-zinc-500">
-            {isForgotPassword ? (<button onClick={() => { setIsForgotPassword(false); setError(''); setSuccessMessage(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Back to Sign In</button>) : isSignUp ? (<p>Already have an account? <button onClick={() => { setIsSignUp(false); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Log In</button></p>) : (<div className="flex flex-col gap-2"><p>Don't have an account? <button onClick={() => { setIsSignUp(true); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Sign Up</button></p></div>)}
-          </div>
+          <div className="mt-6 text-center text-sm text-zinc-500">{isForgotPassword ? (<button onClick={() => { setIsForgotPassword(false); setError(''); setSuccessMessage(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Back to Sign In</button>) : isSignUp ? (<p>Already have an account? <button onClick={() => { setIsSignUp(false); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Log In</button></p>) : (<div className="flex flex-col gap-2"><p>Don't have an account? <button onClick={() => { setIsSignUp(true); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Sign Up</button></p></div>)}</div>
         </div>
         <button onClick={onBack} className="w-full mt-8 text-zinc-500 text-sm hover:text-white transition-colors flex items-center justify-center gap-2">← Return to website</button>
       </div>
@@ -245,29 +184,16 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
 function ClientDashboardView({ data }) {
   const totalOpenBalance = data.invoices?.reduce((acc, inv) => inv.status !== 'Paid' ? acc + (parseFloat(inv.amount.replace(/[^0-9.-]+/g, "")) || 0) : acc, 0) || 0;
   const formattedBalance = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalOpenBalance);
-
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-center mb-12">
-        <div><h1 className="text-3xl font-bold mb-1">Welcome back, {data.name}</h1><p className="text-zinc-500">Project: {data.project}</p></div>
-        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold">{data.name?.charAt(0) || 'U'}</div>
-      </div>
+      <div className="flex justify-between items-center mb-12"><div><h1 className="text-3xl font-bold mb-1">Welcome back, {data.name}</h1><p className="text-zinc-500">Project: {data.project}</p></div><div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold">{data.name?.charAt(0) || 'U'}</div></div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="border-l-4 border-l-blue-500">
-          <h3 className="text-zinc-400 text-sm mb-1">Current Phase</h3><p className="text-2xl font-bold truncate">{data.phase}</p>
-          <div className="w-full bg-zinc-800 h-1 mt-4 rounded-full overflow-hidden"><div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${data.progress}%` }}></div></div><p className="text-right text-xs text-blue-400 mt-1">{data.progress}% Complete</p>
-        </Card>
+        <Card className="border-l-4 border-l-blue-500"><h3 className="text-zinc-400 text-sm mb-1">Current Phase</h3><p className="text-2xl font-bold truncate">{data.phase}</p><div className="w-full bg-zinc-800 h-1 mt-4 rounded-full overflow-hidden"><div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${data.progress}%` }}></div></div><p className="text-right text-xs text-blue-400 mt-1">{data.progress}% Complete</p></Card>
         <Card><h3 className="text-zinc-400 text-sm mb-1">Next Milestone</h3><p className="text-2xl font-bold truncate">{data.milestone}</p><p className="text-zinc-500 text-sm mt-2">Due: {data.dueDate}</p></Card>
         <Card><h3 className="text-zinc-400 text-sm mb-1">Open Invoices</h3><p className="text-2xl font-bold">{formattedBalance}</p><p className="text-green-500 text-sm mt-2 flex items-center gap-1">{totalOpenBalance > 0 ? <span className="text-yellow-500 flex items-center gap-1"><Activity size={14}/> Action Required</span> : <><Check size={14}/> All paid</>}</p></Card>
       </div>
       <h3 className="text-xl font-bold mb-6">Recent Activity</h3>
-      <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">
-        {data.activity && data.activity.length > 0 ? data.activity.map((item, i) => (
-            <div key={i} className="flex items-center justify-between p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors">
-              <div className="flex items-center gap-4"><div className={`w-2 h-2 rounded-full ${item.status === 'Completed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div><span className="truncate max-w-[200px] sm:max-w-md">{item.action}</span></div><span className="text-zinc-500 text-sm whitespace-nowrap ml-4">{item.date}</span>
-            </div>
-        )) : <div className="p-4 text-zinc-500 text-center">No recent activity</div>}
-      </div>
+      <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">{data.activity && data.activity.length > 0 ? data.activity.map((item, i) => (<div key={i} className="flex items-center justify-between p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="flex items-center gap-4"><div className={`w-2 h-2 rounded-full ${item.status === 'Completed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div><span className="truncate max-w-[200px] sm:max-w-md">{item.action}</span></div><span className="text-zinc-500 text-sm whitespace-nowrap ml-4">{item.date}</span></div>)) : <div className="p-4 text-zinc-500 text-center">No recent activity</div>}</div>
     </div>
   );
 }
@@ -293,11 +219,7 @@ function ContractsView({ data }) {
     <div className="mb-8">
       <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><FileText size={20}/> Contracts & Agreements</h3>
       <div className="space-y-4">
-        {data.contracts && data.contracts.length > 0 ? data.contracts.map((doc, i) => (
-          <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl flex items-center justify-between hover:border-zinc-600 transition-all">
-            <div className="flex items-center gap-4 min-w-0"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex-shrink-0 flex items-center justify-center text-blue-500"><FileText size={24} /></div><div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Shared by Admin • {doc.date} • {doc.size}</p></div></div><a href={doc.url} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full flex-shrink-0"><Download size={20} /></a>
-          </div>
-        )) : <div className="p-8 text-center text-zinc-500 bg-zinc-900/30 rounded-xl border border-zinc-800 border-dashed">No contracts available yet.</div>}
+        {data.contracts && data.contracts.length > 0 ? data.contracts.map((doc, i) => (<div key={i} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl flex items-center justify-between hover:border-zinc-600 transition-all"><div className="flex items-center gap-4 min-w-0"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex-shrink-0 flex items-center justify-center text-blue-500"><FileText size={24} /></div><div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Shared by Admin • {doc.date} • {doc.size}</p></div></div><a href={doc.url} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full flex-shrink-0"><Download size={20} /></a></div>)) : <div className="p-8 text-center text-zinc-500 bg-zinc-900/30 rounded-xl border border-zinc-800 border-dashed">No contracts available yet.</div>}
       </div>
     </div>
     <div>
@@ -323,10 +245,7 @@ function ContractsView({ data }) {
 function InvoicesView({ data }) {
   return (
   <div className="animate-fade-in">
-    <div className="mb-8 flex justify-between items-end">
-      <div><h1 className="text-3xl font-bold mb-1">Invoices</h1><p className="text-zinc-500">View payment history and upcoming charges.</p></div>
-      <Button variant="secondary" className="px-4 py-2 text-xs">Download All CSV</Button>
-    </div>
+    <div className="mb-8 flex justify-between items-end"><div><h1 className="text-3xl font-bold mb-1">Invoices</h1><p className="text-zinc-500">View payment history and upcoming charges.</p></div><Button variant="secondary" className="px-4 py-2 text-xs">Download All CSV</Button></div>
     <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">
       <div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Description</div><div>Date</div><div className="text-right">Amount</div></div>
       {data.invoices && data.invoices.length > 0 ? data.invoices.map((inv, i) => (
@@ -342,9 +261,7 @@ function InvoicesView({ data }) {
 
 function AIAssistantView({ data }) {
   const [messages, setMessages] = useState([{ role: 'ai', text: `I'm your dedicated Project Intelligence Agent. I have full context on your build (${data.progress}% complete). How can I help you today?` }]);
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const scrollRef = useRef(null);
+  const [input, setInput] = useState(''); const [isTyping, setIsTyping] = useState(false); const scrollRef = useRef(null);
   useEffect(() => { if (scrollRef.current) { scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); } }, [messages]);
   const handleSend = async (text) => {
     const userText = text || input; if (!userText.trim()) return;
@@ -379,15 +296,7 @@ function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
   const handleSave = () => { onUpdateClient({ ...data, name, notifications }); };
   const toggleNotification = (type) => { setNotifications(prev => ({ ...prev, [type]: !prev[type] })); };
   return (
-  <div className="animate-fade-in">
-    <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Settings</h1><p className="text-zinc-500">Manage your account preferences.</p></div>
-    <div className="grid gap-8 max-w-2xl">
-      <div className="space-y-4"><h3 className="text-lg font-bold flex items-center gap-2"><User size={18}/> Profile Details</h3>
-        <div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Company / Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label><input type="text" value={data.email} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button>
-      </div>
-      <div className="space-y-4 pt-4 border-t border-zinc-800"><h3 className="text-lg font-bold flex items-center gap-2 text-red-500"><Shield size={18}/> Danger Zone</h3><Button onClick={() => onDeleteAccount(data.id)} variant="danger" className="w-full justify-start">Delete My Account</Button></div>
-    </div>
-  </div>
+  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Settings</h1><p className="text-zinc-500">Manage your account preferences.</p></div><div className="grid gap-8 max-w-2xl"><div className="space-y-4"><h3 className="text-lg font-bold flex items-center gap-2"><User size={18}/> Profile Details</h3><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Company / Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label><input type="text" value={data.email} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button></div><div className="space-y-4 pt-4 border-t border-zinc-800"><h3 className="text-lg font-bold flex items-center gap-2 text-red-500"><Shield size={18}/> Danger Zone</h3><Button onClick={() => onDeleteAccount(data.id)} variant="danger" className="w-full justify-start">Delete My Account</Button></div></div></div>
   );
 }
 
@@ -429,15 +338,7 @@ function AdminFinancialsView({ clients }) {
   const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
   const allTransactions = clients.flatMap(client => (client.invoices || []).map(inv => ({ ...inv, clientName: client.name })));
   return (
-  <div className="animate-fade-in">
-    <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Financials</h1><p className="text-zinc-500">Revenue tracking based on active client deals.</p></div>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><Card><h3 className="text-zinc-400 text-sm mb-1">Total Revenue</h3><p className="text-3xl font-bold text-green-500">{formatCurrency(totalRevenue)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Outstanding</h3><p className="text-3xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Active Deals</h3><p className="text-3xl font-bold text-blue-500">{clients.length}</p></Card></div>
-    <h3 className="text-xl font-bold mb-6">All Transactions</h3>
-    <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Client</div><div>Date</div><div>Invoice ID</div><div className="text-right">Amount</div></div>
-      {allTransactions.map((t, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="text-white font-medium truncate">{t.clientName}</div><div className="text-zinc-500">{t.date}</div><div className="text-zinc-500 font-mono text-xs pt-1">{t.id}</div><div className={`text-right font-mono ${t.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{t.amount}</div></div>))}
-      {allTransactions.length === 0 && <div className="p-4 text-center text-zinc-500">No transactions recorded.</div>}
-    </div>
-  </div>
+  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Financials</h1><p className="text-zinc-500">Revenue tracking based on active client deals.</p></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><Card><h3 className="text-zinc-400 text-sm mb-1">Total Revenue</h3><p className="text-3xl font-bold text-green-500">{formatCurrency(totalRevenue)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Outstanding</h3><p className="text-3xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Active Deals</h3><p className="text-3xl font-bold text-blue-500">{clients.length}</p></Card></div><h3 className="text-xl font-bold mb-6">All Transactions</h3><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Client</div><div>Date</div><div>Invoice ID</div><div className="text-right">Amount</div></div>{allTransactions.map((t, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="text-white font-medium truncate">{t.clientName}</div><div className="text-zinc-500">{t.date}</div><div className="text-zinc-500 font-mono text-xs pt-1">{t.id}</div><div className={`text-right font-mono ${t.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{t.amount}</div></div>))}{allTransactions.length === 0 && <div className="p-4 text-center text-zinc-500">No transactions recorded.</div>}</div></div>
   );
 }
 
@@ -633,7 +534,7 @@ export default function App() {
   const [currentClientData, setCurrentClientData] = useState(null); 
   const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: "aapsantos07@gmail.com", maintenanceMode: false });
 
-  // REAL-TIME LISTENER
+  // REAL-TIME LISTENER FOR ADMINS
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "clients"), (snapshot) => {
       const liveClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
