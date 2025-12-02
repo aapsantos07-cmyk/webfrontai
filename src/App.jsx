@@ -45,16 +45,21 @@ import {
   Power
 } from 'lucide-react';
 
+// --- FIREBASE IMPORT ---
+// We use './firebase' without extension so the bundler finds .js or .jsx automatically
 import { auth, db } from './firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
-// --- API Configuration ---
-const apiKey = "AIzaSyB7WstJSRGqbkBpLiAdZkQQXgbKMfd7U1o"; // injected at runtime
+// --------------------------------
 
-// --- Helper: Mock Database ---
+// --- API Configuration ---
+const apiKey = ""; // injected at runtime
+
+// --- Helper: Mock Database (Only used for initial state/admin view persistence simulation) ---
+// NOTE: Client login/signup now uses real Firebase Auth and Firestore for persistence.
 const INITIAL_CLIENTS = [
   { 
-    id: 1, 
+    id: 'mock_client_1', // Using mock IDs for initial data only
     name: "Tech Corp Inc.", 
     email: "client@techcorp.com", 
     project: "SaaS Platform V2", 
@@ -78,7 +83,7 @@ const INITIAL_CLIENTS = [
     notifications: { email: true, push: false, monthly: true }
   },
   { 
-    id: 2, 
+    id: 'mock_client_2', 
     name: "Dr. Smith Dental", 
     email: "doc@smith.com", 
     project: "AI Receptionist Bot", 
@@ -154,8 +159,8 @@ const Card = ({ children, className = '' }) => (
   </div>
 );
 
-// --- Auth Screen ---
-const AuthScreen = ({ onLogin, onBack, clients, maintenanceMode, onSignUp }) => {
+// --- Auth Screen (Refactored to use Firebase/Firestore) ---
+const AuthScreen = ({ onAuthSubmit, onBack, maintenanceMode }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -163,72 +168,19 @@ const AuthScreen = ({ onLogin, onBack, clients, maintenanceMode, onSignUp }) => 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      // 1. Sign Up Flow
-      if (isSignUp) {
-        if (maintenanceMode) {
-           setError("New signups are disabled during maintenance.");
-           return;
-        }
-        // Basic email validation
-        if (clients.find(c => c.email.toLowerCase() === email.toLowerCase())) {
-          setError("Account with this email already exists.");
-          return;
-        }
-        
-        // Create new client object
-        const newClient = {
-          name: name,
-          email: email,
-          project: "New Project",
-          phase: "Discovery",
-          progress: 0,
-          milestone: "Onboarding",
-          dueDate: "TBD",
-          revenue: 0,
-          status: "Active",
-          activity: [{ action: "Account Created", date: new Date().toLocaleDateString(), status: "Completed" }],
-          invoices: [],
-          contracts: [],
-          notifications: { email: true, push: false }
-        };
-        
-        onSignUp(newClient); // Call parent handler
-        return;
-      }
-
-      // 2. Login Flow - Admin Check (Specific Credentials)
-      if (email.toLowerCase() === 'aapsantos07@gmail.com') {
-        if (password === 'Andre121.') {
-          onLogin('admin', null);
-        } else {
-          setError("Invalid admin password.");
-        }
-        return;
-      }
-
-      // 3. Maintenance Mode Check
-      if (maintenanceMode) {
-        setError("System is currently under maintenance. Please try again later.");
-        return;
-      }
-
-      // 4. Client Login Check
-      const foundClient = clients.find(c => c.email.toLowerCase() === email.toLowerCase());
-      
-      if (foundClient) {
-        onLogin('client', foundClient);
-      } else {
-        setError("Account not found. Please sign up or contact support.");
-      }
-    }, 800);
+    // Call the Firebase-enabled handler passed from the main App component
+    const { error: submitError } = await onAuthSubmit(isSignUp, email, password, name);
+    
+    setIsLoading(false);
+    
+    if (submitError) {
+       setError(submitError);
+    }
   };
 
   return (
@@ -291,9 +243,12 @@ const AuthScreen = ({ onLogin, onBack, clients, maintenanceMode, onSignUp }) => 
             </div>
             <button 
               type="submit"
-              className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-2"
+              disabled={isLoading}
+              className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Processing...' : <><span className="mr-1">{isSignUp ? 'Create Account' : 'Sign In'}</span> <ArrowRight size={16} /></>}
+              {isLoading 
+                ? <><Loader2 size={16} className="animate-spin mr-1"/> Processing...</> 
+                : <><span className="mr-1">{isSignUp ? 'Create Account' : 'Sign In'}</span> <ArrowRight size={16} /></>}
             </button>
           </form>
           
@@ -316,7 +271,7 @@ const AuthScreen = ({ onLogin, onBack, clients, maintenanceMode, onSignUp }) => 
   );
 };
 
-// --- AI Chat Widget ---
+// --- AI Chat Widget (No changes) ---
 const AIChatDemo = () => {
   const [messages, setMessages] = useState([
     { role: 'ai', text: "Hello. I am WEBFRONT_AI. How can I assist your agency today?" }
@@ -940,6 +895,7 @@ const AdminClientsManager = ({ clients, setClients }) => {
 
   const handleCreateClient = (e) => {
     e.preventDefault();
+    // This function remains local mock creation for Admin UI demonstration.
     const newId = clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1;
     const clientToAdd = {
       id: newId,
@@ -1267,7 +1223,7 @@ const AdminClientsManager = ({ clients, setClients }) => {
   );
 };
 
-// --- Admin Portal Wrapper ---
+// --- Admin Portal Wrapper (No changes) ---
 const AdminPortal = ({ onLogout, clients, setClients, adminSettings, setAdminSettings }) => {
   const [activeTab, setActiveTab] = useState('clients');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -1321,7 +1277,7 @@ const AdminPortal = ({ onLogout, clients, setClients, adminSettings, setAdminSet
   );
 };
 
-// --- Client Portal Wrapper ---
+// --- Client Portal Wrapper (No changes) ---
 const ClientPortal = ({ onLogout, clientData, onUpdateClient, onDeleteAccount }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -1379,7 +1335,7 @@ const ClientPortal = ({ onLogout, clientData, onUpdateClient, onDeleteAccount })
   );
 };
 
-// --- Landing Page ---
+// --- Landing Page (No changes) ---
 const LandingPage = ({ onLogin }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -1623,6 +1579,7 @@ const LandingPage = ({ onLogin }) => {
 export default function App() {
   const [view, setView] = useState('landing'); 
   const [userRole, setUserRole] = useState('client'); 
+  // We keep INITIAL_CLIENTS for the Admin UI mock data persistence
   const [clients, setClients] = useState(INITIAL_CLIENTS); 
   const [currentClientData, setCurrentClientData] = useState(null); 
   
@@ -1645,6 +1602,7 @@ export default function App() {
 
   // Centralized Client Update Handler (simulating DB update)
   const handleClientUpdate = (updatedClient) => {
+    // This now simulates updating data after a successful login/auth
     const updatedClients = clients.map(c => c.id === updatedClient.id ? updatedClient : c);
     setClients(updatedClients);
     setCurrentClientData(updatedClient); // Update local view immediately
@@ -1652,36 +1610,106 @@ export default function App() {
 
   // Centralized Client Deletion Handler
   const handleClientDelete = (id) => {
+    // NOTE: In a real app, you would use a modal instead of confirm().
     if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
+      // NOTE: In a real app, you would also delete the user from Firebase Auth here.
       const updatedClients = clients.filter(c => c.id !== id);
       setClients(updatedClients);
       setView('landing'); // Force logout
     }
   };
 
-  // New Client Sign Up Handler
-  const handleSignUp = (newClient) => {
-    // Generate new ID based on existing clients
-    const newId = clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1;
-    const clientWithId = { ...newClient, id: newId };
+  // --- REFACTORED: Unified Authentication Handler using Firebase Auth and Firestore ---
+  const handleAuthSubmit = async (isSignUp, email, password, name) => {
     
-    setClients([...clients, clientWithId]);
-    setCurrentClientData(clientWithId);
-    setUserRole('client');
-    setView('portal');
+    // 1. Admin Check (Kept as hardcoded local bypass for admin access)
+    if (email.toLowerCase() === 'aapsantos07@gmail.com' && password === 'Andre121.') {
+        handleLogin('admin', null);
+        return { error: null };
+    }
+
+    if (adminSettings.maintenanceMode && isSignUp) {
+        return { error: "New signups are disabled during maintenance." };
+    }
+
+    try {
+        if (isSignUp) {
+            // SIGN UP: Use Firebase Auth and Firestore for persistence
+            
+            // 1. Create user in Firebase Authentication
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+            
+            // 2. Prepare client data object
+            const clientData = {
+                id: user.uid, // Use Firebase UID as the unique key
+                name: name,
+                email: email,
+                project: "New Project",
+                phase: "Discovery",
+                progress: 0,
+                milestone: "Onboarding",
+                dueDate: "TBD",
+                revenue: 0,
+                status: "Active",
+                activity: [{ action: "Account Created", date: new Date().toLocaleDateString(), status: "Completed" }],
+                invoices: [],
+                contracts: [],
+                notifications: { email: true, push: false }
+            };
+            
+            // 3. Save structured client data to Firestore
+            // Collection: 'clients', Document ID: user.uid
+            await setDoc(doc(db, "clients", user.uid), clientData);
+            
+            // 4. Update local state (for Admin View mock data) and log in
+            setClients(prev => [...prev, clientData]); 
+            handleLogin('client', clientData);
+            
+        } else {
+            // LOGIN: Use Firebase Auth and Firestore to retrieve user data
+            
+            // 1. Sign in via Firebase Authentication
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const uid = userCredential.user.uid;
+            
+            // 2. Fetch structured data from Firestore
+            const clientDocSnap = await getDoc(doc(db, "clients", uid));
+            
+            if (clientDocSnap.exists()) {
+                handleLogin('client', clientDocSnap.data());
+            } else {
+                // If the Auth record exists but the Firestore document does not, log out
+                await signOut(auth); 
+                return { error: "User data not found in database. Please contact support." };
+            }
+        }
+        return { error: null }; // Success
+    } catch (firebaseError) {
+        // Handle Firebase-specific errors
+        console.error("Firebase Auth Error:", firebaseError.code, firebaseError.message);
+
+        if (firebaseError.code === 'auth/email-already-in-use') {
+            return { error: "This email is already in use. Try logging in." };
+        }
+        if (firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/invalid-credential') {
+             return { error: "Invalid login credentials." };
+        }
+        return { error: `An authentication error occurred: ${firebaseError.message}.` };
+    }
   };
+  // --------------------------------------------------------------------------------
 
   return (
     <>
       {view === 'landing' && <LandingPage onLogin={() => setView('auth')} />}
       
       {view === 'auth' && (
+        // --- UPDATED PROP: Pass unified handler ---
         <AuthScreen 
-          onLogin={handleLogin} 
+          onAuthSubmit={handleAuthSubmit} // New handler for all auth
           onBack={() => setView('landing')} 
-          clients={clients} 
           maintenanceMode={adminSettings.maintenanceMode} 
-          onSignUp={handleSignUp}
         />
       )}
       
