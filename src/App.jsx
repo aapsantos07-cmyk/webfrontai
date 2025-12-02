@@ -45,6 +45,9 @@ import {
   Power
 } from 'lucide-react';
 
+import { auth, db } from './firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 // --- API Configuration ---
 const apiKey = ""; // injected at runtime
 
