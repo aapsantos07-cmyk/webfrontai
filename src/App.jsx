@@ -68,7 +68,7 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
 
 // --- API Logic ---
 const callGemini = async (userQuery, systemPrompt) => {
-  // Using stable model to prevent overload errors
+  // Using stable model 'gemini-1.5-flash' to prevent "System Overload"
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   const payload = {
     contents: [{ parts: [{ text: userQuery }] }],
@@ -331,7 +331,13 @@ function ClientDashboardView({ data }) {
   return (
     <div className="animate-fade-in space-y-8">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        <div><h1 className="text-3xl font-bold mb-1">Welcome back, {data.name}</h1><p className="text-zinc-500">Project: <span className="text-white font-bold">{data.project}</span></p></div>
+        <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-3xl font-bold">Welcome back, {data.name}</h1>
+            {/* ADDED: Client-side status badge */}
+            <span className={`text-xs uppercase tracking-wider px-2 py-1 rounded-full font-bold border ${data.status === 'Completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>
+                {data.status || 'Active'}
+            </span>
+        </div>
         <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-900/40">{data.name?.charAt(0) || 'U'}</div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -534,7 +540,21 @@ function AdminClientsManager({ clients }) {
   };
 
   const handleDeleteClient = async (id) => { if (confirm("Remove client?")) { try { await deleteDoc(doc(db, "clients", id)); setSelectedClientId(null); } catch(err) { alert(err.message); } } };
-  const handleUpdateClient = async (field, value) => { try { await updateDoc(doc(db, "clients", selectedClient.id), { [field]: value }); } catch (err) { console.error(err); } };
+  
+  // UPDATED: Auto-updates status when progress hits 100%
+  const handleUpdateClient = async (field, value) => { 
+    try { 
+      const updates = { [field]: value };
+      
+      // If we update progress, verify if it is 100% to auto-complete status
+      if (field === 'progress') {
+          updates.status = value === 100 ? 'Completed' : 'Active';
+      }
+
+      await updateDoc(doc(db, "clients", selectedClient.id), updates); 
+    } catch (err) { console.error(err); } 
+  };
+
   const handleAddInvoice = async () => { if(!newInvoiceData.amount || !newInvoiceData.desc) return; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: arrayUnion({ id: `INV-${Math.floor(Math.random()*10000)}`, desc: newInvoiceData.desc, amount: `$${newInvoiceData.amount}`, date: new Date().toLocaleDateString('en-US', {month:'short', day:'numeric'}), status: "Pending" }) }); setNewInvoiceData({ desc: '', amount: '' }); } catch (err) { alert(err.message); } };
   const handleMarkPaid = async (i) => { const updated = [...selectedClient.invoices]; updated[i].status = "Paid"; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: updated }); } catch(e) { console.error(e); } };
 
@@ -557,7 +577,13 @@ function AdminClientsManager({ clients }) {
         <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-xl overflow-hidden overflow-y-auto">
           {clients.map(client => (
             <div key={client.id} onClick={() => { setSelectedClientId(client.id); setIsAddingNew(false); }} className={`p-5 border-b border-zinc-800/80 cursor-pointer transition-all duration-200 group ${selectedClient?.id === client.id ? 'bg-blue-900/10 border-l-4 border-l-blue-500 pl-4' : 'hover:bg-zinc-800/40 border-l-4 border-l-transparent hover:border-l-zinc-700'}`}>
-              <div className="flex justify-between items-start mb-1"><span className={`font-bold text-lg truncate ${selectedClient?.id === client.id ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>{client.name}</span><span className="text-[10px] uppercase tracking-wider bg-green-500/10 text-green-400 px-2 py-1 rounded-full font-bold border border-green-500/20">Active</span></div>
+              <div className="flex justify-between items-start mb-1">
+                  <span className={`font-bold text-lg truncate ${selectedClient?.id === client.id ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>{client.name}</span>
+                  {/* UPDATED: Dynamic Status Badge */}
+                  <span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-full font-bold border ${client.status === 'Completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>
+                      {client.status || 'Active'}
+                  </span>
+              </div>
               <p className="text-sm text-zinc-500 mb-3 truncate group-hover:text-zinc-400">{client.project}</p>
               <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div className={`h-full rounded-full ${client.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${client.progress}%` }}></div></div>
             </div>
@@ -641,7 +667,7 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
   const [activeTab, setActiveTab] = useState('clients'); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // REMOVED THE 'FILES' TAB FROM HERE
+  // Added 'files' to menuItems
   const menuItems = [
     { id: 'clients', label: 'Clients', icon: Users }, 
     { id: 'users', label: 'User Roles', icon: Shield }, 
@@ -682,7 +708,49 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
   );
 }
 
-// --- Landing Page ---
+function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount }) {
+  const [activeTab, setActiveTab] = useState('dashboard'); const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuItems = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'ai-assistant', label: 'AI Assistant', icon: Sparkles, highlight: true }, { id: 'contracts', label: 'Contracts', icon: FileText }, { id: 'invoices', label: 'Invoices', icon: CreditCard }, { id: 'settings', label: 'Settings', icon: Settings }];
+
+  // --- NEW LOGIC: Show Onboarding Modal if Project is "New Project" ---
+  const [showOnboarding, setShowOnboarding] = useState(clientData?.project === "New Project");
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  useEffect(() => {
+    // If the project is the default "New Project" and we haven't submitted yet
+    if (clientData?.project === "New Project" && !hasSubmitted) {
+        setShowOnboarding(true);
+    } else if (clientData?.project !== "New Project") {
+        setShowOnboarding(false);
+    }
+  }, [clientData?.project, hasSubmitted]);
+
+  const handleProjectSubmit = async (newProjectName) => {
+    setHasSubmitted(true); // Lock the modal from showing
+    setShowOnboarding(false); // Close immediately
+    await onUpdateClient({ ...clientData, project: newProjectName });
+  };
+  // -------------------------------------------------------------------
+
+  return (
+    <div className="min-h-screen bg-black text-white font-sans flex flex-col lg:flex-row relative">
+      
+      {/* Include the Onboarding Modal */}
+      <ProjectOnboardingModal isOpen={showOnboarding} onSubmit={handleProjectSubmit} />
+
+      <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900"><div className="font-bold">WEBFRONT_OS</div><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button></div>
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}><h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">WEBFRONT<span className="text-blue-500">_OS</span></h2><nav className="space-y-2 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'} ${item.highlight ? 'border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20' : ''}`}><item.icon size={18} className={item.highlight ? 'text-blue-400' : ''} /> <span className={item.highlight ? 'text-blue-100 font-medium' : ''}>{item.label}</span></div>))}</nav><button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button></div>
+      <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
+        {activeTab === 'dashboard' && <ClientDashboardView data={clientData} />}
+        {activeTab === 'ai-assistant' && <AIAssistantView data={clientData} />}
+        {activeTab === 'contracts' && <ContractsView data={clientData} />}
+        {activeTab === 'invoices' && <InvoicesView data={clientData} />}
+        {activeTab === 'settings' && <SettingsView data={clientData} onUpdateClient={onUpdateClient} onDeleteAccount={onDeleteAccount} />}
+      </div>
+    </div>
+  );
+}
+
 function LandingPage({ onLogin }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false); 
   const [scrolled, setScrolled] = useState(false);
@@ -957,6 +1025,7 @@ export default function App() {
 
   const handleClientUpdate = async (updatedClient) => {
     try { 
+        // UPDATED: Added 'project' field to updated list so the modal works!
         await updateDoc(doc(db, 'clients', updatedClient.id), { 
             name: updatedClient.name, 
             notifications: updatedClient.notifications,
