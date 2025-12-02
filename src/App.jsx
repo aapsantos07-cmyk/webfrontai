@@ -638,18 +638,235 @@ function AdminClientsManager({ clients }) {
   );
 }
 
-// --- Portal Wrappers ---
+// --- NEW COMPONENT: Admin Files & AI Generator ---
+function AdminFilesView({ clients }) {
+  const [selectedTemplate, setSelectedTemplate] = useState('Onboarding Email');
+  const [selectedClientId, setSelectedClientId] = useState('');
+  const [generatedContent, setGeneratedContent] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+
+  // Template definitions with AI prompts
+  const templates = [
+    { 
+      id: 'onboarding', 
+      name: 'Onboarding Email', 
+      icon: Mail,
+      prompt: "Draft a professional onboarding email for a client named '{name}'. Their project is '{project}'. The current phase is '{phase}'. Keep the tone professional, welcoming, and outline the next steps for the Discovery phase. Do not include subject lines." 
+    },
+    { 
+      id: 'invoice', 
+      name: 'Invoice', 
+      icon: DollarSign,
+      prompt: "Generate a detailed text-based invoice for client '{name}' for the project '{project}'. Include today's date. The current project progress is {progress}%. Generate a line item for 'Milestone Payment' based on the current phase ('{phase}') but leave the specific amount as '[VPLEASE ENTER AMOUNT]'. Format it clearly." 
+    },
+    { 
+      id: 'contract', 
+      name: 'Service Contract', 
+      icon: Shield,
+      prompt: "Draft a standard service agreement contract for '{name}' regarding the project '{project}'. Include sections for: Scope of Work (Web Design & AI Integration), Payment Terms (50% upfront), Confidentiality, and Termination. Use placeholders like '[DATE]' where appropriate." 
+    },
+    { 
+      id: 'proposal', 
+      name: 'Project Proposal', 
+      icon: FileText,
+      prompt: "Write a project proposal for '{name}' for a custom web application '{project}'. Outline the value proposition of using AI and modern web tech. Include a timeline estimate of 4-6 weeks and a deliverables list including: Responsive Design, Admin Dashboard, and AI Assistant integration." 
+    }
+  ];
+
+  const handleGenerate = async () => {
+    if (!selectedClientId) return alert("Please select a client first.");
+    setIsGenerating(true);
+    
+    const client = clients.find(c => c.id === selectedClientId);
+    const template = templates.find(t => t.name === selectedTemplate);
+    
+    // Construct the context-aware prompt
+    let fullPrompt = template.prompt
+      .replace('{name}', client.name)
+      .replace('{project}', client.project)
+      .replace('{phase}', client.phase)
+      .replace('{progress}', client.progress);
+
+    const systemPrompt = "You are an expert agency admin assistant. You generate professional business documents. Output only the content of the document, formatted clearly.";
+    
+    const response = await callGemini(fullPrompt, systemPrompt);
+    setGeneratedContent(response);
+    setIsGenerating(false);
+  };
+
+  const handleSendToClient = async () => {
+    if (!generatedContent || !selectedClientId) return;
+    setIsSending(true);
+
+    try {
+      const client = clients.find(c => c.id === selectedClientId);
+      
+      // 1. Create a File object from the text content
+      const blob = new Blob([generatedContent], { type: 'text/plain' });
+      const fileName = `${selectedTemplate.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.txt`;
+      const file = new File([blob], fileName, { type: 'text/plain' });
+
+      // 2. Convert to Base64 (using your existing helper)
+      const base64 = await convertToBase64(file);
+
+      // 3. Create the document object matching your ContractsView structure
+      const newDoc = { 
+        name: fileName, 
+        url: base64, 
+        date: new Date().toLocaleDateString(), 
+        size: (file.size / 1024).toFixed(2) + " KB" 
+      };
+
+      // 4. Update the specific client's document in Firestore
+      await updateDoc(doc(db, "clients", selectedClientId), { 
+        contracts: arrayUnion(newDoc),
+        // Optional: Add an activity log
+        activity: arrayUnion({ action: `Received ${selectedTemplate}`, date: new Date().toLocaleDateString(), status: "Completed" })
+      });
+
+      alert(`Success! ${fileName} has been sent to ${client.name}'s portal.`);
+      setGeneratedContent(''); // Clear after sending
+    } catch (error) {
+      console.error("Error sending file:", error);
+      alert("Failed to send file: " + error.message);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <div className="animate-fade-in space-y-8 h-full flex flex-col">
+      <div className="mb-2">
+        <h1 className="text-3xl font-bold mb-1">File Generator</h1>
+        <p className="text-zinc-500">Generate documents with AI and send them directly to client portals.</p>
+      </div>
+
+      <div className="flex flex-col xl:flex-row gap-8 h-full min-h-0">
+        {/* LEFT COLUMN: Controls */}
+        <div className="w-full xl:w-1/3 space-y-6 flex-shrink-0">
+          
+          {/* 1. Select Client */}
+          <Card className="space-y-4">
+            <h3 className="font-bold text-white flex items-center gap-2"><Users size={18} className="text-blue-500"/> Step 1: Select Client</h3>
+            <div className="relative">
+              <select 
+                value={selectedClientId} 
+                onChange={(e) => setSelectedClientId(e.target.value)}
+                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white appearance-none focus:outline-none focus:border-blue-500"
+              >
+                <option value="">-- Choose a Client --</option>
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.project})</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" size={16}/>
+            </div>
+          </Card>
+
+          {/* 2. Select Template */}
+          <div className="grid grid-cols-2 gap-3">
+            {templates.map((t) => (
+              <div 
+                key={t.id} 
+                onClick={() => setSelectedTemplate(t.name)}
+                className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedTemplate === t.name ? 'bg-blue-600/20 border-blue-500 text-white' : 'bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:bg-zinc-800'}`}
+              >
+                <t.icon size={24} className="mb-2" />
+                <div className="font-bold text-sm">{t.name}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* 3. Generate Action */}
+          <Button 
+            onClick={handleGenerate} 
+            disabled={!selectedClientId || isGenerating}
+            variant="primary" 
+            className="w-full py-4 text-lg"
+          >
+            {isGenerating ? <><Loader2 className="animate-spin mr-2"/> Drafting...</> : <><Sparkles className="mr-2 text-purple-500"/> Generate with AI</>}
+          </Button>
+
+          {/* 4. Send Action (Only visible if content exists) */}
+          {generatedContent && (
+             <div className="animate-fade-in bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl">
+                <div className="text-xs text-zinc-500 mb-3">Does this look good? You can edit the text on the right before sending.</div>
+                <Button 
+                  onClick={handleSendToClient} 
+                  disabled={isSending}
+                  variant="success" 
+                  className="w-full"
+                >
+                  {isSending ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2" size={18}/>}
+                  Send to Client Portal
+                </Button>
+             </div>
+          )}
+        </div>
+
+        {/* RIGHT COLUMN: Preview & Editor */}
+        <div className="flex-1 flex flex-col bg-zinc-900/30 border border-zinc-800 rounded-2xl overflow-hidden min-h-[500px]">
+          <div className="bg-zinc-900 p-4 border-b border-zinc-800 flex justify-between items-center">
+            <span className="font-bold text-zinc-400 text-sm flex items-center gap-2"><FileText size={16}/> DOCUMENT PREVIEW</span>
+            {generatedContent && <span className="text-xs bg-blue-900/30 text-blue-400 px-2 py-1 rounded border border-blue-900/50">Editable Mode</span>}
+          </div>
+          <textarea
+            value={generatedContent}
+            onChange={(e) => setGeneratedContent(e.target.value)}
+            placeholder="Select a client and template to generate a document..."
+            className="flex-1 w-full bg-black/50 p-6 text-zinc-300 font-mono text-sm focus:outline-none resize-none"
+            spellCheck="false"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- UPDATED ADMIN PORTAL ---
 function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
-  const [activeTab, setActiveTab] = useState('clients'); const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const menuItems = [{ id: 'clients', label: 'Clients', icon: Users }, { id: 'users', label: 'User Roles', icon: Shield }, { id: 'financials', label: 'Financials', icon: CreditCard }, { id: 'settings', label: 'Admin Settings', icon: Settings }];
+  const [activeTab, setActiveTab] = useState('clients'); 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Added 'files' to menuItems
+  const menuItems = [
+    { id: 'clients', label: 'Clients', icon: Users }, 
+    { id: 'users', label: 'User Roles', icon: Shield }, 
+    { id: 'financials', label: 'Financials', icon: CreditCard }, 
+    { id: 'files', label: 'Files & AI', icon: FileText }, // New Tab
+    { id: 'settings', label: 'Admin Settings', icon: Settings }
+  ];
+
   return (
     <div className="min-h-screen bg-black text-white font-sans border-l-0 lg:border-l-4 lg:border-red-900 flex flex-col lg:flex-row">
-      <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900"><div className="font-bold text-red-500">ADMIN PANEL</div><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button></div>
-      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}><h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2><nav className="space-y-2 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'} ${item.id === activeTab ? 'bg-red-900/20 text-red-400 border border-red-900/50' : ''}`}><item.icon size={18} /> {item.label}</div>))}</nav><button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button></div>
+      <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900">
+        <div className="font-bold text-red-500">ADMIN PANEL</div>
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button>
+      </div>
+      
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}>
+        <h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2>
+        <nav className="space-y-2 flex-1">
+          {menuItems.map((item) => (
+            <div 
+              key={item.id} 
+              onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} 
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'} ${item.id === activeTab ? 'bg-red-900/20 text-red-400 border border-red-900/50' : ''}`}
+            >
+              <item.icon size={18} /> {item.label}
+            </div>
+          ))}
+        </nav>
+        <button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button>
+      </div>
+
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
         {activeTab === 'clients' && <AdminClientsManager clients={clients} setClients={setClients} />}
         {activeTab === 'users' && <AdminUsersManager />}
         {activeTab === 'financials' && <AdminFinancialsView clients={clients} />}
+        {/* Render New Component */}
+        {activeTab === 'files' && <AdminFilesView clients={clients} />}
         {activeTab === 'settings' && <AdminSettingsView settings={adminSettings} onUpdateSettings={setAdminSettings} />}
       </div>
     </div>
