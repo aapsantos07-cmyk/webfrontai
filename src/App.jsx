@@ -46,7 +46,6 @@ import {
 } from 'lucide-react';
 
 // --- FIREBASE IMPORT ---
-// We use './firebase' without extension so the bundler finds .js or .jsx automatically
 import { auth, db } from './firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
@@ -1148,7 +1147,7 @@ const AdminClientsManager = ({ clients, setClients }) => {
                   </div>
                 </div>
 
-                {/* Contracts Manager */}
+                /* Contracts Manager */
                 <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="font-bold flex items-center gap-2 text-blue-400"><FileText size={18}/> Contracts</h3>
@@ -1191,7 +1190,7 @@ const AdminClientsManager = ({ clients, setClients }) => {
                 </div>
               </div>
               
-              {/* Activity Log Summary */}
+              /* Activity Log Summary */
               <div className="mt-8 pt-8 border-t border-zinc-800">
                  <h4 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-4">Latest Activity</h4>
                  <div className="space-y-1">
@@ -1206,7 +1205,7 @@ const AdminClientsManager = ({ clients, setClients }) => {
            </div>
         )}
 
-        {/* EMPTY STATE */}
+        /* EMPTY STATE */
         {!selectedClient && !isAddingNew && (
            <div className="flex flex-col items-center justify-center h-full text-zinc-600 gap-6">
               <div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 shadow-inner">
@@ -1237,7 +1236,7 @@ const AdminPortal = ({ onLogout, clients, setClients, adminSettings, setAdminSet
   return (
     <div className="min-h-screen bg-black text-white font-sans border-l-0 lg:border-l-4 lg:border-red-900 flex flex-col lg:flex-row">
       
-      {/* Mobile Header */}
+      /* Mobile Header */
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900">
         <div className="font-bold text-red-500">ADMIN PANEL</div>
         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">
@@ -1245,9 +1244,9 @@ const AdminPortal = ({ onLogout, clients, setClients, adminSettings, setAdminSet
         </button>
       </div>
 
-      {/* Sidebar */}
+      /* Sidebar */
       <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full`}>
-        <h2 className="text-xl font-bold tracking-tighter mb-8 text-red-500 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2>
+        <h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2>
         <nav className="space-y-2 flex-1">
           {menuItems.map((item) => (
             <div 
@@ -1292,7 +1291,7 @@ const ClientPortal = ({ onLogout, clientData, onUpdateClient, onDeleteAccount })
 
   return (
     <div className="min-h-screen bg-black text-white font-sans flex flex-col lg:flex-row">
-      {/* Mobile Header */}
+      /* Mobile Header */
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900">
         <div className="font-bold">WEBFRONT_OS</div>
         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">
@@ -1300,7 +1299,7 @@ const ClientPortal = ({ onLogout, clientData, onUpdateClient, onDeleteAccount })
         </button>
       </div>
 
-      {/* Sidebar */}
+      /* Sidebar */
       <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full`}>
         <h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">WEBFRONT<span className="text-blue-500">_OS</span></h2>
         <nav className="space-y-2 flex-1">
@@ -1349,7 +1348,7 @@ const LandingPage = ({ onLogin }) => {
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black">
       
-      {/* Navbar */}
+      /* Navbar */
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-md border-b border-zinc-800 py-4' : 'bg-transparent py-6'}`}>
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div className="text-2xl font-bold tracking-tighter flex items-center gap-2">
@@ -1374,7 +1373,7 @@ const LandingPage = ({ onLogin }) => {
           </button>
         </div>
         
-        {/* Mobile Menu */}
+        /* Mobile Menu */
         {isMenuOpen && (
           <div className="md:hidden absolute top-full left-0 w-full bg-zinc-900 border-b border-zinc-800 p-6 flex flex-col gap-4">
             <a href="#services" onClick={() => setIsMenuOpen(false)}>Services</a>
@@ -1385,9 +1384,9 @@ const LandingPage = ({ onLogin }) => {
         )}
       </nav>
 
-      {/* Hero Section */}
+      /* Hero Section */
       <section className="pt-40 pb-20 relative overflow-hidden">
-        {/* Background Gradients */}
+        /* Background Gradients */
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-blue-900/20 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
 
         <div className="container mx-auto px-6 text-center">
@@ -1410,7 +1409,7 @@ const LandingPage = ({ onLogin }) => {
         </div>
       </section>
 
-      {/* The 4 Pillars Section */}
+      /* The 4 Pillars Section */
       <section className="py-12 border-y border-zinc-900 bg-zinc-950/50">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
@@ -1446,7 +1445,7 @@ const LandingPage = ({ onLogin }) => {
         </div>
       </section>
 
-      {/* Services */}
+      /* Services */
       <section id="services" className="py-24 bg-zinc-950">
         <div className="container mx-auto px-6">
           <div className="mb-16">
@@ -1490,7 +1489,7 @@ const LandingPage = ({ onLogin }) => {
         </div>
       </section>
 
-      {/* AI Demo Section */}
+      /* AI Demo Section */
       <section id="demo" className="py-24 relative overflow-hidden">
         <div className="container mx-auto px-6 flex flex-col md:flex-row items-center gap-16">
           <div className="flex-1">
@@ -1521,7 +1520,7 @@ const LandingPage = ({ onLogin }) => {
         </div>
       </section>
 
-      {/* Pricing */}
+      /* Pricing */
       <section id="pricing" className="py-24 bg-zinc-950 border-t border-zinc-900">
         <div className="container mx-auto px-6">
           <h2 className="text-4xl font-bold text-center mb-16">TRANSPARENT PRICING</h2>
@@ -1557,7 +1556,7 @@ const LandingPage = ({ onLogin }) => {
         </div>
       </section>
 
-      {/* Footer */}
+      /* Footer */
       <footer className="py-12 border-t border-zinc-900 text-center md:text-left">
         <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="text-xl font-bold tracking-tighter">WEBFRONT AI</div>
