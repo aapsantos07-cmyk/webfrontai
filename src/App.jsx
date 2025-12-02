@@ -24,7 +24,6 @@ import {
 } from 'firebase/storage';
 
 // --- LOCAL FIREBASE CONFIG ---
-// Make sure you updated src/firebase.jsx to export 'storage'
 import { auth, db, storage } from './firebase'; 
 // --------------------------------
 
@@ -56,7 +55,7 @@ const callGemini = async (userQuery, systemPrompt) => {
 };
 
 // --- Helper Components ---
-const Button = ({ children, variant = 'primary', className = '', onClick, type="button", title="" }) => {
+function Button({ children, variant = 'primary', className = '', onClick, type="button", title="" }) {
   const baseStyle = "px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2";
   const variants = {
     primary: "bg-white text-black hover:bg-gray-200 shadow-lg",
@@ -66,14 +65,104 @@ const Button = ({ children, variant = 'primary', className = '', onClick, type="
     success: "bg-green-600 text-white hover:bg-green-500 shadow-lg shadow-green-900/20"
   };
   return <button type={type} onClick={onClick} className={`${baseStyle} ${variants[variant]} ${className}`} title={title}>{children}</button>;
-};
+}
 
-const Card = ({ children, className = '' }) => (
-  <div className={`bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 p-8 rounded-2xl hover:border-zinc-700 transition-colors duration-300 ${className}`}>{children}</div>
-);
+function Card({ children, className = '' }) {
+  return <div className={`bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 p-8 rounded-2xl hover:border-zinc-700 transition-colors duration-300 ${className}`}>{children}</div>;
+}
+
+// --- AI Chat Widget (MOVED TO TOP TO PREVENT ERRORS) ---
+function AIChatDemo() {
+  const [messages, setMessages] = useState([{ role: 'ai', text: "Hello. I am WEBFRONT_AI. How can I assist your agency today?" }]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const chatContainerRef = useRef(null);
+
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: "smooth"
+      });
+    }
+  };
+
+  useEffect(scrollToBottom, [messages]);
+
+  const formatMessage = (text) => {
+    if (!text) return null;
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={index} className="text-white font-bold">{part.slice(2, -2)}</strong>;
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+    const userMsg = input;
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setInput('');
+    setIsTyping(true);
+
+    const systemPrompt = `You are WEBFRONT_AI, the on-site AI Receptionist for **WebFront AI**. 
+    Your only job is to talk to visitors about WebFront AI, our services, pricing, and process, and help them decide to book a strategy call.
+    IMPORTANT RULES:
+    1. **Keep your answers SHORT.** Maximum 2-3 sentences.
+    2. Use **bold** syntax.`;
+
+    const response = await callGemini(userMsg, systemPrompt);
+    setMessages(prev => [...prev, { role: 'ai', text: response }]);
+    setIsTyping(false);
+  };
+
+  return (
+    <div className="w-full max-w-md bg-black border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[500px]">
+      <div className="bg-zinc-900 p-4 border-b border-zinc-800 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="font-mono text-sm text-zinc-400">WEBFRONT_AI</span>
+        </div>
+        <Sparkles size={18} className="text-blue-400" />
+      </div>
+      <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 font-sans text-sm">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-zinc-800 text-zinc-200 rounded-bl-none'}`}>
+              {formatMessage(m.text)}
+            </div>
+          </div>
+        ))}
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center">
+              <Loader2 size={14} className="animate-spin text-zinc-500" />
+              <span className="text-xs text-zinc-500 ml-2">Thinking...</span>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2">
+        <input 
+          type="text" 
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }}
+          placeholder="Ask about pricing, services..."
+          className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors"
+        />
+        <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors">
+          <Send size={18} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // --- Auth Screen ---
-const AuthScreen = ({ onAuthSubmit, onBack, maintenanceMode }) => {
+function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -150,11 +239,10 @@ const AuthScreen = ({ onAuthSubmit, onBack, maintenanceMode }) => {
       </div>
     </div>
   );
-};
+}
 
 // --- Portal Views ---
-
-const ClientDashboardView = ({ data }) => {
+function ClientDashboardView({ data }) {
   const totalOpenBalance = data.invoices?.reduce((acc, inv) => inv.status !== 'Paid' ? acc + (parseFloat(inv.amount.replace(/[^0-9.-]+/g, "")) || 0) : acc, 0) || 0;
   const formattedBalance = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalOpenBalance);
 
@@ -182,84 +270,58 @@ const ClientDashboardView = ({ data }) => {
       </div>
     </div>
   );
-};
+}
 
-const ContractsView = ({ data }) => {
+function ContractsView({ data }) {
   const [uploading, setUploading] = useState(false);
-
   const handleClientUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const file = e.target.files[0]; if (!file) return;
     setUploading(true);
     try {
       const fileRef = ref(storage, `client_uploads/${data.id}/${file.name}`);
       await uploadBytes(fileRef, file);
       const url = await getDownloadURL(fileRef);
-      const newDoc = {
-        name: file.name,
-        url: url,
-        date: new Date().toLocaleDateString(),
-        size: (file.size / 1024 / 1024).toFixed(2) + " MB"
-      };
-      await updateDoc(doc(db, "clients", data.id), {
-        clientUploads: arrayUnion(newDoc)
-      });
+      const newDoc = { name: file.name, url: url, date: new Date().toLocaleDateString(), size: (file.size / 1024 / 1024).toFixed(2) + " MB" };
+      await updateDoc(doc(db, "clients", data.id), { clientUploads: arrayUnion(newDoc) });
       alert("File uploaded successfully!");
-    } catch (error) {
-      alert("Upload failed: " + error.message);
-    } finally {
-      setUploading(false);
-    }
+    } catch (error) { alert("Upload failed: " + error.message); } finally { setUploading(false); }
   };
 
   return (
   <div className="animate-fade-in">
     <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Documents & Files</h1><p className="text-zinc-500">Access contracts and upload your project files.</p></div>
-    
-    {/* Admin Sent Contracts */}
     <div className="mb-8">
       <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><FileText size={20}/> Contracts & Agreements</h3>
       <div className="space-y-4">
         {data.contracts && data.contracts.length > 0 ? data.contracts.map((doc, i) => (
           <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl flex items-center justify-between hover:border-zinc-600 transition-all">
-            <div className="flex items-center gap-4 min-w-0">
-               <div className="w-12 h-12 bg-zinc-800 rounded-lg flex-shrink-0 flex items-center justify-center text-blue-500"><FileText size={24} /></div>
-               <div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Shared by Admin • {doc.date} • {doc.size}</p></div>
-            </div>
-            <a href={doc.url} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full flex-shrink-0"><Download size={20} /></a>
+            <div className="flex items-center gap-4 min-w-0"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex-shrink-0 flex items-center justify-center text-blue-500"><FileText size={24} /></div><div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Shared by Admin • {doc.date} • {doc.size}</p></div></div><a href={doc.url} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full flex-shrink-0"><Download size={20} /></a>
           </div>
         )) : <div className="p-8 text-center text-zinc-500 bg-zinc-900/30 rounded-xl border border-zinc-800 border-dashed">No contracts available yet.</div>}
       </div>
     </div>
-
-    {/* Client Uploads */}
     <div>
       <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><UploadCloud size={20}/> Your Project Uploads</h3>
       <div className="bg-zinc-900/30 rounded-xl border border-zinc-800 p-6 mb-4">
          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-zinc-700 border-dashed rounded-lg cursor-pointer hover:bg-zinc-800/50 transition-colors">
-            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                {uploading ? <Loader2 className="animate-spin text-blue-500 mb-2"/> : <UploadCloud className="w-8 h-8 text-zinc-500 mb-2" />}
-                <p className="text-sm text-zinc-500">{uploading ? "Uploading..." : "Click to upload project requirements or assets"}</p>
-            </div>
+            <div className="flex flex-col items-center justify-center pt-5 pb-6">{uploading ? <Loader2 className="animate-spin text-blue-500 mb-2"/> : <UploadCloud className="w-8 h-8 text-zinc-500 mb-2" />}<p className="text-sm text-zinc-500">{uploading ? "Uploading..." : "Click to upload project requirements or assets"}</p></div>
             <input type="file" className="hidden" onChange={handleClientUpload} disabled={uploading} />
          </label>
       </div>
       <div className="space-y-4">
         {data.clientUploads && data.clientUploads.length > 0 ? data.clientUploads.map((doc, i) => (
           <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl flex items-center justify-between">
-            <div className="flex items-center gap-4 min-w-0">
-               <div className="w-10 h-10 bg-green-900/20 text-green-500 rounded-lg flex-shrink-0 flex items-center justify-center"><Check size={20} /></div>
-               <div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Uploaded by You • {doc.date} • {doc.size}</p></div>
-            </div>
+            <div className="flex items-center gap-4 min-w-0"><div className="w-10 h-10 bg-green-900/20 text-green-500 rounded-lg flex-shrink-0 flex items-center justify-center"><Check size={20} /></div><div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Uploaded by You • {doc.date} • {doc.size}</p></div></div>
           </div>
         )) : null}
       </div>
     </div>
   </div>
   );
-};
+}
 
-const InvoicesView = ({ data }) => (
+function InvoicesView({ data }) {
+  return (
   <div className="animate-fade-in">
     <div className="mb-8 flex justify-between items-end">
       <div><h1 className="text-3xl font-bold mb-1">Invoices</h1><p className="text-zinc-500">View payment history and upcoming charges.</p></div>
@@ -275,9 +337,10 @@ const InvoicesView = ({ data }) => (
       )) : <div className="p-4 text-center text-zinc-500">No invoices found.</div>}
     </div>
   </div>
-);
+  );
+}
 
-const AIAssistantView = ({ data }) => {
+function AIAssistantView({ data }) {
   const [messages, setMessages] = useState([{ role: 'ai', text: `I'm your dedicated Project Intelligence Agent. I have full context on your build (${data.progress}% complete). How can I help you today?` }]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -307,10 +370,10 @@ const AIAssistantView = ({ data }) => {
       </div>
     </div>
   );
-};
+}
 
 // --- SETTINGS & ADMIN COMPONENTS ---
-const SettingsView = ({ data, onUpdateClient, onDeleteAccount }) => {
+function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
   const [name, setName] = useState(data.name || "");
   const [notifications, setNotifications] = useState(data.notifications || { email: true, push: false });
   const handleSave = () => { onUpdateClient({ ...data, name, notifications }); };
@@ -326,9 +389,9 @@ const SettingsView = ({ data, onUpdateClient, onDeleteAccount }) => {
     </div>
   </div>
   );
-};
+}
 
-const AdminUsersManager = () => {
+function AdminUsersManager() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -358,9 +421,9 @@ const AdminUsersManager = () => {
       </div>
     </div>
   );
-};
+}
 
-const AdminFinancialsView = ({ clients }) => {
+function AdminFinancialsView({ clients }) {
   const totalRevenue = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status === 'Paid').reduce((s, i) => s + parseFloat(i.amount.replace(/[^0-9.-]+/g, "")), 0) || 0), 0);
   const totalOutstanding = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status !== 'Paid').reduce((s, i) => s + parseFloat(i.amount.replace(/[^0-9.-]+/g, "")), 0) || 0), 0);
   const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -376,17 +439,16 @@ const AdminFinancialsView = ({ clients }) => {
     </div>
   </div>
   );
-};
+}
 
-const AdminSettingsView = ({ settings, onUpdateSettings }) => {
+function AdminSettingsView({ settings, onUpdateSettings }) {
   const [name, setName] = useState(settings.name);
   return (
   <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Admin Settings</h1><p className="text-zinc-500">System configuration and profile.</p></div><div className="max-w-2xl space-y-8"><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">Admin Profile</h3><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-white" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email</label><input type="text" defaultValue={settings.email} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={() => onUpdateSettings({ ...settings, name })} variant="secondary" className="text-sm py-2 px-4">Update Profile</Button></div><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">System Preferences</h3><div className="flex items-center justify-between p-3 bg-red-900/10 border border-red-900/30 rounded-lg"><div className="flex flex-col"><span className="text-white font-bold flex items-center gap-2"><Power size={16}/> Maintenance Mode</span><span className="text-xs text-zinc-400">Prevents all clients from logging in. Admin only.</span></div><div onClick={() => onUpdateSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${settings.maintenanceMode ? 'bg-red-600' : 'bg-zinc-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.maintenanceMode ? 'left-7' : 'left-1'}`}></div></div></div></div></div></div>
   );
-};
+}
 
-// --- UPDATED ADMIN CLIENT MANAGER ---
-const AdminClientsManager = ({ clients }) => {
+function AdminClientsManager({ clients }) {
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const selectedClient = clients.find(c => c.id === selectedClientId);
@@ -409,10 +471,9 @@ const AdminClientsManager = ({ clients }) => {
   const handleAddInvoice = async () => { if(!newInvoiceData.amount || !newInvoiceData.desc) return; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: arrayUnion({ id: `INV-${Math.floor(Math.random()*10000)}`, desc: newInvoiceData.desc, amount: `$${newInvoiceData.amount}`, date: new Date().toLocaleDateString('en-US', {month:'short', day:'numeric'}), status: "Pending" }) }); setNewInvoiceData({ desc: '', amount: '' }); } catch (err) { alert(err.message); } };
   const handleMarkPaid = async (i) => { const updated = [...selectedClient.invoices]; updated[i].status = "Paid"; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: updated }); } catch(e) { console.error(e); } };
 
-  // New File Upload Logic for Admin
+  // ADMIN UPLOAD CONTRACT
   const handleUploadContract = async (e) => {
-    const file = e.target.files[0];
-    if(!file) return;
+    const file = e.target.files[0]; if(!file) return;
     setContractUploading(true);
     try {
       const fileRef = ref(storage, `contracts/${selectedClient.id}/${file.name}`);
@@ -478,11 +539,10 @@ const AdminClientsManager = ({ clients }) => {
                   <div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                     {selectedClient.contracts?.map((doc, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors group"><div className="flex items-center gap-3 min-w-0"><div className="bg-blue-500/10 text-blue-500 p-2 rounded-lg flex-shrink-0"><FileText size={16}/></div><div className="min-w-0"><div className="text-white font-medium truncate max-w-[150px]">{doc.name}</div><div className="text-zinc-600 text-xs">{doc.date}</div></div></div><a href={doc.url} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-white"><Download size={16}/></a></div>))}
                   </div>
-                  {/* ADMIN UPLOAD SECTION REPLACEMENT */}
+                  {/* ADMIN UPLOAD */}
                   <div className="pt-4 border-t border-zinc-800">
                     <label className="flex items-center justify-center w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer transition-colors">
-                        <UploadCloud size={18} className="mr-2"/> 
-                        {contractUploading ? "Uploading..." : "Upload Contract"}
+                        <UploadCloud size={18} className="mr-2"/> {contractUploading ? "Uploading..." : "Upload Contract"}
                         <input type="file" className="hidden" onChange={handleUploadContract} disabled={contractUploading} />
                     </label>
                   </div>
@@ -508,10 +568,10 @@ const AdminClientsManager = ({ clients }) => {
       </div>
     </div>
   );
-};
+}
 
-// --- Portal Wrappers (ClientPortal, AdminPortal, LandingPage, Main App) ---
-const AdminPortal = ({ onLogout, clients, setClients, adminSettings, setAdminSettings }) => {
+// --- Portal Wrappers ---
+function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
   const [activeTab, setActiveTab] = useState('clients'); const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuItems = [{ id: 'clients', label: 'Clients', icon: Users }, { id: 'users', label: 'User Roles', icon: Shield }, { id: 'financials', label: 'Financials', icon: CreditCard }, { id: 'settings', label: 'Admin Settings', icon: Settings }];
   return (
@@ -526,9 +586,9 @@ const AdminPortal = ({ onLogout, clients, setClients, adminSettings, setAdminSet
       </div>
     </div>
   );
-};
+}
 
-const ClientPortal = ({ onLogout, clientData, onUpdateClient, onDeleteAccount }) => {
+function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount }) {
   const [activeTab, setActiveTab] = useState('dashboard'); const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuItems = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'ai-assistant', label: 'AI Assistant', icon: Sparkles, highlight: true }, { id: 'contracts', label: 'Contracts', icon: FileText }, { id: 'invoices', label: 'Invoices', icon: CreditCard }, { id: 'settings', label: 'Settings', icon: Settings }];
   return (
@@ -544,9 +604,9 @@ const ClientPortal = ({ onLogout, clientData, onUpdateClient, onDeleteAccount })
       </div>
     </div>
   );
-};
+}
 
-const LandingPage = ({ onLogin }) => {
+function LandingPage({ onLogin }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false); const [scrolled, setScrolled] = useState(false);
   useEffect(() => { const handleScroll = () => setScrolled(window.scrollY > 50); window.addEventListener('scroll', handleScroll); return () => window.removeEventListener('scroll', handleScroll); }, []);
   return (
@@ -563,7 +623,7 @@ const LandingPage = ({ onLogin }) => {
       <footer className="py-12 border-t border-zinc-900 text-center md:text-left"><div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6"><div className="text-xl font-bold tracking-tighter">WEBFRONT AI</div><div className="text-zinc-500 text-sm">© 2024 WebFront AI. Built for the future.</div><div className="flex gap-6 text-zinc-400"><a href="#" className="hover:text-white transition-colors">Twitter</a><a href="#" className="hover:text-white transition-colors">LinkedIn</a><a href="#" className="hover:text-white transition-colors">Instagram</a></div></div></footer>
     </div>
   );
-};
+}
 
 // --- Main App Controller ---
 export default function App() {
@@ -573,19 +633,18 @@ export default function App() {
   const [currentClientData, setCurrentClientData] = useState(null); 
   const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: "aapsantos07@gmail.com", maintenanceMode: false });
 
-  // REAL-TIME LISTENER FOR ADMINS
+  // REAL-TIME LISTENER
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "clients"), (snapshot) => {
       const liveClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setClients(liveClients);
-      // Sync current client view if they are logged in as a client
       if(currentClientData && userRole === 'client') {
          const me = liveClients.find(c => c.id === currentClientData.id);
          if(me) setCurrentClientData(me);
       }
     }, (error) => console.log("Listen failed (likely not admin):", error.code));
     return () => unsubscribe();
-  }, [userRole, currentClientData]); // Added dependencies to keep client view fresh
+  }, [userRole, currentClientData]);
 
   const handleLogin = (role, clientData) => {
     setUserRole(role);
