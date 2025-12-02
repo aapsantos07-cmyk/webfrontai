@@ -2,32 +2,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to identify the administrator
-    function isAdmin() {
+    // 1. Identify Master Admin via Email (Secure)
+    function isMasterAdmin() {
       return request.auth.token.email == 'aapsantos07@gmail.com';
     }
 
-    // --- Custom Rules for the 'clients' collection ---
-    match /clients/{clientId} {
-
-      // 1. Allow Admin Full Access
-      allow read, write: if isAdmin();
-
-      // 2. Allow Client Read Access to their own document
-      allow read: if request.auth.uid == clientId;
-
-      // 3. Allow Client to CREATE their own document (Required for Sign Up)
-      allow create: if request.auth.uid == clientId;
-
-      // 4. Allow client to update ONLY specific fields
-      allow update: if request.auth.uid == clientId 
-                        && request.resource.data.keys().hasOnly(['name', 'notifications']);
-
-      // 5. Deny deletion by regular users
-      allow delete: if false;
+    // 2. Identify Admin via Database Role
+    function isDbAdmin() {
+      return get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Global Rule: Deny all other read/write access by default
+    // Combined Admin Check
+    function isAdmin() {
+      return isMasterAdmin() || isDbAdmin();
+    }
+
+    match /clients/{clientId} {
+      // Allow Admins to Read/Write EVERYTHING (Fixes "Can't see users")
+      allow read, write: if isAdmin();
+
+      // Regular Users can only access their own doc
+      allow read, create: if request.auth.uid == clientId;
+      
+      // Regular Users can update limited fields
+      allow update: if request.auth.uid == clientId 
+                    && request.resource.data.keys().hasOnly(['name', 'notifications']);
+    }
+    
+    // Default block
     match /{document=**} {
       allow read, write: if false;
     }

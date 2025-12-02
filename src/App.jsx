@@ -1779,31 +1779,32 @@ export default function App() {
   // --- REFACTORED: Unified Authentication Handler using Firebase Auth and Firestore ---
   const handleAuthSubmit = async (isSignUp, email, password, name) => {
     
-    // 1. Admin Check (Kept as hardcoded local bypass for admin access)
-    if (email.toLowerCase() === 'aapsantos07@gmail.com' && password === 'Andre121.') {
-        handleLogin('admin', { name: "Master Admin", email }); // Mock data for master
-        return { error: null };
-    }
-
-    if (adminSettings.maintenanceMode && isSignUp) {
+    // Prevent signups if maintenance mode is active (unless it's the master admin)
+    const isMasterAdmin = email.toLowerCase() === 'aapsantos07@gmail.com';
+    if (adminSettings.maintenanceMode && isSignUp && !isMasterAdmin) {
         return { error: "New signups are disabled during maintenance." };
     }
 
     try {
+        let user;
+        let uid;
+
         if (isSignUp) {
-            // SIGN UP: Use Firebase Auth and Firestore for persistence
-            
             // 1. Create user in Firebase Authentication
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            user = userCredential.user;
+            uid = user.uid;
             
-            // 2. Prepare client data object
+            // 2. Determine Role (Force Admin for you, Client for everyone else)
+            const role = isMasterAdmin ? 'admin' : 'client';
+
+            // 3. Prepare client data object
             const clientData = {
-                id: user.uid, // Use Firebase UID as the unique key
-                name: name,
+                id: uid,
+                name: name || (isMasterAdmin ? "Master Admin" : "New User"),
                 email: email,
-                role: 'client', // Default role
-                project: "New Project",
+                role: role, 
+                project: isMasterAdmin ? "WebFront AI System" : "New Project",
                 phase: "Discovery",
                 progress: 0,
                 milestone: "Onboarding",
@@ -1816,47 +1817,57 @@ export default function App() {
                 notifications: { email: true, push: false }
             };
             
-            // 3. Save structured client data to Firestore
-            // Collection: 'clients', Document ID: user.uid
-            await setDoc(doc(db, "clients", user.uid), clientData);
+            // 4. Save to Firestore
+            await setDoc(doc(db, "clients", uid), clientData);
             
-            // 4. Update local state (for Admin View mock data) and log in
-            setClients(prev => [...prev, clientData]); 
-            handleLogin('client', clientData);
+            // 5. Update local state & Login
+            // setClients is for the mock/hybrid view, but we should also just login
+            if (!isMasterAdmin) setClients(prev => [...prev, clientData]); 
+            
+            handleLogin(role, clientData);
             
         } else {
-            // LOGIN: Use Firebase Auth and Firestore to retrieve user data
-            
-            // 1. Sign in via Firebase Authentication
+            // LOGIN FLOW
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const uid = userCredential.user.uid;
+            user = userCredential.user;
+            uid = user.uid;
             
-            // 2. Fetch structured data from Firestore
+            // 2. Fetch User Data
             const clientDocSnap = await getDoc(doc(db, "clients", uid));
             
             if (clientDocSnap.exists()) {
                 const userData = clientDocSnap.data();
-                // Check role field, default to client if not present
-                const userRole = userData.role === 'admin' ? 'admin' : 'client';
+                
+                // FORCE Admin role if it's your email (even if DB says client)
+                const userRole = isMasterAdmin ? 'admin' : (userData.role || 'client');
+                
                 handleLogin(userRole, userData);
             } else {
-                // If the Auth record exists but the Firestore document does not, log out
-                await signOut(auth); 
-                return { error: "User data not found in database. Please contact support." };
+                // Special Case: You exist in Auth but not Database (e.g., from old tests)
+                if (isMasterAdmin) {
+                    // Auto-fix your admin account
+                    const adminData = {
+                        id: uid,
+                        name: "Master Admin",
+                        email: email,
+                        role: 'admin',
+                        project: "System Admin",
+                        // ... default fields
+                    };
+                    await setDoc(doc(db, "clients", uid), adminData);
+                    handleLogin('admin', adminData);
+                } else {
+                    await signOut(auth); 
+                    return { error: "User data not found. Please contact support." };
+                }
             }
         }
-        return { error: null }; // Success
+        return { error: null };
     } catch (firebaseError) {
-        // Handle Firebase-specific errors
-        console.error("Firebase Auth Error:", firebaseError.code, firebaseError.message);
-
-        if (firebaseError.code === 'auth/email-already-in-use') {
-            return { error: "This email is already in use. Try logging in." };
-        }
-        if (firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/invalid-credential') {
-             return { error: "Invalid login credentials." };
-        }
-        return { error: `An authentication error occurred: ${firebaseError.message}.` };
+        console.error("Auth Error:", firebaseError);
+        if (firebaseError.code === 'auth/email-already-in-use') return { error: "Email already in use." };
+        if (firebaseError.code === 'auth/invalid-credential') return { error: "Invalid email or password." };
+        return { error: firebaseError.message };
     }
   };
   // --------------------------------------------------------------------------------
