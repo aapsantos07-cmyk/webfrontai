@@ -46,10 +46,13 @@ import {
 } from 'lucide-react';
 
 // --- FIREBASE IMPORT ---
-import { auth, db } from './firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
-// --------------------------------
+// src/App.jsx
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut,
+  sendPasswordResetEmail // <--- Add this
+} from 'firebase/auth';
 
 // --- API Configuration ---
 const apiKey = ""; // injected at runtime
@@ -159,26 +162,55 @@ const Card = ({ children, className = '' }) => (
 );
 
 // --- Auth Screen (Refactored to use Firebase/Firestore) ---
+// src/App.jsx
+
 const AuthScreen = ({ onAuthSubmit, onBack, maintenanceMode }) => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false); // New State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState(''); // For Signup
+  const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState(''); // New State for feedback
   const [isLoading, setIsLoading] = useState(false);
 
+  // Existing Login/Signup Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     
-    // Call the Firebase-enabled handler passed from the main App component
     const { error: submitError } = await onAuthSubmit(isSignUp, email, password, name);
     
     setIsLoading(false);
-    
     if (submitError) {
        setError(submitError);
+    }
+  };
+
+  // New Password Reset Handler
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    if (!email) {
+      setError("Please enter your email address first.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setSuccessMessage("Password reset email sent! Check your inbox.");
+      setIsLoading(false);
+    } catch (err) {
+      setIsLoading(false);
+      if (err.code === 'auth/user-not-found') {
+        setError("No account found with this email.");
+      } else {
+        setError("Failed to send reset email. " + err.message);
+      }
     }
   };
 
@@ -191,20 +223,26 @@ const AuthScreen = ({ onAuthSubmit, onBack, maintenanceMode }) => {
            <div className="inline-flex items-center justify-center w-12 h-12 bg-white text-black rounded-xl mb-4">
               <Cpu size={24} />
            </div>
-           <h1 className="text-2xl font-bold tracking-tighter">{isSignUp ? 'Create Account' : 'Welcome Back'}</h1>
-           <p className="text-zinc-500 mt-2">{isSignUp ? 'Join WebFront AI today' : 'Sign in to your WebFront Dashboard'}</p>
+           <h1 className="text-2xl font-bold tracking-tighter">
+             {isForgotPassword ? 'Reset Password' : (isSignUp ? 'Create Account' : 'Welcome Back')}
+           </h1>
+           <p className="text-zinc-500 mt-2">
+             {isForgotPassword ? 'Enter your email to receive a reset link' : (isSignUp ? 'Join WebFront AI today' : 'Sign in to your WebFront Dashboard')}
+           </p>
         </div>
         
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
-          {maintenanceMode && !isSignUp && (
+          {maintenanceMode && !isSignUp && !isForgotPassword && (
             <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 p-3 rounded-lg mb-4 text-sm flex items-center gap-2">
               <AlertTriangle size={16} /> Maintenance Mode Active
             </div>
           )}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          
+          <form onSubmit={isForgotPassword ? handlePasswordReset : handleSubmit} className="space-y-4">
             {error && <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded-lg border border-red-500/20">{error}</div>}
+            {successMessage && <div className="bg-green-500/10 text-green-500 text-sm p-3 rounded-lg border border-green-500/20">{successMessage}</div>}
             
-            {isSignUp && (
+            {isSignUp && !isForgotPassword && (
               <div className="animate-fade-in">
                 <label className="block text-sm text-zinc-400 mb-2 font-medium">Full Name / Company</label>
                 <input 
@@ -229,17 +267,33 @@ const AuthScreen = ({ onAuthSubmit, onBack, maintenanceMode }) => {
                 required
               />
             </div>
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2 font-medium">Password</label>
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-zinc-700"
-                placeholder="••••••••"
-                required
-              />
-            </div>
+
+            {/* Hide password field in Forgot Password mode */}
+            {!isForgotPassword && (
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm text-zinc-400 font-medium">Password</label>
+                  {!isSignUp && (
+                    <button 
+                      type="button"
+                      onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMessage(''); }}
+                      className="text-xs text-blue-400 hover:text-blue-300"
+                    >
+                      Forgot Password?
+                    </button>
+                  )}
+                </div>
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-zinc-700"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+            )}
+
             <button 
               type="submit"
               disabled={isLoading}
@@ -247,12 +301,23 @@ const AuthScreen = ({ onAuthSubmit, onBack, maintenanceMode }) => {
             >
               {isLoading 
                 ? <><Loader2 size={16} className="animate-spin mr-1"/> Processing...</> 
-                : <><span className="mr-1">{isSignUp ? 'Create Account' : 'Sign In'}</span> <ArrowRight size={16} /></>}
+                : (isForgotPassword 
+                    ? 'Send Reset Link' 
+                    : <><span className="mr-1">{isSignUp ? 'Create Account' : 'Sign In'}</span> <ArrowRight size={16} /></>
+                  )
+              }
             </button>
           </form>
           
           <div className="mt-6 text-center text-sm text-zinc-500">
-            {isSignUp ? (
+            {isForgotPassword ? (
+               <button 
+                 onClick={() => { setIsForgotPassword(false); setError(''); setSuccessMessage(''); }} 
+                 className="text-blue-400 hover:text-blue-300 font-medium ml-1"
+               >
+                 Back to Sign In
+               </button>
+            ) : isSignUp ? (
               <p>Already have an account? <button onClick={() => { setIsSignUp(false); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Log In</button></p>
             ) : (
               <div className="flex flex-col gap-2">
