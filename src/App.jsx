@@ -1,58 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, 
-  Code, 
-  Cpu, 
-  ArrowRight, 
-  Check, 
-  Menu, 
-  X, 
-  ChevronDown, 
-  Lock, 
-  LayoutDashboard,
-  FileText,
-  CreditCard,
-  Settings,
-  Send,
-  User,
-  Bot,
-  Palette,
-  Brain,
-  Headphones,
-  TrendingUp,
-  LogIn,
-  Download,
-  Bell,
-  Shield,
-  Mail,
-  Sparkles,
-  Loader2,
-  Users,
-  BarChart3,
-  Briefcase,
-  Edit3,
-  Plus,
-  Save,
-  Trash2,
-  Search,
-  DollarSign,
-  Activity,
-  UploadCloud,
-  XCircle,
-  CheckCircle2,
-  LogOut,
-  AlertTriangle,
-  Power
+  // ... all your other lucide-react icons ...
 } from 'lucide-react';
 
-// --- FIREBASE IMPORT ---
-// src/App.jsx
+// --- FIREBASE IMPORTS ---
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut,
-  sendPasswordResetEmail // <--- Add this
+  sendPasswordResetEmail 
 } from 'firebase/auth';
+
+
+import { auth, db } from './firebase'; 
+// --------------------------------
+
+import { doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 
 // --- API Configuration ---
 const apiKey = ""; // injected at runtime
