@@ -68,7 +68,8 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
 
 // --- API Logic ---
 const callGemini = async (userQuery, systemPrompt) => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+  // UPDATED: Using a stable model version to prevent "System Overload" errors
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   const payload = {
     contents: [{ parts: [{ text: userQuery }] }],
     systemInstruction: { parts: [{ text: systemPrompt }] }
@@ -85,6 +86,7 @@ const callGemini = async (userQuery, systemPrompt) => {
       const data = await response.json();
       return data.candidates?.[0]?.content?.parts?.[0]?.text || "I apologize, I couldn't process that request.";
     } catch (error) {
+      console.warn(`Attempt ${i + 1} failed:`, error);
       if (i === 2) return "System overload. Please try again later.";
       await delay(1000 * Math.pow(2, i));
     }
@@ -638,7 +640,7 @@ function AdminClientsManager({ clients }) {
   );
 }
 
-// --- REPLACED COMPONENT: Admin Files & AI Wizard ---
+// --- NEW COMPONENT: Admin Files & AI Wizard ---
 function AdminFilesView({ clients }) {
   // Wizard States: 'select' -> 'interview' -> 'draft' -> 'review'
   const [step, setStep] = useState('select'); 
