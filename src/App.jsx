@@ -68,7 +68,7 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
 
 // --- API Logic ---
 const callGemini = async (userQuery, systemPrompt) => {
-  // Using stable model to prevent overload errors
+  // FIXED: Switched to 'gemini-1.5-flash' (Stable) to prevent "System Overload"
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   const payload = {
     contents: [{ parts: [{ text: userQuery }] }],
@@ -86,7 +86,7 @@ const callGemini = async (userQuery, systemPrompt) => {
       const data = await response.json();
       return data.candidates?.[0]?.content?.parts?.[0]?.text || "I apologize, I couldn't process that request.";
     } catch (error) {
-      if (i === 2) return "System overload. Please try again later.";
+      if (i === 2) return "System busy. Please try again in a moment.";
       await delay(1000 * Math.pow(2, i));
     }
   }
@@ -440,8 +440,8 @@ function AIAssistantView({ data }) {
       <div className="mb-6"><h1 className="text-3xl font-bold mb-1 flex items-center gap-3">AI Project Assistant <span className="bg-blue-600/20 text-blue-400 text-xs px-2 py-1 rounded-full border border-blue-600/50">BETA</span></h1><p className="text-zinc-500">Your intelligent guide for this project build.</p></div>
       <div className="flex-1 bg-zinc-900/30 border border-zinc-800 rounded-2xl flex flex-col overflow-hidden mb-6">
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
-          {messages.map((m, i) => (<div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] p-4 rounded-2xl ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>{m.text.split('\n').map((line, j) => <p key={j} className={line ? "mb-2 last:mb-0" : "h-2"}>{line}</p>)}</div></div>))}
-          {isTyping && <div className="flex justify-start"><div className="bg-zinc-800 p-4 rounded-2xl rounded-bl-sm flex items-center gap-2"><Loader2 size={16} className="animate-spin text-zinc-400" /><span className="text-zinc-400 text-sm">Analyzing project data...</span></div></div>}
+          {messages.map((m, i) => (<div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}><div className={`max-w-[85%] p-4 rounded-2xl ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>{m.text.split('\n').map((line, j) => <p key={j} className={line ? "mb-2 last:mb-0" : "h-2"}>{line}</p>)}</div></div>))}
+          {isTyping && <div className="flex justify-start animate-fade-in"><div className="bg-zinc-800 p-4 rounded-2xl rounded-bl-sm flex items-center gap-2"><Loader2 size={16} className="animate-spin text-zinc-400" /><span className="text-zinc-400 text-sm">Analyzing project data...</span></div></div>}
         </div>
         {messages.length === 1 && <div className="px-6 pb-2 flex gap-2 flex-wrap">{quickActions.map((action, i) => <button key={i} onClick={() => handleSend(action)} className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-2 rounded-lg border border-zinc-700 transition-colors">{action}</button>)}</div>}
         <div className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2">
@@ -641,17 +641,12 @@ function AdminFilesView({ clients }) {
   const [step, setStep] = useState('select'); 
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedClientId, setSelectedClientId] = useState('');
-  
-  // Data States
   const [aiQuestions, setAiQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [generatedContent, setGeneratedContent] = useState('');
-  
-  // UI States
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
-  // 1. Templates Definition
   const docTypes = [
     { id: 'onboarding', name: 'Onboarding Email', icon: Mail, description: "Welcome email with next steps." },
     { id: 'invoice', name: 'Invoice', icon: DollarSign, description: "Professional bill for services." },
@@ -659,22 +654,13 @@ function AdminFilesView({ clients }) {
     { id: 'proposal', name: 'Project Proposal', icon: FileText, description: "Detailed pitch and timeline." }
   ];
 
-  // 2. Step 1 -> 2: Generate Questions
   const handleStartInterview = async () => {
     if (!selectedClientId || !selectedTemplate) return alert("Please select a client and document type.");
     setIsLoading(true);
-    
     const client = clients.find(c => c.id === selectedClientId);
-    
-    // Prompt to get specific questions based on the client context
-    const prompt = `I need to draft a ${selectedTemplate.name} for a client named "${client.name}". 
-    Their project is "${client.project}" (Current Phase: ${client.phase}).
-    Generate 3 to 5 specific, critical questions I need to answer to fill out this document accurately. 
-    Return ONLY a JSON array of strings. Example: ["What is the payment due date?", "What is the total amount?"]`;
-
+    const prompt = `I need to draft a ${selectedTemplate.name} for a client named "${client.name}". Their project is "${client.project}" (Current Phase: ${client.phase}). Generate 3 to 5 specific, critical questions I need to answer to fill out this document accurately. Return ONLY a JSON array of strings. Example: ["What is the payment due date?", "What is the total amount?"]`;
     try {
         const response = await callGemini(prompt, "You are a helpful admin assistant. Return only raw JSON.");
-        // Clean the response to ensure it's valid JSON
         const jsonStr = response.replace(/```json/g, '').replace(/```/g, '').trim();
         const questions = JSON.parse(jsonStr);
         setAiQuestions(questions);
@@ -682,82 +668,37 @@ function AdminFilesView({ clients }) {
     } catch (e) {
         console.error("AI Error:", e);
         alert("System Overload: Could not generate questions. Please try again.");
-    } finally {
-        setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   };
 
-  // 3. Step 2 -> 3: Generate Draft
   const handleGenerateDraft = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
     const client = clients.find(c => c.id === selectedClientId);
     const answersText = Object.entries(answers).map(([q, a]) => `Q: ${q}\nA: ${a}`).join('\n');
-
-    // Prompt to generate the actual document
-    const prompt = `Draft a professional ${selectedTemplate.name} for "${client.name}".
-    Project: ${client.project}.
-    
-    Here are the details provided by the admin:
-    ${answersText}
-    
-    FORMATTING RULES:
-    1. Output valid HTML code with inline CSS.
-    2. Make it look like a professional document (A4 paper style, clean fonts, padding).
-    3. Use a white background, black text, and standard font.
-    4. Do NOT use markdown blocks (no \`\`\`html). Just the raw HTML.`;
-
+    const prompt = `Draft a professional ${selectedTemplate.name} for "${client.name}". Project: ${client.project}. Here are the details provided by the admin: ${answersText}. FORMATTING RULES: 1. Output valid HTML code with inline CSS. 2. Make it look like a professional document (A4 paper style, clean fonts, padding). 3. Use a white background, black text, and standard font. 4. Do NOT use markdown blocks (no \`\`\`html). Just the raw HTML.`;
     try {
         const response = await callGemini(prompt, "You are a professional document generator. Output raw HTML only.");
-        // Strip potential markdown wrappers if the AI ignores instructions
         const cleanHtml = response.replace(/```html/g, '').replace(/```/g, '');
         setGeneratedContent(cleanHtml);
         setStep('review');
-    } catch (e) {
-        alert("System Overload: Could not generate draft.");
-    } finally {
-        setIsLoading(false);
-    }
+    } catch (e) { alert("System Overload: Could not generate draft."); } finally { setIsLoading(false); }
   };
 
-  // 4. Save/Send Logic
   const handleSendToClient = async () => {
     setIsSending(true);
     try {
       const client = clients.find(c => c.id === selectedClientId);
       const fileName = `${selectedTemplate.name.replace(/\s+/g, '_')}_${Date.now()}.html`;
-      
-      // Create a Blob from the HTML content
       const blob = new Blob([generatedContent], { type: 'text/html' });
       const file = new File([blob], fileName, { type: 'text/html' });
-      
       const base64 = await convertToBase64(file);
-      
-      const newDoc = { 
-        name: fileName, 
-        url: base64, 
-        date: new Date().toLocaleDateString(), 
-        size: "HTML Doc" 
-      };
-
-      await updateDoc(doc(db, "clients", selectedClientId), { 
-        contracts: arrayUnion(newDoc),
-        activity: arrayUnion({ action: `Sent ${selectedTemplate.name}`, date: new Date().toLocaleDateString(), status: "Completed" })
-      });
-
-      alert("Sent successfully!");
-      setStep('select');
-      setGeneratedContent('');
-      setAnswers({});
-    } catch (error) {
-      alert("Error sending: " + error.message);
-    } finally {
-      setIsSending(false);
-    }
+      const newDoc = { name: fileName, url: base64, date: new Date().toLocaleDateString(), size: "HTML Doc" };
+      await updateDoc(doc(db, "clients", selectedClientId), { contracts: arrayUnion(newDoc), activity: arrayUnion({ action: `Sent ${selectedTemplate.name}`, date: new Date().toLocaleDateString(), status: "Completed" }) });
+      alert("Sent successfully!"); setStep('select'); setGeneratedContent(''); setAnswers({});
+    } catch (error) { alert("Error sending: " + error.message); } finally { setIsSending(false); }
   };
 
-  // Helper: Print/PDF functionality
   const handlePrintPDF = () => {
     const printWindow = window.open('', '', 'width=800,height=600');
     printWindow.document.write(generatedContent);
@@ -769,107 +710,28 @@ function AdminFilesView({ clients }) {
 
   return (
     <div className="animate-fade-in h-full flex flex-col">
-      {/* Header */}
       <div className="mb-6 flex justify-between items-end">
-        <div>
-            <h1 className="text-3xl font-bold mb-1">Smart Document Wizard</h1>
-            <p className="text-zinc-500">Generate tailored PDF-ready documents using AI.</p>
-        </div>
-        {step !== 'select' && (
-            <button onClick={() => setStep('select')} className="text-sm text-zinc-500 hover:text-white underline">Start Over</button>
-        )}
+        <div><h1 className="text-3xl font-bold mb-1">Smart Document Wizard</h1><p className="text-zinc-500">Generate tailored PDF-ready documents using AI.</p></div>
+        {step !== 'select' && (<button onClick={() => setStep('select')} className="text-sm text-zinc-500 hover:text-white underline">Start Over</button>)}
       </div>
-
-      {/* STEP 1: SELECTION */}
       {step === 'select' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto w-full mt-8">
-            <div className="space-y-6">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm">1</div> Select Client</h3>
-                <div className="bg-zinc-900/50 border border-zinc-800 p-2 rounded-xl">
-                    {clients.map(c => (
-                        <div key={c.id} onClick={() => setSelectedClientId(c.id)} className={`p-4 rounded-lg cursor-pointer flex justify-between items-center transition-all ${selectedClientId === c.id ? 'bg-blue-600/20 border border-blue-500 text-white' : 'hover:bg-zinc-800 text-zinc-400'}`}>
-                            <span className="font-bold">{c.name}</span>
-                            <span className="text-xs uppercase tracking-wider">{c.project}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-            <div className="space-y-6">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm">2</div> Document Type</h3>
-                <div className="grid grid-cols-1 gap-3">
-                    {docTypes.map(t => (
-                        <div key={t.id} onClick={() => setSelectedTemplate(t)} className={`p-4 border rounded-xl cursor-pointer flex items-center gap-4 transition-all ${selectedTemplate?.id === t.id ? 'bg-white text-black border-white' : 'bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:border-zinc-600'}`}>
-                            <t.icon size={24} />
-                            <div>
-                                <div className="font-bold">{t.name}</div>
-                                <div className="text-xs opacity-70">{t.description}</div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <Button onClick={handleStartInterview} disabled={!selectedClientId || !selectedTemplate || isLoading} className="w-full py-4 mt-4">
-                    {isLoading ? <Loader2 className="animate-spin"/> : "Start AI Interview →"}
-                </Button>
-            </div>
+            <div className="space-y-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm">1</div> Select Client</h3>
+                <div className="bg-zinc-900/50 border border-zinc-800 p-2 rounded-xl">{clients.map(c => (<div key={c.id} onClick={() => setSelectedClientId(c.id)} className={`p-4 rounded-lg cursor-pointer flex justify-between items-center transition-all ${selectedClientId === c.id ? 'bg-blue-600/20 border border-blue-500 text-white' : 'hover:bg-zinc-800 text-zinc-400'}`}><span className="font-bold">{c.name}</span><span className="text-xs uppercase tracking-wider">{c.project}</span></div>))}</div></div>
+            <div className="space-y-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm">2</div> Document Type</h3>
+                <div className="grid grid-cols-1 gap-3">{docTypes.map(t => (<div key={t.id} onClick={() => setSelectedTemplate(t)} className={`p-4 border rounded-xl cursor-pointer flex items-center gap-4 transition-all ${selectedTemplate?.id === t.id ? 'bg-white text-black border-white' : 'bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:border-zinc-600'}`}><t.icon size={24} /><div><div className="font-bold">{t.name}</div><div className="text-xs opacity-70">{t.description}</div></div></div>))}</div>
+                <Button onClick={handleStartInterview} disabled={!selectedClientId || !selectedTemplate || isLoading} className="w-full py-4 mt-4">{isLoading ? <Loader2 className="animate-spin"/> : "Start AI Interview →"}</Button></div>
         </div>
       )}
-
-      {/* STEP 2: INTERVIEW */}
       {step === 'interview' && (
-        <div className="max-w-2xl mx-auto w-full mt-8 animate-fade-in">
-            <h3 className="text-2xl font-bold mb-6 text-center">Details Required</h3>
-            <form onSubmit={handleGenerateDraft} className="space-y-6 bg-zinc-900/30 p-8 rounded-2xl border border-zinc-800">
-                {aiQuestions.map((q, i) => (
-                    <div key={i}>
-                        <label className="block text-sm font-bold text-blue-400 mb-2">{q}</label>
-                        <input 
-                            required
-                            className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all"
-                            placeholder="Enter details..."
-                            onChange={(e) => setAnswers({...answers, [q]: e.target.value})}
-                        />
-                    </div>
-                ))}
-                <Button type="submit" disabled={isLoading} className="w-full py-4 text-lg">
-                    {isLoading ? <><Loader2 className="animate-spin mr-2"/> Drafting Document...</> : "Generate Draft"}
-                </Button>
-            </form>
-        </div>
+        <div className="max-w-2xl mx-auto w-full mt-8 animate-fade-in"><h3 className="text-2xl font-bold mb-6 text-center">Details Required</h3>
+            <form onSubmit={handleGenerateDraft} className="space-y-6 bg-zinc-900/30 p-8 rounded-2xl border border-zinc-800">{aiQuestions.map((q, i) => (<div key={i}><label className="block text-sm font-bold text-blue-400 mb-2">{q}</label><input required className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all" placeholder="Enter details..." onChange={(e) => setAnswers({...answers, [q]: e.target.value})}/></div>))}
+                <Button type="submit" disabled={isLoading} className="w-full py-4 text-lg">{isLoading ? <><Loader2 className="animate-spin mr-2"/> Drafting Document...</> : "Generate Draft"}</Button></form></div>
       )}
-
-      {/* STEP 3: REVIEW & SEND */}
       {step === 'review' && (
         <div className="flex flex-col lg:flex-row gap-8 h-[600px] animate-fade-in">
-            {/* Preview Window */}
-            <div className="flex-1 bg-white rounded-xl overflow-hidden shadow-2xl relative group">
-                <iframe 
-                    title="preview"
-                    srcDoc={generatedContent}
-                    className="w-full h-full border-none bg-white"
-                />
-                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={handlePrintPDF} className="bg-black text-white px-4 py-2 rounded-lg shadow-lg hover:bg-zinc-800 flex items-center gap-2 text-xs font-bold">
-                        <Download size={14}/> Save as PDF
-                    </button>
-                </div>
-            </div>
-
-            {/* Controls */}
-            <div className="w-full lg:w-1/3 flex flex-col gap-4">
-                <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl">
-                    <h3 className="font-bold text-white mb-2">Ready to Send?</h3>
-                    <p className="text-sm text-zinc-500 mb-6">The client will receive this document in their 'Contracts' tab immediately.</p>
-                    <div className="space-y-3">
-                        <Button onClick={handleSendToClient} disabled={isSending} variant="success" className="w-full">
-                            {isSending ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2" size={18}/>}
-                            Send to Portal
-                        </Button>
-                        <Button onClick={() => setStep('interview')} variant="secondary" className="w-full">
-                            <Edit3 className="mr-2" size={18}/> Edit Answers
-                        </Button>
-                    </div>
-                </div>
-            </div>
+            <div className="flex-1 bg-white rounded-xl overflow-hidden shadow-2xl relative group"><iframe title="preview" srcDoc={generatedContent} className="w-full h-full border-none bg-white"/><div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={handlePrintPDF} className="bg-black text-white px-4 py-2 rounded-lg shadow-lg hover:bg-zinc-800 flex items-center gap-2 text-xs font-bold"><Download size={14}/> Save as PDF</button></div></div>
+            <div className="w-full lg:w-1/3 flex flex-col gap-4"><div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl"><h3 className="font-bold text-white mb-2">Ready to Send?</h3><p className="text-sm text-zinc-500 mb-6">The client will receive this document in their 'Contracts' tab immediately.</p><div className="space-y-3"><Button onClick={handleSendToClient} disabled={isSending} variant="success" className="w-full">{isSending ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2" size={18}/>} Send to Portal</Button><Button onClick={() => setStep('interview')} variant="secondary" className="w-full"><Edit3 className="mr-2" size={18}/> Edit Answers</Button></div></div></div>
         </div>
       )}
     </div>
@@ -881,43 +743,22 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
   const [activeTab, setActiveTab] = useState('clients'); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Added 'files' to menuItems
   const menuItems = [
     { id: 'clients', label: 'Clients', icon: Users }, 
     { id: 'users', label: 'User Roles', icon: Shield }, 
     { id: 'financials', label: 'Financials', icon: CreditCard }, 
-    { id: 'files', label: 'Files & AI', icon: FileText }, // New Tab
+    { id: 'files', label: 'Files & AI', icon: FileText }, 
     { id: 'settings', label: 'Admin Settings', icon: Settings }
   ];
 
   return (
     <div className="min-h-screen bg-black text-white font-sans border-l-0 lg:border-l-4 lg:border-red-900 flex flex-col lg:flex-row">
-      <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900">
-        <div className="font-bold text-red-500">ADMIN PANEL</div>
-        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button>
-      </div>
-      
-      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}>
-        <h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2>
-        <nav className="space-y-2 flex-1">
-          {menuItems.map((item) => (
-            <div 
-              key={item.id} 
-              onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} 
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'} ${item.id === activeTab ? 'bg-red-900/20 text-red-400 border border-red-900/50' : ''}`}
-            >
-              <item.icon size={18} /> {item.label}
-            </div>
-          ))}
-        </nav>
-        <button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button>
-      </div>
-
+      <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900"><div className="font-bold text-red-500">ADMIN PANEL</div><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button></div>
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}><h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2><nav className="space-y-2 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'} ${item.id === activeTab ? 'bg-red-900/20 text-red-400 border border-red-900/50' : ''}`}><item.icon size={18} /> {item.label}</div>))}</nav><button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button></div>
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
         {activeTab === 'clients' && <AdminClientsManager clients={clients} setClients={setClients} />}
         {activeTab === 'users' && <AdminUsersManager />}
         {activeTab === 'financials' && <AdminFinancialsView clients={clients} />}
-        {/* Render New Component */}
         {activeTab === 'files' && <AdminFilesView clients={clients} />}
         {activeTab === 'settings' && <AdminSettingsView settings={adminSettings} onUpdateSettings={setAdminSettings} />}
       </div>
