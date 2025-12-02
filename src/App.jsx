@@ -116,7 +116,7 @@ function ProjectOnboardingModal({ isOpen, onSubmit }) {
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevents page refresh
     if (!projectName.trim()) return;
     setLoading(true);
     await onSubmit(projectName);
@@ -662,20 +662,21 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
 
   // --- NEW LOGIC: Show Onboarding Modal if Project is "New Project" ---
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
-    // If the project is the default "New Project", trigger the modal
-    if (clientData?.project === "New Project") {
+    // If the project is the default "New Project" and we haven't submitted yet
+    if (clientData?.project === "New Project" && !hasSubmitted) {
         setShowOnboarding(true);
-    } else {
+    } else if (clientData?.project !== "New Project") {
         setShowOnboarding(false);
     }
-  }, [clientData?.project]);
+  }, [clientData?.project, hasSubmitted]);
 
-  const handleProjectSubmit = (newProjectName) => {
-    // Update the client data with the new project name
-    // We pass the full object, ensuring 'project' field is updated
-    onUpdateClient({ ...clientData, project: newProjectName });
+  const handleProjectSubmit = async (newProjectName) => {
+    setHasSubmitted(true); // Lock the modal from showing
+    setShowOnboarding(false); // Close immediately
+    await onUpdateClient({ ...clientData, project: newProjectName });
   };
   // -------------------------------------------------------------------
 
