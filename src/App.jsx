@@ -1,48 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  MessageSquare, 
-  Code, 
-  Cpu, 
-  ArrowRight, 
-  Check, 
-  Menu, 
-  X, 
-  ChevronDown, 
-  Lock, 
-  LayoutDashboard,
-  FileText,
-  CreditCard,
-  Settings,
-  Send,
-  User,
-  Bot,
-  Palette,
-  Brain,
-  Headphones,
-  TrendingUp,
-  LogIn,
-  Download,
-  Bell,
-  Shield,
-  Mail,
-  Sparkles,
-  Loader2,
-  Users,
-  BarChart3,
-  Briefcase,
-  Edit3,
-  Plus,
-  Save,
-  Trash2,
-  Search,
-  DollarSign,
-  Activity,
-  UploadCloud,
-  XCircle,
-  CheckCircle2,
-  LogOut,
-  AlertTriangle,
-  Power
+  MessageSquare, Code, Cpu, ArrowRight, Check, Menu, X, ChevronDown, Lock, 
+  LayoutDashboard, FileText, CreditCard, Settings, Send, User, Bot, Palette, 
+  Brain, Headphones, TrendingUp, LogIn, Download, Bell, Shield, Mail, Sparkles, 
+  Loader2, Users, BarChart3, Briefcase, Edit3, Plus, Save, Trash2, Search, 
+  DollarSign, Activity, UploadCloud, XCircle, CheckCircle2, LogOut, AlertTriangle, Power
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
@@ -54,36 +16,28 @@ import {
 } from 'firebase/auth';
 
 import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
-  onSnapshot, 
-  collection, 
-  getDocs,
-  addDoc,
-  deleteDoc,
-  arrayUnion
+  doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs, addDoc, deleteDoc, arrayUnion
 } from 'firebase/firestore';
 
+import { 
+  ref, uploadBytes, getDownloadURL 
+} from 'firebase/storage';
+
 // --- LOCAL FIREBASE CONFIG ---
-import { auth, db } from './firebase'; 
+// Make sure you updated src/firebase.jsx to export 'storage'
+import { auth, db, storage } from './firebase'; 
 // --------------------------------
 
-// --- API Configuration ---
 const apiKey = ""; // injected at runtime
 
 // --- API Logic ---
 const callGemini = async (userQuery, systemPrompt) => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-  
   const payload = {
     contents: [{ parts: [{ text: userQuery }] }],
     systemInstruction: { parts: [{ text: systemPrompt }] }
   };
-
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-  
   for (let i = 0; i < 3; i++) {
     try {
       const response = await fetch(url, {
@@ -102,7 +56,6 @@ const callGemini = async (userQuery, systemPrompt) => {
 };
 
 // --- Helper Components ---
-
 const Button = ({ children, variant = 'primary', className = '', onClick, type="button", title="" }) => {
   const baseStyle = "px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2";
   const variants = {
@@ -112,18 +65,11 @@ const Button = ({ children, variant = 'primary', className = '', onClick, type="
     danger: "bg-red-500/10 text-red-500 border border-red-500/50 hover:bg-red-500/20",
     success: "bg-green-600 text-white hover:bg-green-500 shadow-lg shadow-green-900/20"
   };
-
-  return (
-    <button type={type} onClick={onClick} className={`${baseStyle} ${variants[variant]} ${className}`} title={title}>
-      {children}
-    </button>
-  );
+  return <button type={type} onClick={onClick} className={`${baseStyle} ${variants[variant]} ${className}`} title={title}>{children}</button>;
 };
 
 const Card = ({ children, className = '' }) => (
-  <div className={`bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 p-8 rounded-2xl hover:border-zinc-700 transition-colors duration-300 ${className}`}>
-    {children}
-  </div>
+  <div className={`bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 p-8 rounded-2xl hover:border-zinc-700 transition-colors duration-300 ${className}`}>{children}</div>
 );
 
 // --- Auth Screen ---
@@ -139,254 +85,68 @@ const AuthScreen = ({ onAuthSubmit, onBack, maintenanceMode }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError('');
-    
+    setIsLoading(true); setError('');
     const { error: submitError } = await onAuthSubmit(isSignUp, email, password, name);
-    
     setIsLoading(false);
-    if (submitError) {
-       setError(submitError);
-    }
+    if (submitError) setError(submitError);
   };
 
   const handlePasswordReset = async (e) => {
     e.preventDefault();
-    if (!email) {
-      setError("Please enter your email address first.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    setSuccessMessage('');
-
+    if (!email) { setError("Please enter your email address first."); return; }
+    setIsLoading(true); setError(''); setSuccessMessage('');
     try {
       await sendPasswordResetEmail(auth, email);
       setSuccessMessage("Password reset email sent! Check your inbox.");
       setIsLoading(false);
     } catch (err) {
       setIsLoading(false);
-      if (err.code === 'auth/user-not-found') {
-        setError("No account found with this email.");
-      } else {
-        setError("Failed to send reset email. " + err.message);
-      }
+      setError(err.code === 'auth/user-not-found' ? "No account found." : "Failed to send email.");
     }
   };
 
   return (
     <div className="min-h-screen bg-black text-white font-sans flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-blue-900/20 rounded-full blur-[100px] -z-10"></div>
-
       <div className="w-full max-w-md animate-fade-in-up">
         <div className="text-center mb-8">
-           <div className="inline-flex items-center justify-center w-12 h-12 bg-white text-black rounded-xl mb-4">
-              <Cpu size={24} />
-           </div>
-           <h1 className="text-2xl font-bold tracking-tighter">
-             {isForgotPassword ? 'Reset Password' : (isSignUp ? 'Create Account' : 'Welcome Back')}
-           </h1>
-           <p className="text-zinc-500 mt-2">
-             {isForgotPassword ? 'Enter your email to receive a reset link' : (isSignUp ? 'Join WebFront AI today' : 'Sign in to your WebFront Dashboard')}
-           </p>
+           <div className="inline-flex items-center justify-center w-12 h-12 bg-white text-black rounded-xl mb-4"><Cpu size={24} /></div>
+           <h1 className="text-2xl font-bold tracking-tighter">{isForgotPassword ? 'Reset Password' : (isSignUp ? 'Create Account' : 'Welcome Back')}</h1>
+           <p className="text-zinc-500 mt-2">{isForgotPassword ? 'Enter your email to receive a reset link' : (isSignUp ? 'Join WebFront AI today' : 'Sign in to your WebFront Dashboard')}</p>
         </div>
-        
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
-          {maintenanceMode && !isSignUp && !isForgotPassword && (
-            <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 p-3 rounded-lg mb-4 text-sm flex items-center gap-2">
-              <AlertTriangle size={16} /> Maintenance Mode Active
-            </div>
-          )}
-          
+          {maintenanceMode && !isSignUp && !isForgotPassword && (<div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 p-3 rounded-lg mb-4 text-sm flex items-center gap-2"><AlertTriangle size={16} /> Maintenance Mode Active</div>)}
           <form onSubmit={isForgotPassword ? handlePasswordReset : handleSubmit} className="space-y-4">
             {error && <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded-lg border border-red-500/20">{error}</div>}
             {successMessage && <div className="bg-green-500/10 text-green-500 text-sm p-3 rounded-lg border border-green-500/20">{successMessage}</div>}
-            
             {isSignUp && !isForgotPassword && (
               <div className="animate-fade-in">
                 <label className="block text-sm text-zinc-400 mb-2 font-medium">Full Name / Company</label>
-                <input 
-                  type="text" 
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-zinc-700"
-                  placeholder="e.g. Acme Corp"
-                  required={isSignUp}
-                />
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="e.g. Acme Corp" required={isSignUp} />
               </div>
             )}
-
             <div>
               <label className="block text-sm text-zinc-400 mb-2 font-medium">Email Address</label>
-              <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-zinc-700"
-                placeholder="name@company.com"
-                required
-              />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="name@company.com" required />
             </div>
-
             {!isForgotPassword && (
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="block text-sm text-zinc-400 font-medium">Password</label>
-                  {!isSignUp && (
-                    <button 
-                      type="button"
-                      onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMessage(''); }}
-                      className="text-xs text-blue-400 hover:text-blue-300"
-                    >
-                      Forgot Password?
-                    </button>
-                  )}
+                  {!isSignUp && (<button type="button" onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMessage(''); }} className="text-xs text-blue-400 hover:text-blue-300">Forgot Password?</button>)}
                 </div>
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-zinc-700"
-                  placeholder="••••••••"
-                  required
-                />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="••••••••" required />
               </div>
             )}
-
-            <button 
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading 
-                ? <><Loader2 size={16} className="animate-spin mr-1"/> Processing...</> 
-                : (isForgotPassword 
-                    ? 'Send Reset Link' 
-                    : <><span className="mr-1">{isSignUp ? 'Create Account' : 'Sign In'}</span> <ArrowRight size={16} /></>
-                  )
-              }
+            <button type="submit" disabled={isLoading} className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              {isLoading ? <><Loader2 size={16} className="animate-spin mr-1"/> Processing...</> : (isForgotPassword ? 'Send Reset Link' : <><span className="mr-1">{isSignUp ? 'Create Account' : 'Sign In'}</span> <ArrowRight size={16} /></>)}
             </button>
           </form>
-          
           <div className="mt-6 text-center text-sm text-zinc-500">
-            {isForgotPassword ? (
-               <button 
-                 onClick={() => { setIsForgotPassword(false); setError(''); setSuccessMessage(''); }} 
-                 className="text-blue-400 hover:text-blue-300 font-medium ml-1"
-               >
-                 Back to Sign In
-               </button>
-            ) : isSignUp ? (
-              <p>Already have an account? <button onClick={() => { setIsSignUp(false); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Log In</button></p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <p>Don't have an account? <button onClick={() => { setIsSignUp(true); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Sign Up</button></p>
-              </div>
-            )}
+            {isForgotPassword ? (<button onClick={() => { setIsForgotPassword(false); setError(''); setSuccessMessage(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Back to Sign In</button>) : isSignUp ? (<p>Already have an account? <button onClick={() => { setIsSignUp(false); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Log In</button></p>) : (<div className="flex flex-col gap-2"><p>Don't have an account? <button onClick={() => { setIsSignUp(true); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Sign Up</button></p></div>)}
           </div>
         </div>
-        
-        <button onClick={onBack} className="w-full mt-8 text-zinc-500 text-sm hover:text-white transition-colors flex items-center justify-center gap-2">
-          ← Return to website
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// --- AI Chat Widget ---
-const AIChatDemo = () => {
-  const [messages, setMessages] = useState([
-    { role: 'ai', text: "Hello. I am WEBFRONT_AI. How can I assist your agency today?" }
-  ]);
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const chatContainerRef = useRef(null);
-
-  const scrollToBottom = () => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: "smooth"
-      });
-    }
-  };
-
-  useEffect(scrollToBottom, [messages]);
-
-  const formatMessage = (text) => {
-    if (!text) return null;
-    const parts = text.split(/(\*\*.*?\*\*)/g);
-    
-    return parts.map((part, index) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={index} className="text-white font-bold">{part.slice(2, -2)}</strong>;
-      }
-      return <span key={index}>{part}</span>;
-    });
-  };
-
-  const handleSend = async () => {
-    if (!input.trim()) return;
-    
-    const userMsg = input;
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setInput('');
-    setIsTyping(true);
-
-    const systemPrompt = `You are WEBFRONT_AI, the on-site AI Receptionist for **WebFront AI**. 
-    Your only job is to talk to visitors about WebFront AI, our services, pricing, and process, and help them decide to book a strategy call.
-    IMPORTANT RULES:
-    1. **Keep your answers SHORT.** Maximum 2-3 sentences.
-    2. Use **bold** syntax.`;
-
-    const response = await callGemini(userMsg, systemPrompt);
-    
-    setMessages(prev => [...prev, { role: 'ai', text: response }]);
-    setIsTyping(false);
-  };
-
-  return (
-    <div className="w-full max-w-md bg-black border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[500px]">
-      <div className="bg-zinc-900 p-4 border-b border-zinc-800 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="font-mono text-sm text-zinc-400">WEBFRONT_AI</span>
-        </div>
-        <Sparkles size={18} className="text-blue-400" />
-      </div>
-      
-      <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 font-sans text-sm">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-zinc-800 text-zinc-200 rounded-bl-none'}`}>
-              {formatMessage(m.text)}
-            </div>
-          </div>
-        ))}
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center">
-              <Loader2 size={14} className="animate-spin text-zinc-500" />
-              <span className="text-xs text-zinc-500 ml-2">Thinking...</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2">
-        <input 
-          type="text" 
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }}
-          placeholder="Ask about pricing, services..."
-          className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors"
-        />
-        <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors">
-          <Send size={18} />
-        </button>
+        <button onClick={onBack} className="w-full mt-8 text-zinc-500 text-sm hover:text-white transition-colors flex items-center justify-center gap-2">← Return to website</button>
       </div>
     </div>
   );
@@ -395,131 +155,124 @@ const AIChatDemo = () => {
 // --- Portal Views ---
 
 const ClientDashboardView = ({ data }) => {
-  const totalOpenBalance = data.invoices?.reduce((acc, inv) => {
-    if (inv.status !== 'Paid') {
-      const val = parseFloat(inv.amount.replace(/[^0-9.-]+/g, ""));
-      return acc + (isNaN(val) ? 0 : val);
-    }
-    return acc;
-  }, 0) || 0;
-
+  const totalOpenBalance = data.invoices?.reduce((acc, inv) => inv.status !== 'Paid' ? acc + (parseFloat(inv.amount.replace(/[^0-9.-]+/g, "")) || 0) : acc, 0) || 0;
   const formattedBalance = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalOpenBalance);
 
   return (
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-12">
-        <div>
-          <h1 className="text-3xl font-bold mb-1">Welcome back, {data.name}</h1>
-          <p className="text-zinc-500">Project: {data.project}</p>
-        </div>
-        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold">
-          {data.name?.charAt(0) || 'U'}
-        </div>
+        <div><h1 className="text-3xl font-bold mb-1">Welcome back, {data.name}</h1><p className="text-zinc-500">Project: {data.project}</p></div>
+        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold">{data.name?.charAt(0) || 'U'}</div>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="border-l-4 border-l-blue-500">
-          <h3 className="text-zinc-400 text-sm mb-1">Current Phase</h3>
-          <p className="text-2xl font-bold truncate">{data.phase}</p>
-          <div className="w-full bg-zinc-800 h-1 mt-4 rounded-full overflow-hidden">
-            <div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${data.progress}%` }}></div>
-          </div>
-          <p className="text-right text-xs text-blue-400 mt-1">{data.progress}% Complete</p>
+          <h3 className="text-zinc-400 text-sm mb-1">Current Phase</h3><p className="text-2xl font-bold truncate">{data.phase}</p>
+          <div className="w-full bg-zinc-800 h-1 mt-4 rounded-full overflow-hidden"><div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${data.progress}%` }}></div></div><p className="text-right text-xs text-blue-400 mt-1">{data.progress}% Complete</p>
         </Card>
-        <Card>
-          <h3 className="text-zinc-400 text-sm mb-1">Next Milestone</h3>
-          <p className="text-2xl font-bold truncate">{data.milestone}</p>
-          <p className="text-zinc-500 text-sm mt-2">Due: {data.dueDate}</p>
-        </Card>
-        <Card>
-          <h3 className="text-zinc-400 text-sm mb-1">Open Invoices</h3>
-          <p className="text-2xl font-bold">{formattedBalance}</p>
-          <p className="text-green-500 text-sm mt-2 flex items-center gap-1">
-            {totalOpenBalance > 0
-              ? <span className="text-yellow-500 flex items-center gap-1"><Activity size={14}/> Action Required</span> 
-              : <><Check size={14}/> All paid</>}
-          </p>
-        </Card>
+        <Card><h3 className="text-zinc-400 text-sm mb-1">Next Milestone</h3><p className="text-2xl font-bold truncate">{data.milestone}</p><p className="text-zinc-500 text-sm mt-2">Due: {data.dueDate}</p></Card>
+        <Card><h3 className="text-zinc-400 text-sm mb-1">Open Invoices</h3><p className="text-2xl font-bold">{formattedBalance}</p><p className="text-green-500 text-sm mt-2 flex items-center gap-1">{totalOpenBalance > 0 ? <span className="text-yellow-500 flex items-center gap-1"><Activity size={14}/> Action Required</span> : <><Check size={14}/> All paid</>}</p></Card>
       </div>
-
       <h3 className="text-xl font-bold mb-6">Recent Activity</h3>
       <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">
-        {data.activity && data.activity.length > 0 ? (
-          data.activity.map((item, i) => (
+        {data.activity && data.activity.length > 0 ? data.activity.map((item, i) => (
             <div key={i} className="flex items-center justify-between p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className={`w-2 h-2 rounded-full ${item.status === 'Completed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                <span className="truncate max-w-[200px] sm:max-w-md">{item.action}</span>
-              </div>
-              <span className="text-zinc-500 text-sm whitespace-nowrap ml-4">{item.date}</span>
+              <div className="flex items-center gap-4"><div className={`w-2 h-2 rounded-full ${item.status === 'Completed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div><span className="truncate max-w-[200px] sm:max-w-md">{item.action}</span></div><span className="text-zinc-500 text-sm whitespace-nowrap ml-4">{item.date}</span>
             </div>
-          ))
-        ) : (
-          <div className="p-4 text-zinc-500 text-center">No recent activity</div>
-        )}
+        )) : <div className="p-4 text-zinc-500 text-center">No recent activity</div>}
       </div>
     </div>
   );
 };
 
-const ContractsView = ({ data }) => (
+const ContractsView = ({ data }) => {
+  const [uploading, setUploading] = useState(false);
+
+  const handleClientUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fileRef = ref(storage, `client_uploads/${data.id}/${file.name}`);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      const newDoc = {
+        name: file.name,
+        url: url,
+        date: new Date().toLocaleDateString(),
+        size: (file.size / 1024 / 1024).toFixed(2) + " MB"
+      };
+      await updateDoc(doc(db, "clients", data.id), {
+        clientUploads: arrayUnion(newDoc)
+      });
+      alert("File uploaded successfully!");
+    } catch (error) {
+      alert("Upload failed: " + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
   <div className="animate-fade-in">
+    <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Documents & Files</h1><p className="text-zinc-500">Access contracts and upload your project files.</p></div>
+    
+    {/* Admin Sent Contracts */}
     <div className="mb-8">
-      <h1 className="text-3xl font-bold mb-1">Documents & Contracts</h1>
-      <p className="text-zinc-500">Access your legal agreements and project scopes.</p>
-    </div>
-    <div className="space-y-4">
-      {data.contracts && data.contracts.length > 0 ? (
-        data.contracts.map((doc, i) => (
+      <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><FileText size={20}/> Contracts & Agreements</h3>
+      <div className="space-y-4">
+        {data.contracts && data.contracts.length > 0 ? data.contracts.map((doc, i) => (
           <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl flex items-center justify-between hover:border-zinc-600 transition-all">
             <div className="flex items-center gap-4 min-w-0">
                <div className="w-12 h-12 bg-zinc-800 rounded-lg flex-shrink-0 flex items-center justify-center text-blue-500"><FileText size={24} /></div>
-               <div className="min-w-0">
-                 <h3 className="font-bold text-white truncate">{doc.name}</h3>
-                 <p className="text-sm text-zinc-500">Uploaded on {doc.date} • {doc.size}</p>
-               </div>
+               <div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Shared by Admin • {doc.date} • {doc.size}</p></div>
             </div>
-            <button className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full flex-shrink-0"><Download size={20} /></button>
+            <a href={doc.url} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full flex-shrink-0"><Download size={20} /></a>
           </div>
-        ))
-      ) : (
-        <div className="p-8 text-center text-zinc-500 bg-zinc-900/30 rounded-xl border border-zinc-800 border-dashed">No documents available yet.</div>
-      )}
+        )) : <div className="p-8 text-center text-zinc-500 bg-zinc-900/30 rounded-xl border border-zinc-800 border-dashed">No contracts available yet.</div>}
+      </div>
+    </div>
+
+    {/* Client Uploads */}
+    <div>
+      <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><UploadCloud size={20}/> Your Project Uploads</h3>
+      <div className="bg-zinc-900/30 rounded-xl border border-zinc-800 p-6 mb-4">
+         <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-zinc-700 border-dashed rounded-lg cursor-pointer hover:bg-zinc-800/50 transition-colors">
+            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                {uploading ? <Loader2 className="animate-spin text-blue-500 mb-2"/> : <UploadCloud className="w-8 h-8 text-zinc-500 mb-2" />}
+                <p className="text-sm text-zinc-500">{uploading ? "Uploading..." : "Click to upload project requirements or assets"}</p>
+            </div>
+            <input type="file" className="hidden" onChange={handleClientUpload} disabled={uploading} />
+         </label>
+      </div>
+      <div className="space-y-4">
+        {data.clientUploads && data.clientUploads.length > 0 ? data.clientUploads.map((doc, i) => (
+          <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-4 min-w-0">
+               <div className="w-10 h-10 bg-green-900/20 text-green-500 rounded-lg flex-shrink-0 flex items-center justify-center"><Check size={20} /></div>
+               <div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Uploaded by You • {doc.date} • {doc.size}</p></div>
+            </div>
+          </div>
+        )) : null}
+      </div>
     </div>
   </div>
-);
+  );
+};
 
 const InvoicesView = ({ data }) => (
   <div className="animate-fade-in">
     <div className="mb-8 flex justify-between items-end">
-      <div>
-        <h1 className="text-3xl font-bold mb-1">Invoices</h1>
-        <p className="text-zinc-500">View payment history and upcoming charges.</p>
-      </div>
+      <div><h1 className="text-3xl font-bold mb-1">Invoices</h1><p className="text-zinc-500">View payment history and upcoming charges.</p></div>
       <Button variant="secondary" className="px-4 py-2 text-xs">Download All CSV</Button>
     </div>
     <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">
-      <div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50">
-        <div className="col-span-2">Description</div>
-        <div>Date</div>
-        <div className="text-right">Amount</div>
-      </div>
-      {data.invoices && data.invoices.length > 0 ? (
-        data.invoices.map((inv, i) => (
+      <div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Description</div><div>Date</div><div className="text-right">Amount</div></div>
+      {data.invoices && data.invoices.length > 0 ? data.invoices.map((inv, i) => (
           <div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors items-center">
-            <div className="col-span-2 min-w-0">
-              <div className="font-bold truncate pr-4">{inv.desc}</div>
-              <div className="text-xs text-zinc-500 flex items-center gap-2 mt-1">
-                {inv.id} <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ${inv.status === 'Paid' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>{inv.status}</span>
-              </div>
-            </div>
-            <div className="text-zinc-400 text-sm">{inv.date}</div>
-            <div className="text-right font-mono">{inv.amount}</div>
+            <div className="col-span-2 min-w-0"><div className="font-bold truncate pr-4">{inv.desc}</div><div className="text-xs text-zinc-500 flex items-center gap-2 mt-1">{inv.id} <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ${inv.status === 'Paid' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>{inv.status}</span></div></div>
+            <div className="text-zinc-400 text-sm">{inv.date}</div><div className="text-right font-mono">{inv.amount}</div>
           </div>
-        ))
-      ) : (
-        <div className="p-4 text-center text-zinc-500">No invoices found.</div>
-      )}
+      )) : <div className="p-4 text-center text-zinc-500">No invoices found.</div>}
     </div>
   </div>
 );
@@ -529,38 +282,21 @@ const AIAssistantView = ({ data }) => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef(null);
-
   useEffect(() => { if (scrollRef.current) { scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); } }, [messages]);
-
   const handleSend = async (text) => {
-    const userText = text || input;
-    if (!userText.trim()) return;
-    setMessages(prev => [...prev, { role: 'user', text: userText }]);
-    setInput('');
-    setIsTyping(true);
+    const userText = text || input; if (!userText.trim()) return;
+    setMessages(prev => [...prev, { role: 'user', text: userText }]); setInput(''); setIsTyping(true);
     const systemPrompt = `You are a dedicated AI Project Manager for a client named "${data.name}". Context: Current Phase: ${data.phase}, Progress: ${data.progress}%, Next Milestone: ${data.milestone}, Due: ${data.dueDate}. Tone: Professional.`;
     const response = await callGemini(userText, systemPrompt);
-    setMessages(prev => [...prev, { role: 'ai', text: response }]);
-    setIsTyping(false);
+    setMessages(prev => [...prev, { role: 'ai', text: response }]); setIsTyping(false);
   };
-
   const quickActions = ["Draft an email to my team about the launch", "Explain what 'Database Schema' means", "Summarize my project status"];
-
   return (
     <div className="animate-fade-in h-full flex flex-col">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-1 flex items-center gap-3">AI Project Assistant <span className="bg-blue-600/20 text-blue-400 text-xs px-2 py-1 rounded-full border border-blue-600/50">BETA</span></h1>
-        <p className="text-zinc-500">Your intelligent guide for this project build.</p>
-      </div>
+      <div className="mb-6"><h1 className="text-3xl font-bold mb-1 flex items-center gap-3">AI Project Assistant <span className="bg-blue-600/20 text-blue-400 text-xs px-2 py-1 rounded-full border border-blue-600/50">BETA</span></h1><p className="text-zinc-500">Your intelligent guide for this project build.</p></div>
       <div className="flex-1 bg-zinc-900/30 border border-zinc-800 rounded-2xl flex flex-col overflow-hidden mb-6">
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] p-4 rounded-2xl ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>
-                {m.text.split('\n').map((line, j) => <p key={j} className={line ? "mb-2 last:mb-0" : "h-2"}>{line}</p>)}
-              </div>
-            </div>
-          ))}
+          {messages.map((m, i) => (<div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[80%] p-4 rounded-2xl ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>{m.text.split('\n').map((line, j) => <p key={j} className={line ? "mb-2 last:mb-0" : "h-2"}>{line}</p>)}</div></div>))}
           {isTyping && <div className="flex justify-start"><div className="bg-zinc-800 p-4 rounded-2xl rounded-bl-sm flex items-center gap-2"><Loader2 size={16} className="animate-spin text-zinc-400" /><span className="text-zinc-400 text-sm">Analyzing project data...</span></div></div>}
         </div>
         {messages.length === 1 && <div className="px-6 pb-2 flex gap-2 flex-wrap">{quickActions.map((action, i) => <button key={i} onClick={() => handleSend(action)} className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-2 rounded-lg border border-zinc-700 transition-colors">{action}</button>)}</div>}
@@ -573,23 +309,18 @@ const AIAssistantView = ({ data }) => {
   );
 };
 
+// --- SETTINGS & ADMIN COMPONENTS ---
 const SettingsView = ({ data, onUpdateClient, onDeleteAccount }) => {
   const [name, setName] = useState(data.name || "");
   const [notifications, setNotifications] = useState(data.notifications || { email: true, push: false });
-
   const handleSave = () => { onUpdateClient({ ...data, name, notifications }); };
   const toggleNotification = (type) => { setNotifications(prev => ({ ...prev, [type]: !prev[type] })); };
-
   return (
   <div className="animate-fade-in">
     <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Settings</h1><p className="text-zinc-500">Manage your account preferences.</p></div>
     <div className="grid gap-8 max-w-2xl">
       <div className="space-y-4"><h3 className="text-lg font-bold flex items-center gap-2"><User size={18}/> Profile Details</h3>
-        <div className="grid grid-cols-2 gap-4">
-           <div><label className="block text-xs font-medium text-zinc-500 mb-1">Company / Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none" /></div>
-           <div><label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label><input type="text" value={data.email} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div>
-        </div>
-        <Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button>
+        <div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Company / Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label><input type="text" value={data.email} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button>
       </div>
       <div className="space-y-4 pt-4 border-t border-zinc-800"><h3 className="text-lg font-bold flex items-center gap-2 text-red-500"><Shield size={18}/> Danger Zone</h3><Button onClick={() => onDeleteAccount(data.id)} variant="danger" className="w-full justify-start">Delete My Account</Button></div>
     </div>
@@ -597,12 +328,9 @@ const SettingsView = ({ data, onUpdateClient, onDeleteAccount }) => {
   );
 };
 
-// --- ADMIN USERS MANAGER ---
 const AdminUsersManager = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Use onSnapshot for real-time updates for user roles as well
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "clients"), (snapshot) => {
       const usersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -611,207 +339,22 @@ const AdminUsersManager = () => {
     });
     return () => unsubscribe();
   }, []);
-
   const toggleAdminRole = async (userId, currentRole) => {
     const newRole = currentRole === 'admin' ? 'client' : 'admin';
     try { await updateDoc(doc(db, "clients", userId), { role: newRole }); } catch (error) { alert("Error updating role: " + error.message); }
   };
-
   return (
     <div className="animate-fade-in">
       <div className="mb-8"><h1 className="text-3xl font-bold mb-1">User Management</h1><p className="text-zinc-500">Manage user roles and permissions.</p></div>
       <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">
-        <div className="grid grid-cols-12 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50">
-          <div className="col-span-4">User / Email</div><div className="col-span-3">Project</div><div className="col-span-3">Current Role</div><div className="col-span-2 text-right">Actions</div>
-        </div>
+        <div className="grid grid-cols-12 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div className="col-span-4">User / Email</div><div className="col-span-3">Project</div><div className="col-span-3">Current Role</div><div className="col-span-2 text-right">Actions</div></div>
         {loading ? <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/></div> : users.map((user) => (
             <div key={user.id} className="grid grid-cols-12 p-4 border-b border-zinc-800 last:border-0 items-center hover:bg-zinc-800/20 transition-colors">
-              <div className="col-span-4 min-w-0 pr-4"><div className="font-bold text-white truncate">{user.name}</div><div className="text-xs text-zinc-500 truncate">{user.email}</div></div>
-              <div className="col-span-3 text-zinc-400 text-sm truncate">{user.project}</div>
+              <div className="col-span-4 min-w-0 pr-4"><div className="font-bold text-white truncate">{user.name}</div><div className="text-xs text-zinc-500 truncate">{user.email}</div></div><div className="col-span-3 text-zinc-400 text-sm truncate">{user.project}</div>
               <div className="col-span-3"><span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${user.role === 'admin' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>{user.role || 'CLIENT'}</span></div>
               <div className="col-span-2 text-right"><button onClick={() => toggleAdminRole(user.id, user.role)} className={`text-xs px-3 py-1.5 rounded transition-colors ${user.role === 'admin' ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-white text-black hover:bg-gray-200 font-bold'}`}>{user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}</button></div>
             </div>
         ))}
-      </div>
-    </div>
-  );
-};
-
-// --- UPDATED ADMIN CLIENTS MANAGER (REAL-TIME WRITES) ---
-const AdminClientsManager = ({ clients }) => {
-  const [selectedClientId, setSelectedClientId] = useState(null);
-  const [isAddingNew, setIsAddingNew] = useState(false);
-  const selectedClient = clients.find(c => c.id === selectedClientId);
-
-  const [newClientData, setNewClientData] = useState({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 });
-  const [newInvoiceData, setNewInvoiceData] = useState({ desc: '', amount: '' });
-  const [newContractName, setNewContractName] = useState('');
-
-  // Handle Create: Write to Firestore
-  const handleCreateClient = async (e) => {
-    e.preventDefault();
-    const clientData = {
-      // id will be auto-generated or handled by Firestore if we use addDoc
-      // but usually we want to map auth uid. For manual creation, we can let Firestore gen ID
-      // or we can't create an auth user here easily without Cloud Functions.
-      // For this mock/demo, we will just add a doc. Real world needs Auth creation too.
-      ...newClientData,
-      role: 'client',
-      milestone: "Project Start",
-      dueDate: "TBD",
-      status: "Active",
-      activity: [{ action: "Created by Admin", date: new Date().toLocaleDateString(), status: "Completed" }],
-      contracts: [],
-      invoices: [],
-      notifications: { email: true, push: false }
-    };
-    try {
-      await addDoc(collection(db, 'clients'), clientData);
-      setIsAddingNew(false);
-      setNewClientData({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 });
-    } catch (err) { alert("Error creating client: " + err.message); }
-  };
-
-  // Handle Delete: Write to Firestore
-  const handleDeleteClient = async (id) => {
-    if (confirm("Are you sure you want to remove this client?")) {
-      try {
-        await deleteDoc(doc(db, "clients", id));
-        setSelectedClientId(null);
-      } catch(err) { alert("Error deleting: " + err.message); }
-    }
-  };
-
-  // Handle Update: Write to Firestore
-  const handleUpdateClient = async (field, value) => {
-    try { await updateDoc(doc(db, "clients", selectedClient.id), { [field]: value }); } catch (err) { console.error(err); }
-  };
-
-  // Handle Invoice: Write to Firestore
-  const handleAddInvoice = async () => {
-    if(!newInvoiceData.amount || !newInvoiceData.desc) return;
-    const invoice = {
-      id: `INV-${Math.floor(Math.random() * 10000)}`,
-      desc: newInvoiceData.desc,
-      amount: `$${newInvoiceData.amount}`,
-      date: new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric'}),
-      status: "Pending"
-    };
-    try {
-      await updateDoc(doc(db, "clients", selectedClient.id), { invoices: arrayUnion(invoice) });
-      setNewInvoiceData({ desc: '', amount: '' });
-    } catch (err) { alert("Error adding invoice: " + err.message); }
-  };
-
-  // Handle Mark Paid: Write to Firestore
-  const handleMarkPaid = async (invIndex) => {
-    const updatedInvoices = [...selectedClient.invoices];
-    updatedInvoices[invIndex] = { ...updatedInvoices[invIndex], status: "Paid" };
-    try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: updatedInvoices }); } catch (err) { console.error(err); }
-  };
-
-  // Handle Contract: Write to Firestore
-  const handleUploadContract = async () => {
-    if(!newContractName) return;
-    const contract = {
-      name: newContractName.endsWith('.pdf') ? newContractName : `${newContractName}.pdf`,
-      date: new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-      size: "1.2 MB" 
-    };
-    try {
-      await updateDoc(doc(db, "clients", selectedClient.id), { contracts: arrayUnion(contract) });
-      setNewContractName('');
-    } catch (err) { alert("Error uploading contract: " + err.message); }
-  };
-
-  return (
-    <div className="flex flex-col lg:flex-row gap-6 h-full animate-fade-in items-start">
-      <div className="w-full lg:w-1/3 flex flex-col gap-4 h-[300px] lg:h-full flex-shrink-0">
-        <Button variant="accent" className="w-full justify-center py-4 rounded-xl shadow-blue-900/30" onClick={() => { setIsAddingNew(true); setSelectedClientId(null); }}>
-          <Plus size={18} /> Add New Client
-        </Button>
-        <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-xl overflow-hidden overflow-y-auto">
-          {clients.map(client => (
-            <div key={client.id} onClick={() => { setSelectedClientId(client.id); setIsAddingNew(false); }} className={`p-5 border-b border-zinc-800/80 cursor-pointer transition-all duration-200 group ${selectedClient?.id === client.id ? 'bg-blue-900/10 border-l-4 border-l-blue-500 pl-4' : 'hover:bg-zinc-800/40 border-l-4 border-l-transparent hover:border-l-zinc-700'}`}>
-              <div className="flex justify-between items-start mb-1">
-                <span className={`font-bold text-lg truncate ${selectedClient?.id === client.id ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>{client.name}</span>
-                <span className="text-[10px] uppercase tracking-wider bg-green-500/10 text-green-400 px-2 py-1 rounded-full font-bold border border-green-500/20">Active</span>
-              </div>
-              <p className="text-sm text-zinc-500 mb-3 truncate group-hover:text-zinc-400">{client.project}</p>
-              <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div className={`h-full rounded-full ${client.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${client.progress}%` }}></div></div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl p-8 h-full w-full overflow-y-auto shadow-2xl relative">
-        {isAddingNew && (
-          <div className="animate-fade-in max-w-xl mx-auto mt-10">
-             <div className="text-center mb-10"><div className="w-16 h-16 bg-blue-600/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/30"><Users size={32}/></div><h2 className="text-3xl font-bold text-white">Onboard New Client</h2><p className="text-zinc-500 mt-2">Create a secure workspace for your new partner.</p></div>
-             <form onSubmit={handleCreateClient} className="space-y-6">
-                <div className="space-y-4">
-                  <div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Company Name</label><input required type="text" className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" value={newClientData.name} onChange={e => setNewClientData({...newClientData, name: e.target.value})} placeholder="e.g. Acme Corp"/></div>
-                  <div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Client Email</label><input required type="email" className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" value={newClientData.email} onChange={e => setNewClientData({...newClientData, email: e.target.value})} placeholder="client@acme.com"/></div>
-                  <div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Project Name</label><input required type="text" className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" value={newClientData.project} onChange={e => setNewClientData({...newClientData, project: e.target.value})} placeholder="e.g. Website Redesign"/></div>
-                </div>
-                <div className="pt-6 flex gap-3"><Button variant="secondary" className="flex-1 py-3" onClick={() => setIsAddingNew(false)}>Cancel</Button><Button type="submit" variant="success" className="flex-[2] py-3 font-bold">Create Client Record</Button></div>
-             </form>
-          </div>
-        )}
-
-        {selectedClient && !isAddingNew && (
-           <div className="animate-fade-in space-y-8">
-              <div className="flex flex-col sm:flex-row justify-between items-start border-b border-zinc-800 pb-8 gap-4">
-                 <div>
-                    <div className="flex items-center gap-3 mb-1"><h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate max-w-[200px] sm:max-w-[400px]">{selectedClient.name}</h2><button onClick={() => handleDeleteClient(selectedClient.id)} className="text-zinc-600 hover:text-red-500 transition-colors p-2 hover:bg-zinc-800 rounded-lg" title="Delete Client"><Trash2 size={20} /></button></div>
-                    <p className="text-zinc-400 flex items-center gap-2 text-sm"><Mail size={14}/> {selectedClient.email}</p>
-                 </div>
-                 <div className="flex items-center gap-4 self-end sm:self-center"><div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-white text-black flex flex-col items-center justify-center font-bold shadow-lg shadow-white/10 cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedClientId(null)}><span className="text-[10px] sm:text-xs">Close</span><Check size={16} className="sm:w-5 sm:h-5"/></div></div>
-              </div>
-
-              <div className="bg-black/40 rounded-2xl border border-zinc-800/50 p-1">
-                <div className="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800">
-                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6 flex items-center gap-2"><Briefcase size={16} className="text-purple-500"/> Project Status</h3>
-                  <div className="flex flex-col sm:grid sm:grid-cols-2 gap-6">
-                    <div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1">Current Phase</label><div className="relative w-full"><select value={selectedClient.phase} onChange={(e) => handleUpdateClient('phase', e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white appearance-none focus:outline-none focus:border-purple-500 transition-colors cursor-pointer text-sm pr-10 truncate"><option>Discovery</option><option>Design</option><option>Development</option><option>Testing</option><option>Live</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" size={16}/></div></div>
-                    <div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1 flex justify-between"><span>Completion</span><span className="text-white font-bold">{selectedClient.progress}%</span></label><div className="h-12 flex items-center px-1"><input type="range" min="0" max="100" value={selectedClient.progress} onChange={(e) => handleUpdateClient('progress', parseInt(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400"/></div></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full">
-                  <div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-green-400"><DollarSign size={18}/> Invoices</h3><span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">{selectedClient.invoices?.length || 0} Total</span></div>
-                  <div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                    {selectedClient.invoices?.map((inv, i) => (
-                      <div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors"><div className="min-w-0 pr-2"><div className="text-white font-medium truncate">{inv.desc}</div><div className="text-zinc-600 text-xs">{inv.id} • {inv.date}</div></div><div className="flex items-center gap-3 flex-shrink-0"><div className="text-right"><div className="font-mono text-zinc-300">{inv.amount}</div><span className={`text-[10px] font-bold ${inv.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{inv.status}</span></div>{inv.status !== 'Paid' && (<button onClick={() => handleMarkPaid(i)} className="bg-green-500/20 hover:bg-green-500/40 text-green-500 p-1.5 rounded-full transition-colors" title="Mark as Paid"><CheckCircle2 size={16} /></button>)}</div></div>
-                    ))}
-                    {(!selectedClient.invoices || selectedClient.invoices.length === 0) && <div className="text-center py-8 text-zinc-600 text-sm border-2 border-dashed border-zinc-800/50 rounded-lg">No invoices sent yet.</div>}
-                  </div>
-                  <div className="pt-4 border-t border-zinc-800">
-                    <div className="flex gap-2 flex-col sm:flex-row"><div className="flex-1 space-y-2 min-w-0"><input type="text" placeholder="Description" value={newInvoiceData.desc} onChange={e => setNewInvoiceData({...newInvoiceData, desc: e.target.value})} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none truncate"/><div className="flex gap-2"><input type="number" placeholder="$ Amount" value={newInvoiceData.amount} onChange={e => setNewInvoiceData({...newInvoiceData, amount: e.target.value})} className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none min-w-0"/><Button variant="success" className="px-4 py-2" onClick={handleAddInvoice}><Send size={16}/></Button></div></div></div>
-                  </div>
-                </div>
-
-                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full">
-                  <div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-blue-400"><FileText size={18}/> Contracts</h3><span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">{selectedClient.contracts?.length || 0} Files</span></div>
-                  <div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                    {selectedClient.contracts?.map((doc, i) => (
-                      <div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors group"><div className="flex items-center gap-3 min-w-0"><div className="bg-blue-500/10 text-blue-500 p-2 rounded-lg flex-shrink-0"><FileText size={16}/></div><div className="min-w-0"><div className="text-white font-medium truncate max-w-[150px]">{doc.name}</div><div className="text-zinc-600 text-xs">{doc.date} • {doc.size}</div></div></div><button className="text-zinc-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"><Download size={16}/></button></div>
-                    ))}
-                    {(!selectedClient.contracts || selectedClient.contracts.length === 0) && <div className="text-center py-8 text-zinc-600 text-sm border-2 border-dashed border-zinc-800/50 rounded-lg">No contracts uploaded.</div>}
-                  </div>
-                  <div className="pt-4 border-t border-zinc-800">
-                    <div className="flex gap-2 flex-col sm:flex-row"><div className="relative flex-1 min-w-0"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><UploadCloud size={14} className="text-zinc-500"/></div><input type="text" placeholder="Document Name" value={newContractName} onChange={e => setNewContractName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:border-blue-500 outline-none truncate"/></div><Button variant="primary" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white border-0 flex-shrink-0" onClick={handleUploadContract}>Upload</Button></div>
-                  </div>
-                </div>
-              </div>
-           </div>
-        )}
-
-        {!selectedClient && !isAddingNew && (
-           <div className="flex flex-col items-center justify-center h-full text-zinc-600 gap-6"><div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 shadow-inner"><Users size={48} className="opacity-50"/></div><div className="text-center"><h3 className="text-xl font-bold text-white mb-2">Select a Client</h3><p className="max-w-xs mx-auto">Click on a client from the list on the left to manage their project, invoices, and contracts.</p></div></div>
-        )}
       </div>
     </div>
   );
@@ -822,23 +365,13 @@ const AdminFinancialsView = ({ clients }) => {
   const totalOutstanding = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status !== 'Paid').reduce((s, i) => s + parseFloat(i.amount.replace(/[^0-9.-]+/g, "")), 0) || 0), 0);
   const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
   const allTransactions = clients.flatMap(client => (client.invoices || []).map(inv => ({ ...inv, clientName: client.name })));
-
   return (
   <div className="animate-fade-in">
     <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Financials</h1><p className="text-zinc-500">Revenue tracking based on active client deals.</p></div>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <Card><h3 className="text-zinc-400 text-sm mb-1">Total Revenue</h3><p className="text-3xl font-bold text-green-500">{formatCurrency(totalRevenue)}</p></Card>
-      <Card><h3 className="text-zinc-400 text-sm mb-1">Outstanding</h3><p className="text-3xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</p></Card>
-      <Card><h3 className="text-zinc-400 text-sm mb-1">Active Deals</h3><p className="text-3xl font-bold text-blue-500">{clients.length}</p></Card>
-    </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><Card><h3 className="text-zinc-400 text-sm mb-1">Total Revenue</h3><p className="text-3xl font-bold text-green-500">{formatCurrency(totalRevenue)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Outstanding</h3><p className="text-3xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Active Deals</h3><p className="text-3xl font-bold text-blue-500">{clients.length}</p></Card></div>
     <h3 className="text-xl font-bold mb-6">All Transactions</h3>
-    <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">
-      <div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Client</div><div>Date</div><div>Invoice ID</div><div className="text-right">Amount</div></div>
-      {allTransactions.map((t, i) => (
-        <div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors">
-          <div className="text-white font-medium truncate">{t.clientName}</div><div className="text-zinc-500">{t.date}</div><div className="text-zinc-500 font-mono text-xs pt-1">{t.id}</div><div className={`text-right font-mono ${t.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{t.amount}</div>
-        </div>
-      ))}
+    <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Client</div><div>Date</div><div>Invoice ID</div><div className="text-right">Amount</div></div>
+      {allTransactions.map((t, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="text-white font-medium truncate">{t.clientName}</div><div className="text-zinc-500">{t.date}</div><div className="text-zinc-500 font-mono text-xs pt-1">{t.id}</div><div className={`text-right font-mono ${t.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{t.amount}</div></div>))}
       {allTransactions.length === 0 && <div className="p-4 text-center text-zinc-500">No transactions recorded.</div>}
     </div>
   </div>
@@ -848,54 +381,145 @@ const AdminFinancialsView = ({ clients }) => {
 const AdminSettingsView = ({ settings, onUpdateSettings }) => {
   const [name, setName] = useState(settings.name);
   return (
-  <div className="animate-fade-in">
-    <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Admin Settings</h1><p className="text-zinc-500">System configuration and profile.</p></div>
-    <div className="max-w-2xl space-y-8">
-      <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
-        <h3 className="text-lg font-bold mb-4">Admin Profile</h3>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div><label className="block text-xs font-medium text-zinc-500 mb-1">Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-white" /></div>
-          <div><label className="block text-xs font-medium text-zinc-500 mb-1">Email</label><input type="text" defaultValue={settings.email} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div>
-        </div>
-        <Button onClick={() => onUpdateSettings({ ...settings, name })} variant="secondary" className="text-sm py-2 px-4">Update Profile</Button>
-      </div>
-      <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
-        <h3 className="text-lg font-bold mb-4">System Preferences</h3>
-        <div className="flex items-center justify-between p-3 bg-red-900/10 border border-red-900/30 rounded-lg">
-             <div className="flex flex-col"><span className="text-white font-bold flex items-center gap-2"><Power size={16}/> Maintenance Mode</span><span className="text-xs text-zinc-400">Prevents all clients from logging in. Admin only.</span></div>
-             <div onClick={() => onUpdateSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${settings.maintenanceMode ? 'bg-red-600' : 'bg-zinc-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.maintenanceMode ? 'left-7' : 'left-1'}`}></div></div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Admin Settings</h1><p className="text-zinc-500">System configuration and profile.</p></div><div className="max-w-2xl space-y-8"><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">Admin Profile</h3><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-white" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email</label><input type="text" defaultValue={settings.email} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={() => onUpdateSettings({ ...settings, name })} variant="secondary" className="text-sm py-2 px-4">Update Profile</Button></div><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">System Preferences</h3><div className="flex items-center justify-between p-3 bg-red-900/10 border border-red-900/30 rounded-lg"><div className="flex flex-col"><span className="text-white font-bold flex items-center gap-2"><Power size={16}/> Maintenance Mode</span><span className="text-xs text-zinc-400">Prevents all clients from logging in. Admin only.</span></div><div onClick={() => onUpdateSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${settings.maintenanceMode ? 'bg-red-600' : 'bg-zinc-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.maintenanceMode ? 'left-7' : 'left-1'}`}></div></div></div></div></div></div>
   );
 };
 
-const AdminPortal = ({ onLogout, clients, adminSettings, setAdminSettings }) => {
-  const [activeTab, setActiveTab] = useState('clients');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+// --- UPDATED ADMIN CLIENT MANAGER ---
+const AdminClientsManager = ({ clients }) => {
+  const [selectedClientId, setSelectedClientId] = useState(null);
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const [newClientData, setNewClientData] = useState({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 });
+  const [newInvoiceData, setNewInvoiceData] = useState({ desc: '', amount: '' });
+  const [contractUploading, setContractUploading] = useState(false);
 
-  const menuItems = [
-    { id: 'clients', label: 'Clients', icon: Users },
-    { id: 'users', label: 'User Roles', icon: Shield },
-    { id: 'financials', label: 'Financials', icon: CreditCard },
-    { id: 'settings', label: 'Admin Settings', icon: Settings },
-  ];
+  const handleCreateClient = async (e) => {
+    e.preventDefault();
+    const clientData = {
+      ...newClientData, role: 'client', milestone: "Project Start", dueDate: "TBD", status: "Active",
+      activity: [{ action: "Created by Admin", date: new Date().toLocaleDateString(), status: "Completed" }],
+      contracts: [], invoices: [], clientUploads: [], notifications: { email: true, push: false }
+    };
+    try { await addDoc(collection(db, 'clients'), clientData); setIsAddingNew(false); setNewClientData({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 }); } catch (err) { alert(err.message); }
+  };
 
+  const handleDeleteClient = async (id) => { if (confirm("Remove client?")) { try { await deleteDoc(doc(db, "clients", id)); setSelectedClientId(null); } catch(err) { alert(err.message); } } };
+  const handleUpdateClient = async (field, value) => { try { await updateDoc(doc(db, "clients", selectedClient.id), { [field]: value }); } catch (err) { console.error(err); } };
+  const handleAddInvoice = async () => { if(!newInvoiceData.amount || !newInvoiceData.desc) return; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: arrayUnion({ id: `INV-${Math.floor(Math.random()*10000)}`, desc: newInvoiceData.desc, amount: `$${newInvoiceData.amount}`, date: new Date().toLocaleDateString('en-US', {month:'short', day:'numeric'}), status: "Pending" }) }); setNewInvoiceData({ desc: '', amount: '' }); } catch (err) { alert(err.message); } };
+  const handleMarkPaid = async (i) => { const updated = [...selectedClient.invoices]; updated[i].status = "Paid"; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: updated }); } catch(e) { console.error(e); } };
+
+  // New File Upload Logic for Admin
+  const handleUploadContract = async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    setContractUploading(true);
+    try {
+      const fileRef = ref(storage, `contracts/${selectedClient.id}/${file.name}`);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      const contract = { name: file.name, url, date: new Date().toLocaleDateString(), size: (file.size/1024/1024).toFixed(2)+" MB" };
+      await updateDoc(doc(db, "clients", selectedClient.id), { contracts: arrayUnion(contract) });
+    } catch(err) { alert("Upload failed: " + err.message); } finally { setContractUploading(false); }
+  };
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-6 h-full animate-fade-in items-start">
+      <div className="w-full lg:w-1/3 flex flex-col gap-4 h-[300px] lg:h-full flex-shrink-0">
+        <Button variant="accent" className="w-full justify-center py-4 rounded-xl shadow-blue-900/30" onClick={() => { setIsAddingNew(true); setSelectedClientId(null); }}><Plus size={18} /> Add New Client</Button>
+        <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-xl overflow-hidden overflow-y-auto">
+          {clients.map(client => (
+            <div key={client.id} onClick={() => { setSelectedClientId(client.id); setIsAddingNew(false); }} className={`p-5 border-b border-zinc-800/80 cursor-pointer transition-all duration-200 group ${selectedClient?.id === client.id ? 'bg-blue-900/10 border-l-4 border-l-blue-500 pl-4' : 'hover:bg-zinc-800/40 border-l-4 border-l-transparent hover:border-l-zinc-700'}`}>
+              <div className="flex justify-between items-start mb-1"><span className={`font-bold text-lg truncate ${selectedClient?.id === client.id ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>{client.name}</span><span className="text-[10px] uppercase tracking-wider bg-green-500/10 text-green-400 px-2 py-1 rounded-full font-bold border border-green-500/20">Active</span></div>
+              <p className="text-sm text-zinc-500 mb-3 truncate group-hover:text-zinc-400">{client.project}</p>
+              <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div className={`h-full rounded-full ${client.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${client.progress}%` }}></div></div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl p-8 h-full w-full overflow-y-auto shadow-2xl relative">
+        {isAddingNew && (
+          <div className="animate-fade-in max-w-xl mx-auto mt-10">
+             <div className="text-center mb-10"><div className="w-16 h-16 bg-blue-600/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/30"><Users size={32}/></div><h2 className="text-3xl font-bold text-white">Onboard New Client</h2><p className="text-zinc-500 mt-2">Create a secure workspace.</p></div>
+             <form onSubmit={handleCreateClient} className="space-y-6">
+                <div className="space-y-4">
+                  <div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Company</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.name} onChange={e => setNewClientData({...newClientData, name: e.target.value})} placeholder="e.g. Acme Corp"/></div>
+                  <div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Email</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.email} onChange={e => setNewClientData({...newClientData, email: e.target.value})} placeholder="client@acme.com"/></div>
+                  <div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Project</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.project} onChange={e => setNewClientData({...newClientData, project: e.target.value})} placeholder="e.g. Website Redesign"/></div>
+                </div>
+                <div className="pt-6 flex gap-3"><Button variant="secondary" className="flex-1 py-3" onClick={() => setIsAddingNew(false)}>Cancel</Button><Button type="submit" variant="success" className="flex-[2] py-3 font-bold">Create</Button></div>
+             </form>
+          </div>
+        )}
+        {selectedClient && !isAddingNew && (
+           <div className="animate-fade-in space-y-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start border-b border-zinc-800 pb-8 gap-4">
+                 <div><div className="flex items-center gap-3 mb-1"><h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">{selectedClient.name}</h2><button onClick={() => handleDeleteClient(selectedClient.id)} className="text-zinc-600 hover:text-red-500 p-2 hover:bg-zinc-800 rounded-lg"><Trash2 size={20} /></button></div><p className="text-zinc-400 flex items-center gap-2 text-sm"><Mail size={14}/> {selectedClient.email}</p></div>
+                 <div className="flex items-center gap-4 self-end sm:self-center"><div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center font-bold shadow-lg cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedClientId(null)}><Check size={16}/></div></div>
+              </div>
+              <div className="bg-black/40 rounded-2xl border border-zinc-800/50 p-1">
+                <div className="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800"><h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6 flex items-center gap-2"><Briefcase size={16} className="text-purple-500"/> Project Status</h3>
+                  <div className="flex flex-col sm:grid sm:grid-cols-2 gap-6">
+                    <div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1">Current Phase</label><div className="relative w-full"><select value={selectedClient.phase} onChange={(e) => handleUpdateClient('phase', e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white appearance-none focus:outline-none focus:border-purple-500"><option>Discovery</option><option>Design</option><option>Development</option><option>Testing</option><option>Live</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" size={16}/></div></div>
+                    <div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1 flex justify-between"><span>Completion</span><span className="text-white font-bold">{selectedClient.progress}%</span></label><div className="h-12 flex items-center px-1"><input type="range" min="0" max="100" value={selectedClient.progress} onChange={(e) => handleUpdateClient('progress', parseInt(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg accent-blue-500"/></div></div>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-green-400"><DollarSign size={18}/> Invoices</h3></div>
+                  <div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                    {selectedClient.invoices?.map((inv, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors"><div className="min-w-0 pr-2"><div className="text-white font-medium truncate">{inv.desc}</div><div className="text-zinc-600 text-xs">{inv.id} • {inv.date}</div></div><div className="flex items-center gap-3 flex-shrink-0"><div className="text-right"><div className="font-mono text-zinc-300">{inv.amount}</div><span className={`text-[10px] font-bold ${inv.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{inv.status}</span></div>{inv.status !== 'Paid' && (<button onClick={() => handleMarkPaid(i)} className="bg-green-500/20 hover:bg-green-500/40 text-green-500 p-1.5 rounded-full"><CheckCircle2 size={16} /></button>)}</div></div>))}
+                  </div>
+                  <div className="pt-4 border-t border-zinc-800"><div className="flex gap-2 flex-col sm:flex-row"><div className="flex-1 space-y-2 min-w-0"><input type="text" placeholder="Description" value={newInvoiceData.desc} onChange={e => setNewInvoiceData({...newInvoiceData, desc: e.target.value})} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none truncate"/><div className="flex gap-2"><input type="number" placeholder="$ Amount" value={newInvoiceData.amount} onChange={e => setNewInvoiceData({...newInvoiceData, amount: e.target.value})} className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none min-w-0"/><Button variant="success" className="px-4 py-2" onClick={handleAddInvoice}><Send size={16}/></Button></div></div></div></div>
+                </div>
+                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-blue-400"><FileText size={18}/> Contracts</h3></div>
+                  <div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                    {selectedClient.contracts?.map((doc, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors group"><div className="flex items-center gap-3 min-w-0"><div className="bg-blue-500/10 text-blue-500 p-2 rounded-lg flex-shrink-0"><FileText size={16}/></div><div className="min-w-0"><div className="text-white font-medium truncate max-w-[150px]">{doc.name}</div><div className="text-zinc-600 text-xs">{doc.date}</div></div></div><a href={doc.url} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-white"><Download size={16}/></a></div>))}
+                  </div>
+                  {/* ADMIN UPLOAD SECTION REPLACEMENT */}
+                  <div className="pt-4 border-t border-zinc-800">
+                    <label className="flex items-center justify-center w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer transition-colors">
+                        <UploadCloud size={18} className="mr-2"/> 
+                        {contractUploading ? "Uploading..." : "Upload Contract"}
+                        <input type="file" className="hidden" onChange={handleUploadContract} disabled={contractUploading} />
+                    </label>
+                  </div>
+                  {/* CLIENT UPLOADS DISPLAY */}
+                  {selectedClient.clientUploads?.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-zinc-800">
+                      <h4 className="text-xs font-bold text-zinc-500 uppercase mb-2">Client Files</h4>
+                      <div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+                        {selectedClient.clientUploads.map((doc, i) => (
+                          <div key={i} className="flex justify-between items-center text-xs p-2 bg-zinc-800/50 rounded border border-zinc-700">
+                            <span className="truncate text-zinc-300">{doc.name}</span>
+                            <a href={doc.url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300"><Download size={14}/></a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+           </div>
+        )}
+        {!selectedClient && !isAddingNew && (<div className="flex flex-col items-center justify-center h-full text-zinc-600 gap-6"><div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 shadow-inner"><Users size={48} className="opacity-50"/></div><div className="text-center"><h3 className="text-xl font-bold text-white mb-2">Select a Client</h3><p>Manage projects, invoices, and files.</p></div></div>)}
+      </div>
+    </div>
+  );
+};
+
+// --- Portal Wrappers (ClientPortal, AdminPortal, LandingPage, Main App) ---
+const AdminPortal = ({ onLogout, clients, setClients, adminSettings, setAdminSettings }) => {
+  const [activeTab, setActiveTab] = useState('clients'); const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuItems = [{ id: 'clients', label: 'Clients', icon: Users }, { id: 'users', label: 'User Roles', icon: Shield }, { id: 'financials', label: 'Financials', icon: CreditCard }, { id: 'settings', label: 'Admin Settings', icon: Settings }];
   return (
     <div className="min-h-screen bg-black text-white font-sans border-l-0 lg:border-l-4 lg:border-red-900 flex flex-col lg:flex-row">
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900"><div className="font-bold text-red-500">ADMIN PANEL</div><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button></div>
-      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full`}>
-        <h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2>
-        <nav className="space-y-2 flex-1">
-          {menuItems.map((item) => (
-            <div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'}`}><item.icon size={18} /> {item.label}</div>
-          ))}
-        </nav>
-        <button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button>
-      </div>
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full`}><h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2><nav className="space-y-2 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'}`}><item.icon size={18} /> {item.label}</div>))}</nav><button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button></div>
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
-        {activeTab === 'clients' && <AdminClientsManager clients={clients} />}
+        {activeTab === 'clients' && <AdminClientsManager clients={clients} setClients={setClients} />}
         {activeTab === 'users' && <AdminUsersManager />}
         {activeTab === 'financials' && <AdminFinancialsView clients={clients} />}
         {activeTab === 'settings' && <AdminSettingsView settings={adminSettings} onUpdateSettings={setAdminSettings} />}
@@ -905,10 +529,8 @@ const AdminPortal = ({ onLogout, clients, adminSettings, setAdminSettings }) => 
 };
 
 const ClientPortal = ({ onLogout, clientData, onUpdateClient, onDeleteAccount }) => {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard'); const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuItems = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'ai-assistant', label: 'AI Assistant', icon: Sparkles, highlight: true }, { id: 'contracts', label: 'Contracts', icon: FileText }, { id: 'invoices', label: 'Invoices', icon: CreditCard }, { id: 'settings', label: 'Settings', icon: Settings }];
-
   return (
     <div className="min-h-screen bg-black text-white font-sans flex flex-col lg:flex-row">
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900"><div className="font-bold">WEBFRONT_OS</div><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button></div>
@@ -925,10 +547,8 @@ const ClientPortal = ({ onLogout, clientData, onUpdateClient, onDeleteAccount })
 };
 
 const LandingPage = ({ onLogin }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false); const [scrolled, setScrolled] = useState(false);
   useEffect(() => { const handleScroll = () => setScrolled(window.scrollY > 50); window.addEventListener('scroll', handleScroll); return () => window.removeEventListener('scroll', handleScroll); }, []);
-
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black">
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-md border-b border-zinc-800 py-4' : 'bg-transparent py-6'}`}>
@@ -949,131 +569,65 @@ const LandingPage = ({ onLogin }) => {
 export default function App() {
   const [view, setView] = useState('landing'); 
   const [userRole, setUserRole] = useState('client'); 
-  const [clients, setClients] = useState([]); // NOW STARTS EMPTY & FILLS FROM DB
+  const [clients, setClients] = useState([]); 
   const [currentClientData, setCurrentClientData] = useState(null); 
-  
-  const [adminSettings, setAdminSettings] = useState({
-    name: "Admin User",
-    email: "aapsantos07@gmail.com",
-    maintenanceMode: false
-  });
+  const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: "aapsantos07@gmail.com", maintenanceMode: false });
 
   // REAL-TIME LISTENER FOR ADMINS
   useEffect(() => {
-    // Only listen if logged in (this simplifies, you could check auth state)
-    // but listening always is fine for this structure, rules will block unauth reads
     const unsubscribe = onSnapshot(collection(db, "clients"), (snapshot) => {
       const liveClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setClients(liveClients);
-    }, (error) => {
-      // It's okay to fail here if not logged in as admin
-      console.log("Listen failed (likely not admin):", error.code);
-    });
+      // Sync current client view if they are logged in as a client
+      if(currentClientData && userRole === 'client') {
+         const me = liveClients.find(c => c.id === currentClientData.id);
+         if(me) setCurrentClientData(me);
+      }
+    }, (error) => console.log("Listen failed (likely not admin):", error.code));
     return () => unsubscribe();
-  }, []);
+  }, [userRole, currentClientData]); // Added dependencies to keep client view fresh
 
   const handleLogin = (role, clientData) => {
     setUserRole(role);
-    if (role === 'admin') {
-      setView('admin');
-    } else {
-      setCurrentClientData(clientData); 
-      setView('portal');
-    }
+    if (role === 'admin') { setView('admin'); } else { setCurrentClientData(clientData); setView('portal'); }
   };
 
   const handleClientUpdate = async (updatedClient) => {
-    // Optimistic update
-    setCurrentClientData(updatedClient); 
-    // Persist to DB
-    try {
-      await updateDoc(doc(db, 'clients', updatedClient.id), {
-        name: updatedClient.name,
-        notifications: updatedClient.notifications
-      });
-    } catch(e) { console.error("Update failed", e); }
+    try { await updateDoc(doc(db, 'clients', updatedClient.id), { name: updatedClient.name, notifications: updatedClient.notifications }); } catch(e) { console.error("Update failed", e); }
   };
 
   const handleClientDelete = async (id) => {
     if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
-      try {
-        await deleteDoc(doc(db, 'clients', id));
-        await signOut(auth);
-        setView('landing'); 
-      } catch(e) { alert(e.message); }
+      try { await deleteDoc(doc(db, 'clients', id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); }
     }
   };
 
   const handleAuthSubmit = async (isSignUp, email, password, name) => {
-    
-    // Master Admin Bypass (for role enforcement, not Auth bypass)
     const isMasterAdmin = email.toLowerCase() === 'aapsantos07@gmail.com';
-
-    if (adminSettings.maintenanceMode && isSignUp && !isMasterAdmin) {
-        return { error: "New signups are disabled during maintenance." };
-    }
-
+    if (adminSettings.maintenanceMode && isSignUp && !isMasterAdmin) return { error: "New signups are disabled during maintenance." };
     try {
-        let user;
-        let uid;
-
+        let user; let uid;
         if (isSignUp) {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            user = userCredential.user;
-            uid = user.uid;
-            
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
             const role = isMasterAdmin ? 'admin' : 'client';
-
             const clientData = {
-                id: uid,
-                name: name || (isMasterAdmin ? "Master Admin" : "New User"),
-                email: email,
-                role: role, 
-                project: isMasterAdmin ? "WebFront AI System" : "New Project",
-                phase: "Discovery",
-                progress: 0,
-                milestone: "Onboarding",
-                dueDate: "TBD",
-                revenue: 0,
-                status: "Active",
-                activity: [{ action: "Account Created", date: new Date().toLocaleDateString(), status: "Completed" }],
-                invoices: [],
-                contracts: [],
-                notifications: { email: true, push: false }
+                id: uid, name: name || (isMasterAdmin ? "Master Admin" : "New User"), email: email, role: role, 
+                project: isMasterAdmin ? "WebFront AI System" : "New Project", phase: "Discovery", progress: 0, milestone: "Onboarding", dueDate: "TBD", revenue: 0, status: "Active",
+                activity: [{ action: "Account Created", date: new Date().toLocaleDateString(), status: "Completed" }], invoices: [], contracts: [], clientUploads: [], notifications: { email: true, push: false }
             };
-            
-            await setDoc(doc(db, "clients", uid), clientData);
-            handleLogin(role, clientData);
-            
+            await setDoc(doc(db, "clients", uid), clientData); handleLogin(role, clientData);
         } else {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            user = userCredential.user;
-            uid = user.uid;
-            
+            const userCredential = await signInWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
             const clientDocSnap = await getDoc(doc(db, "clients", uid));
-            
             if (clientDocSnap.exists()) {
                 const userData = clientDocSnap.data();
                 const userRole = isMasterAdmin ? 'admin' : (userData.role || 'client');
                 handleLogin(userRole, userData);
             } else {
                 if (isMasterAdmin) {
-                    // Recover Master Admin if DB doc missing
-                    const adminData = {
-                        id: uid,
-                        name: "Master Admin",
-                        email: email,
-                        role: 'admin',
-                        project: "System Admin",
-                        // defaults
-                        phase: "Admin", progress: 100, milestone: "N/A", dueDate: "N/A", revenue: 0, status: "Active", activity: [], invoices: [], contracts: []
-                    };
-                    await setDoc(doc(db, "clients", uid), adminData);
-                    handleLogin('admin', adminData);
-                } else {
-                    await signOut(auth); 
-                    return { error: "User data not found. Please contact support." };
-                }
+                    const adminData = { id: uid, name: "Master Admin", email: email, role: 'admin', project: "System Admin", phase: "Admin", progress: 100, milestone: "N/A", dueDate: "N/A", revenue: 0, status: "Active", activity: [], invoices: [], contracts: [], clientUploads: [] };
+                    await setDoc(doc(db, "clients", uid), adminData); handleLogin('admin', adminData);
+                } else { await signOut(auth); return { error: "User data not found. Please contact support." }; }
             }
         }
         return { error: null };

@@ -3,6 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage"; // <--- Add this import
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -24,6 +25,4 @@ export const analytics = getAnalytics(app);
 // Initialize and Export Firebase services
 export const db = getFirestore(app);
 export const auth = getAuth(app);
-
-// NOTE: Emulator connection logic has been removed.
-// This application will now connect to the PRODUCTION Firebase Console.
+export const storage = getStorage(app); // <--- Export storage
