@@ -67,6 +67,35 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
   );
 };
 
+// --- API Logic ---
+const callGemini = async (userQuery, systemPrompt) => {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const payload = {
+    contents: [{ parts: [{ text: userQuery }] }],
+    systemInstruction: { parts: [{ text: systemPrompt }] }
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+       const errorData = await response.json();
+       console.error("Gemini API Error:", errorData);
+       throw new Error(errorData.error?.message || "API Request Failed");
+    }
+    
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch (error) {
+    console.error("CallGemini Exception:", error);
+    return null; 
+  }
+};
+
 // --- Helper Components ---
 function Button({ children, variant = 'primary', className = '', onClick, type="button", title="", disabled=false }) {
   const baseStyle = "px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -126,6 +155,93 @@ function ProjectOnboardingModal({ isOpen, onSubmit }) {
             {loading ? <><Loader2 className="animate-spin mr-2"/> Setting up...</> : <>Launch Project <ArrowRight size={20}/></>}
           </Button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// --- AI Chat Widget (MISSING COMPONENT RESTORED) ---
+function AIChatDemo() {
+  const [messages, setMessages] = useState([{ role: 'ai', text: "Hello. I am WEBFRONT_AI. How can I assist your agency today?" }]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const chatContainerRef = useRef(null);
+
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: "smooth"
+      });
+    }
+  };
+
+  useEffect(scrollToBottom, [messages]);
+
+  const formatMessage = (text) => {
+    if (!text) return null;
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={index} className="text-white font-bold">{part.slice(2, -2)}</strong>;
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+    const userMsg = input;
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setInput('');
+    setIsTyping(true);
+
+    const systemPrompt = `You are WEBFRONT_AI, the on-site AI Receptionist for **WebFront AI**. 
+    Your only job is to talk to visitors about WebFront AI, our services, pricing, and process, and help them decide to book a strategy call.
+    IMPORTANT RULES:
+    1. **Keep your answers SHORT.** Maximum 2-3 sentences.
+    2. Use **bold** syntax.`;
+
+    const response = await callGemini(userMsg, systemPrompt);
+    setMessages(prev => [...prev, { role: 'ai', text: response || "I am currently experiencing heavy traffic. Please try again." }]);
+    setIsTyping(false);
+  };
+
+  return (
+    <div className="w-full max-w-md bg-black/80 backdrop-blur-xl border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[400px] md:h-[500px] transition-all duration-500 hover:shadow-blue-900/20 hover:border-zinc-700">
+      <div className="bg-zinc-900/50 p-4 border-b border-zinc-800 flex items-center justify-between">
+        <div className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_2s_infinite]"></div><span className="font-mono text-sm text-zinc-400">WEBFRONT_AI</span></div>
+        <Sparkles size={18} className="text-blue-400 animate-pulse" />
+      </div>
+      <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 font-sans text-sm scrollbar-thin scrollbar-thumb-zinc-800">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
+            <div className={`max-w-[85%] p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-none shadow-lg shadow-blue-900/20' : 'bg-zinc-800 text-zinc-200 rounded-bl-none border border-zinc-700'}`}>
+              {formatMessage(m.text)}
+            </div>
+          </div>
+        ))}
+        {isTyping && (
+          <div className="flex justify-start animate-pulse">
+            <div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center border border-zinc-700">
+              <Loader2 size={14} className="animate-spin text-zinc-500" />
+              <span className="text-xs text-zinc-500 ml-2">Thinking...</span>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="p-4 bg-zinc-900/50 border-t border-zinc-800 flex gap-2">
+        <input 
+          type="text" 
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }}
+          placeholder="Ask about pricing, services..."
+          className="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors"
+        />
+        <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors transform active:scale-95">
+          <Send size={18} />
+        </button>
       </div>
     </div>
   );
@@ -331,7 +447,7 @@ function ClientProjectsView({ data }) {
 }
 
 function ClientTasksView({ data }) {
-    const tasks = data.tasks || []; // Placeholder if tasks don't exist in DB yet
+    const tasks = data.tasks || []; 
 
     return (
         <div className="animate-fade-in space-y-6">
@@ -441,7 +557,6 @@ function ClientMessagesView({ data }) {
     const [messageInput, setMessageInput] = useState("");
     
     // Mocking messages since DB structure might not be fully ready
-    // In production, these would come from `data.messages`
     const messages = data.messages || [
         { sender: 'admin', text: 'Welcome to your portal! Let us know if you have questions.', time: 'System • Just now' }
     ];
@@ -601,6 +716,277 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
   );
 }
 
+// --- ADMIN PORTAL VIEWS ---
+
+function AdminClientsManager({ clients }) {
+  const [selectedClientId, setSelectedClientId] = useState(null);
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const [newClientData, setNewClientData] = useState({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 });
+  const [newInvoiceData, setNewInvoiceData] = useState({ desc: '', amount: '' });
+  const [contractUploading, setContractUploading] = useState(false);
+
+  const handleCreateClient = async (e) => {
+    e.preventDefault();
+    const clientData = {
+      ...newClientData, role: 'client', milestone: "Project Start", dueDate: "TBD", status: "Active",
+      activity: [{ action: "Created by Admin", date: new Date().toLocaleDateString(), status: "Completed" }],
+      contracts: [], invoices: [], clientUploads: [], notifications: { email: true, push: false }
+    };
+    try { await addDoc(collection(db, 'clients'), clientData); setIsAddingNew(false); setNewClientData({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 }); } catch (err) { alert(err.message); }
+  };
+
+  const handleDeleteClient = async (id) => { if (confirm("Remove client?")) { try { await deleteDoc(doc(db, "clients", id)); setSelectedClientId(null); } catch(err) { alert(err.message); } } };
+  const handleUpdateClient = async (field, value) => { 
+    try { 
+      const updates = { [field]: value };
+      if (field === 'progress') {
+          updates.status = value === 100 ? 'Completed' : 'Active';
+      }
+      await updateDoc(doc(db, "clients", selectedClient.id), updates); 
+    } catch (err) { console.error(err); } 
+  };
+  const handleAddInvoice = async () => { if(!newInvoiceData.amount || !newInvoiceData.desc) return; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: arrayUnion({ id: `INV-${Math.floor(Math.random()*10000)}`, desc: newInvoiceData.desc, amount: `$${newInvoiceData.amount}`, date: new Date().toLocaleDateString('en-US', {month:'short', day:'numeric'}), status: "Pending" }) }); setNewInvoiceData({ desc: '', amount: '' }); } catch (err) { alert(err.message); } };
+  const handleMarkPaid = async (i) => { const updated = [...selectedClient.invoices]; updated[i].status = "Paid"; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: updated }); } catch(e) { console.error(e); } };
+
+  const handleUploadContract = async (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    if (file.size > 1048576) { alert("File too large for free storage (Max 1MB)."); return; }
+    setContractUploading(true);
+    try {
+      const base64 = await convertToBase64(file);
+      const contract = { name: file.name, url: base64, date: new Date().toLocaleDateString(), size: (file.size/1024).toFixed(2)+" KB" };
+      await updateDoc(doc(db, "clients", selectedClient.id), { contracts: arrayUnion(contract) });
+    } catch(err) { alert("Upload failed: " + err.message); } finally { setContractUploading(false); }
+  };
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-6 h-full animate-fade-in items-start">
+      <div className="w-full lg:w-1/3 flex flex-col gap-4 h-[300px] lg:h-full flex-shrink-0">
+        <Button variant="accent" className="w-full justify-center py-4 rounded-xl shadow-blue-900/30" onClick={() => { setIsAddingNew(true); setSelectedClientId(null); }}><Plus size={18} /> Add New Client</Button>
+        <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-xl overflow-hidden overflow-y-auto">
+          {clients.map(client => (
+            <div key={client.id} onClick={() => { setSelectedClientId(client.id); setIsAddingNew(false); }} className={`p-5 border-b border-zinc-800/80 cursor-pointer transition-all duration-200 group ${selectedClient?.id === client.id ? 'bg-blue-900/10 border-l-4 border-l-blue-500 pl-4' : 'hover:bg-zinc-800/40 border-l-4 border-l-transparent hover:border-l-zinc-700'}`}>
+              <div className="flex justify-between items-start mb-1">
+                  <span className={`font-bold text-lg truncate ${selectedClient?.id === client.id ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>{client.name}</span>
+                  <span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-full font-bold border ${client.status === 'Completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>
+                      {client.status || 'Active'}
+                  </span>
+              </div>
+              <p className="text-sm text-zinc-500 mb-3 truncate group-hover:text-zinc-400">{client.project}</p>
+              <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div className={`h-full rounded-full ${client.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${client.progress}%` }}></div></div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl p-8 h-full w-full overflow-y-auto shadow-2xl relative">
+        {isAddingNew && (
+          <div className="animate-fade-in max-w-xl mx-auto mt-10">
+             <div className="text-center mb-10"><div className="w-16 h-16 bg-blue-600/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/30"><Users size={32}/></div><h2 className="text-3xl font-bold text-white">Onboard New Client</h2><p className="text-zinc-500 mt-2">Create a secure workspace.</p></div>
+             <form onSubmit={handleCreateClient} className="space-y-6">
+                <div className="space-y-4">
+                  <div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Company</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.name} onChange={e => setNewClientData({...newClientData, name: e.target.value})} placeholder="e.g. Acme Corp"/></div>
+                  <div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Email</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.email} onChange={e => setNewClientData({...newClientData, email: e.target.value})} placeholder="client@acme.com"/></div>
+                  <div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Project</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.project} onChange={e => setNewClientData({...newClientData, project: e.target.value})} placeholder="e.g. Website Redesign"/></div>
+                </div>
+                <div className="pt-6 flex gap-3"><Button variant="secondary" className="flex-1 py-3" onClick={() => setIsAddingNew(false)}>Cancel</Button><Button type="submit" variant="success" className="flex-[2] py-3 font-bold">Create</Button></div>
+             </form>
+          </div>
+        )}
+        {selectedClient && !isAddingNew && (
+           <div className="animate-fade-in space-y-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start border-b border-zinc-800 pb-8 gap-4">
+                 <div><div className="flex items-center gap-3 mb-1"><h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">{selectedClient.name}</h2><button onClick={() => handleDeleteClient(selectedClient.id)} className="text-zinc-600 hover:text-red-500 p-2 hover:bg-zinc-800 rounded-lg"><Trash2 size={20} /></button></div><p className="text-zinc-400 flex items-center gap-2 text-sm"><Mail size={14}/> {selectedClient.email}</p></div>
+                 <div className="flex items-center gap-4 self-end sm:self-center"><div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center font-bold shadow-lg cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedClientId(null)}><Check size={16}/></div></div>
+              </div>
+              <div className="bg-black/40 rounded-2xl border border-zinc-800/50 p-1">
+                <div className="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800"><h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6 flex items-center gap-2"><Briefcase size={16} className="text-purple-500"/> Project Status</h3>
+                  <div className="flex flex-col sm:grid sm:grid-cols-2 gap-6">
+                    <div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1">Current Phase</label><div className="relative w-full"><select value={selectedClient.phase} onChange={(e) => handleUpdateClient('phase', e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white appearance-none focus:outline-none focus:border-purple-500"><option>Discovery</option><option>Design</option><option>Development</option><option>Testing</option><option>Live</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" size={16}/></div></div>
+                    <div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1 flex justify-between"><span>Completion</span><span className="text-white font-bold">{selectedClient.progress}%</span></label><div className="h-12 flex items-center px-1"><input type="range" min="0" max="100" value={selectedClient.progress} onChange={(e) => handleUpdateClient('progress', parseInt(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg accent-blue-500"/></div></div>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-green-400"><DollarSign size={18}/> Invoices</h3></div>
+                  <div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                    {selectedClient.invoices?.map((inv, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors"><div className="min-w-0 pr-2"><div className="text-white font-medium truncate">{inv.desc}</div><div className="text-zinc-600 text-xs">{inv.id} • {inv.date}</div></div><div className="flex items-center gap-3 flex-shrink-0"><div className="text-right"><div className="font-mono text-zinc-300">{inv.amount}</div><span className={`text-[10px] font-bold ${inv.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{inv.status}</span></div>{inv.status !== 'Paid' && (<button onClick={() => handleMarkPaid(i)} className="bg-green-500/20 hover:bg-green-500/40 text-green-500 p-1.5 rounded-full"><CheckCircle2 size={16} /></button>)}</div></div>))}
+                  </div>
+                  <div className="pt-4 border-t border-zinc-800"><div className="flex gap-2 flex-col sm:flex-row"><div className="flex-1 space-y-2 min-w-0"><input type="text" placeholder="Description" value={newInvoiceData.desc} onChange={e => setNewInvoiceData({...newInvoiceData, desc: e.target.value})} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none truncate"/><div className="flex gap-2"><input type="number" placeholder="$ Amount" value={newInvoiceData.amount} onChange={e => setNewInvoiceData({...newInvoiceData, amount: e.target.value})} className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none min-w-0"/><Button variant="success" className="px-4 py-2" onClick={handleAddInvoice}><Send size={16}/></Button></div></div></div></div>
+                </div>
+                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-blue-400"><FileText size={18}/> Contracts</h3></div>
+                  <div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                    {selectedClient.contracts?.map((doc, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors group"><div className="flex items-center gap-3 min-w-0"><div className="bg-blue-500/10 text-blue-500 p-2 rounded-lg flex-shrink-0"><FileText size={16}/></div><div className="min-w-0"><div className="text-white font-medium truncate max-w-[150px]">{doc.name}</div><div className="text-zinc-600 text-xs">{doc.date}</div></div></div><a href={doc.url} download={doc.name} className="text-zinc-500 hover:text-white"><Download size={16}/></a></div>))}
+                  </div>
+                  {/* ADMIN UPLOAD */}
+                  <div className="pt-4 border-t border-zinc-800">
+                    <label className="flex items-center justify-center w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer transition-colors">
+                        <UploadCloud size={18} className="mr-2"/> {contractUploading ? "Saving..." : "Upload (Max 1MB)"}
+                        <input type="file" className="hidden" onChange={handleUploadContract} disabled={contractUploading} />
+                    </label>
+                  </div>
+                  {/* CLIENT UPLOADS DISPLAY */}
+                  {selectedClient.clientUploads?.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-zinc-800">
+                      <h4 className="text-xs font-bold text-zinc-500 uppercase mb-2">Client Files</h4>
+                      <div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+                        {selectedClient.clientUploads.map((doc, i) => (
+                          <div key={i} className="flex justify-between items-center text-xs p-2 bg-zinc-800/50 rounded border border-zinc-700">
+                            <span className="truncate text-zinc-300">{doc.name}</span>
+                            <a href={doc.url} download={doc.name} className="text-blue-400 hover:text-blue-300"><Download size={14}/></a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+           </div>
+        )}
+        {!selectedClient && !isAddingNew && (<div className="flex flex-col items-center justify-center h-full text-zinc-600 gap-6"><div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 shadow-inner"><Users size={48} className="opacity-50"/></div><div className="text-center"><h3 className="text-xl font-bold text-white mb-2">Select a Client</h3><p>Manage projects, invoices, and files.</p></div></div>)}
+      </div>
+    </div>
+  );
+}
+
+// --- NEW COMPONENT: Smart Document Wizard ---
+function AdminFilesView({ clients }) {
+  const [step, setStep] = useState('select'); 
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedClientId, setSelectedClientId] = useState('');
+  const [aiQuestions, setAiQuestions] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [generatedContent, setGeneratedContent] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+
+  const docTypes = [
+    { id: 'onboarding', name: 'Onboarding Email', icon: Mail, description: "Welcome email with next steps." },
+    { id: 'invoice', name: 'Invoice', icon: DollarSign, description: "Professional bill for services." },
+    { id: 'contract', name: 'Service Agreement', icon: Shield, description: "Legal contract for project work." },
+    { id: 'proposal', name: 'Project Proposal', icon: FileText, description: "Detailed pitch and timeline." }
+  ];
+
+  const handleStartInterview = async () => {
+    if (!selectedClientId || !selectedTemplate) return alert("Please select a client and document type.");
+    setIsLoading(true);
+    const client = clients.find(c => c.id === selectedClientId);
+    const prompt = `I need to draft a ${selectedTemplate.name} for a client named "${client.name}". Their project is "${client.project}" (Current Phase: ${client.phase}). Generate 3 to 5 specific, critical questions I need to answer to fill out this document accurately. Return ONLY a JSON array of strings. Example: ["What is the payment due date?", "What is the total amount?"]`;
+    try {
+        const response = await callGemini(prompt, "You are a helpful admin assistant. Return only raw JSON.");
+        const jsonStr = response.replace(/```json/g, '').replace(/```/g, '').trim();
+        const questions = JSON.parse(jsonStr);
+        setAiQuestions(questions);
+        setStep('interview');
+    } catch (e) {
+        console.error("AI Error:", e);
+        alert("System Overload: Could not generate questions. Please try again.");
+    } finally { setIsLoading(false); }
+  };
+
+  const handleGenerateDraft = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    const client = clients.find(c => c.id === selectedClientId);
+    const answersText = Object.entries(answers).map(([q, a]) => `Q: ${q}\nA: ${a}`).join('\n');
+    const prompt = `Draft a professional ${selectedTemplate.name} for "${client.name}". Project: ${client.project}. Here are the details provided by the admin: ${answersText}. FORMATTING RULES: 1. Output valid HTML code with inline CSS. 2. Make it look like a professional document (A4 paper style, clean fonts, padding). 3. Use a white background, black text, and standard font. 4. Do NOT use markdown blocks (no \`\`\`html). Just the raw HTML.`;
+    try {
+        const response = await callGemini(prompt, "You are a professional document generator. Output raw HTML only.");
+        const cleanHtml = response.replace(/```html/g, '').replace(/```/g, '');
+        setGeneratedContent(cleanHtml);
+        setStep('review');
+    } catch (e) { alert("System Overload: Could not generate draft."); } finally { setIsLoading(false); }
+  };
+
+  const handleSendToClient = async () => {
+    setIsSending(true);
+    try {
+      const client = clients.find(c => c.id === selectedClientId);
+      const fileName = `${selectedTemplate.name.replace(/\s+/g, '_')}_${Date.now()}.html`;
+      const blob = new Blob([generatedContent], { type: 'text/html' });
+      const file = new File([blob], fileName, { type: 'text/html' });
+      const base64 = await convertToBase64(file);
+      const newDoc = { name: fileName, url: base64, date: new Date().toLocaleDateString(), size: "HTML Doc" };
+      await updateDoc(doc(db, "clients", selectedClientId), { contracts: arrayUnion(newDoc), activity: arrayUnion({ action: `Sent ${selectedTemplate.name}`, date: new Date().toLocaleDateString(), status: "Completed" }) });
+      alert("Sent successfully!"); setStep('select'); setGeneratedContent(''); setAnswers({});
+    } catch (error) { alert("Error sending: " + error.message); } finally { setIsSending(false); }
+  };
+
+  const handlePrintPDF = () => {
+    const printWindow = window.open('', '', 'width=800,height=600');
+    printWindow.document.write(generatedContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
+
+  return (
+    <div className="animate-fade-in h-full flex flex-col">
+      <div className="mb-6 flex justify-between items-end">
+        <div><h1 className="text-3xl font-bold mb-1">Smart Document Wizard</h1><p className="text-zinc-500">Generate tailored PDF-ready documents using AI.</p></div>
+        {step !== 'select' && (<button onClick={() => setStep('select')} className="text-sm text-zinc-500 hover:text-white underline">Start Over</button>)}
+      </div>
+      {step === 'select' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto w-full mt-8">
+            <div className="space-y-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm">1</div> Select Client</h3>
+                <div className="bg-zinc-900/50 border border-zinc-800 p-2 rounded-xl">{clients.map(c => (<div key={c.id} onClick={() => setSelectedClientId(c.id)} className={`p-4 rounded-lg cursor-pointer flex justify-between items-center transition-all ${selectedClientId === c.id ? 'bg-blue-600/20 border border-blue-500 text-white' : 'hover:bg-zinc-800 text-zinc-400'}`}><span className="font-bold">{c.name}</span><span className="text-xs uppercase tracking-wider">{c.project}</span></div>))}</div></div>
+            <div className="space-y-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm">2</div> Document Type</h3>
+                <div className="grid grid-cols-1 gap-3">{docTypes.map(t => (<div key={t.id} onClick={() => setSelectedTemplate(t)} className={`p-4 border rounded-xl cursor-pointer flex items-center gap-4 transition-all ${selectedTemplate?.id === t.id ? 'bg-white text-black border-white' : 'bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:border-zinc-600'}`}><t.icon size={24} /><div><div className="font-bold">{t.name}</div><div className="text-xs opacity-70">{t.description}</div></div></div>))}</div>
+                <Button onClick={handleStartInterview} disabled={!selectedClientId || !selectedTemplate || isLoading} className="w-full py-4 mt-4">{isLoading ? <Loader2 className="animate-spin"/> : "Start AI Interview →"}</Button></div>
+        </div>
+      )}
+      {step === 'interview' && (
+        <div className="max-w-2xl mx-auto w-full mt-8 animate-fade-in"><h3 className="text-2xl font-bold mb-6 text-center">Details Required</h3>
+            <form onSubmit={handleGenerateDraft} className="space-y-6 bg-zinc-900/30 p-8 rounded-2xl border border-zinc-800">{aiQuestions.map((q, i) => (<div key={i}><label className="block text-sm font-bold text-blue-400 mb-2">{q}</label><input required className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all" placeholder="Enter details..." onChange={(e) => setAnswers({...answers, [q]: e.target.value})}/></div>))}
+                <Button type="submit" disabled={isLoading} className="w-full py-4 text-lg">{isLoading ? <><Loader2 className="animate-spin mr-2"/> Drafting Document...</> : "Generate Draft"}</Button></form></div>
+      )}
+      {step === 'review' && (
+        <div className="flex flex-col lg:flex-row gap-8 h-[600px] animate-fade-in">
+            <div className="flex-1 bg-white rounded-xl overflow-hidden shadow-2xl relative group"><iframe title="preview" srcDoc={generatedContent} className="w-full h-full border-none bg-white"/><div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={handlePrintPDF} className="bg-black text-white px-4 py-2 rounded-lg shadow-lg hover:bg-zinc-800 flex items-center gap-2 text-xs font-bold"><Download size={14}/> Save as PDF</button></div></div>
+            <div className="w-full lg:w-1/3 flex flex-col gap-4"><div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl"><h3 className="font-bold text-white mb-2">Ready to Send?</h3><p className="text-sm text-zinc-500 mb-6">The client will receive this document in their 'Documents' tab immediately.</p><div className="space-y-3"><Button onClick={handleSendToClient} disabled={isSending} variant="success" className="w-full">{isSending ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2" size={18}/>} Send to Portal</Button><Button onClick={() => setStep('interview')} variant="secondary" className="w-full"><Edit3 className="mr-2" size={18}/> Edit Answers</Button></div></div></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- ADMIN PORTAL VIEWS ---
+function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
+  const [activeTab, setActiveTab] = useState('clients'); 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  const menuItems = [
+    { id: 'clients', label: 'Clients', icon: Users }, 
+    { id: 'users', label: 'User Roles', icon: Shield }, 
+    { id: 'financials', label: 'Financials', icon: CreditCard }, 
+    { id: 'files', label: 'Files & AI', icon: FileText }, 
+    { id: 'settings', label: 'Admin Settings', icon: Settings }
+  ];
+
+  return (
+    <div className="min-h-screen bg-black text-white font-sans border-l-0 lg:border-l-4 lg:border-red-900 flex flex-col lg:flex-row">
+      <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900">
+        <div className="font-bold text-red-500">ADMIN PANEL</div>
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button>
+      </div>
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}>
+        <h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2>
+        <nav className="space-y-2 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'} ${item.id === activeTab ? 'bg-red-900/20 text-red-400 border border-red-900/50' : ''}`}><item.icon size={18} /> {item.label}</div>))}</nav><button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button></div>
+      <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
+        {activeTab === 'clients' && <AdminClientsManager clients={clients} setClients={setClients} />}
+        {activeTab === 'users' && <AdminUsersManager />}
+        {activeTab === 'financials' && <AdminFinancialsView clients={clients} />}
+        {activeTab === 'files' && <AdminFilesView clients={clients} />}
+        {activeTab === 'settings' && <AdminSettingsView settings={adminSettings} onUpdateSettings={setAdminSettings} />}
+      </div>
+    </div>
+  );
+}
+
+// --- Landing Page ---
 function LandingPage({ onLogin }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false); 
   const [scrolled, setScrolled] = useState(false);
@@ -777,51 +1163,6 @@ function LandingPage({ onLogin }) {
           </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-// --- UPDATED ADMIN PORTAL ---
-function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
-  const [activeTab, setActiveTab] = useState('clients'); 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
-  const menuItems = [
-    { id: 'clients', label: 'Clients', icon: Users }, 
-    { id: 'users', label: 'User Roles', icon: Shield }, 
-    { id: 'financials', label: 'Financials', icon: CreditCard }, 
-    { id: 'settings', label: 'Admin Settings', icon: Settings }
-  ];
-
-  return (
-    <div className="min-h-screen bg-black text-white font-sans border-l-0 lg:border-l-4 lg:border-red-900 flex flex-col lg:flex-row">
-      <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900">
-        <div className="font-bold text-red-500">ADMIN PANEL</div>
-        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button>
-      </div>
-      
-      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}>
-        <h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2>
-        <nav className="space-y-2 flex-1">
-          {menuItems.map((item) => (
-            <div 
-              key={item.id} 
-              onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} 
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'} ${item.id === activeTab ? 'bg-red-900/20 text-red-400 border border-red-900/50' : ''}`}
-            >
-              <item.icon size={18} /> {item.label}
-            </div>
-          ))}
-        </nav>
-        <button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
-        {activeTab === 'clients' && <AdminClientsManager clients={clients} setClients={setClients} />}
-        {activeTab === 'users' && <AdminUsersManager />}
-        {activeTab === 'financials' && <AdminFinancialsView clients={clients} />}
-        {activeTab === 'settings' && <AdminSettingsView settings={adminSettings} onUpdateSettings={setAdminSettings} />}
-      </div>
     </div>
   );
 }
