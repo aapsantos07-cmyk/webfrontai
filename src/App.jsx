@@ -661,7 +661,7 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
   const menuItems = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'ai-assistant', label: 'AI Assistant', icon: Sparkles, highlight: true }, { id: 'contracts', label: 'Contracts', icon: FileText }, { id: 'invoices', label: 'Invoices', icon: CreditCard }, { id: 'settings', label: 'Settings', icon: Settings }];
 
   // --- NEW LOGIC: Show Onboarding Modal if Project is "New Project" ---
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(clientData?.project === "New Project");
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
