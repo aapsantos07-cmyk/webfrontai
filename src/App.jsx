@@ -13,7 +13,7 @@ import {
   createUserWithEmailAndPassword, 
   signOut,
   sendPasswordResetEmail,
-  onAuthStateChanged // <--- NEW: Necessary for persistent login
+  onAuthStateChanged 
 } from 'firebase/auth';
 
 import { 
@@ -24,7 +24,7 @@ import {
 import { auth, db, storage } from './firebase'; 
 // --------------------------------
 
-const apiKey = "AIzaSyBB3MXjcC5KcRja7Kl91joSJOUwGCk0q5Q"; // injected at runtime
+const apiKey = ""; // injected at runtime
 
 // --- Helper: Convert File to Base64 ---
 const convertToBase64 = (file) => {
@@ -603,7 +603,7 @@ function LandingPage({ onLogin }) {
       <section id="services" className="py-24 bg-zinc-950"><div className="container mx-auto px-6"><div className="mb-16"><h2 className="text-3xl md:text-5xl font-bold mb-6">OUR SERVICES</h2><div className="w-20 h-1 bg-blue-600"></div></div><div className="grid md:grid-cols-2 gap-8"><Card className="group cursor-pointer"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors duration-300"><Code size={24} /></div><h3 className="text-2xl font-bold mb-4">Web Development</h3><p className="text-zinc-400 leading-relaxed mb-6">Custom-coded React & Next.js applications designed for speed, SEO, and conversion. We don't use templates; we architect experiences.</p><ul className="space-y-2 text-zinc-500"><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> High-Performance Animations</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> CMS Integration</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Dark Mode Optimized</li></ul></Card><Card className="group cursor-pointer"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300"><MessageSquare size={24} /></div><h3 className="text-2xl font-bold mb-4">AI Receptionists</h3><p className="text-zinc-400 leading-relaxed mb-6">Intelligent agents that handle customer support, booking, and inquiries 24/7. Train them on your data and let them run your front desk.</p><ul className="space-y-2 text-zinc-500"><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Natural Language Processing</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Calendar Integration</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Voice & Chat Support</li></ul></Card></div></div></section>
       <section id="demo" className="py-24 relative overflow-hidden"><div className="container mx-auto px-6 flex flex-col md:flex-row items-center gap-16"><div className="flex-1"><div className="inline-block px-3 py-1 bg-blue-900/30 text-blue-400 rounded-full text-xs font-bold tracking-widest mb-6">LIVE PREVIEW</div><h2 className="text-4xl md:text-6xl font-bold mb-6">TALK TO THE <br /> MACHINE.</h2><p className="text-zinc-400 text-lg mb-8 max-w-md">Test our AI receptionist instantly. It can answer questions about our pricing, services, and availability. No human required.</p><div className="flex items-center gap-4 text-sm text-zinc-500"><div className="flex -space-x-3">{[1,2,3].map(i => (<div key={i} className="w-10 h-10 rounded-full bg-zinc-800 border-2 border-black flex items-center justify-center text-xs">U{i}</div>))}</div><p>Trusted by 50+ agencies</p></div></div><div className="flex-1 w-full flex justify-center md:justify-end"><AIChatDemo /></div></div></section>
       <section id="pricing" className="py-24 bg-zinc-950 border-t border-zinc-900"><div className="container mx-auto px-6"><h2 className="text-4xl font-bold text-center mb-16">TRANSPARENT PRICING</h2><div className="grid md:grid-cols-3 gap-8">{[{ title: 'Starter', price: '$2,500', sub: 'One-time', features: ['Custom Landing Page', 'Mobile Responsive', 'Basic SEO', '1 Week Support'] }, { title: 'Growth', price: '$4,500', sub: 'One-time', features: ['Multi-page Website', 'CMS Integration', 'Advanced Animations', 'AI Chatbot Setup'] }, { title: 'Agency', price: '$8,000+', sub: 'Custom Quote', features: ['Full Web App', 'User Authentication', 'Payment Integration', 'Custom AI Training'] }].map((tier, index) => (<Card key={index} className={`relative flex flex-col ${index === 1 ? 'border-blue-600 bg-zinc-900' : 'bg-transparent'}`}>{index === 1 && (<div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-1 text-xs font-bold rounded-full">MOST POPULAR</div>)}<h3 className="text-xl font-bold mb-2">{tier.title}</h3><div className="flex items-baseline gap-1 mb-6"><span className="text-4xl font-bold">{tier.price}</span><span className="text-zinc-500 text-sm">{tier.sub}</span></div><div className="space-y-4 mb-8 flex-1">{tier.features.map((f, i) => (<div key={i} className="flex items-center gap-3 text-sm text-zinc-300"><Check size={14} className="text-blue-500 flex-shrink-0" /> {f}</div>))}</div><Button variant={index === 1 ? 'accent' : 'secondary'} className="w-full">Get Started</Button></Card>))}</div></div></section>
-      <footer className="py-12 border-t border-zinc-900 text-center md:text-left"><div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6"><div className="text-xl font-bold tracking-tighter">WEBFRONT AI</div><div className="text-zinc-500 text-sm">© 2024 WebFront AI. Built for the future.</div><div className="flex gap-6 text-zinc-400"><a href="#" className="hover:text-white transition-colors">Twitter</a><a href="#" className="hover:text-white transition-colors">LinkedIn</a><a href="#" className="hover:text-white transition-colors">Instagram</a></div></div></footer>
+      <footer className="py-12 border-t border-zinc-900 text-center md:text-left"><div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6"><div className="text-xl font-bold tracking-tighter">WEBFRONT AI</div><div className="text-zinc-500 text-sm">© 2026 WebFront AI. Built for the future.</div><div className="flex gap-6 text-zinc-400"><a href="#" className="hover:text-white transition-colors">Twitter</a><a href="#" className="hover:text-white transition-colors">LinkedIn</a><a href="#" className="hover:text-white transition-colors">Instagram</a></div></div></footer>
     </div>
   );
 }
@@ -614,64 +614,45 @@ export default function App() {
   const [userRole, setUserRole] = useState('client'); 
   const [clients, setClients] = useState([]); 
   const [currentClientData, setCurrentClientData] = useState(null); 
-  const [appLoading, setAppLoading] = useState(true); // <--- NEW: Loading state
+  const [appLoading, setAppLoading] = useState(true); 
   const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: "aapsantos07@gmail.com", maintenanceMode: false });
 
   // 1. AUTH STATE LISTENER (PERSISTENCE)
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // User is signed in.
         const isMaster = user.email.toLowerCase() === 'aapsantos07@gmail.com';
-        
-        // Fetch user doc to get role
         try {
           const docRef = doc(db, "clients", user.uid);
           const docSnap = await getDoc(docRef);
-          
           if (docSnap.exists()) {
             const data = docSnap.data();
             const role = isMaster ? 'admin' : (data.role || 'client');
-            
             setUserRole(role);
             setCurrentClientData({ id: user.uid, ...data });
-            
-            if (role === 'admin') {
-              setView('admin');
-            } else {
-              setView('portal');
-            }
+            if (role === 'admin') { setView('admin'); } else { setView('portal'); }
           } else {
-            // Doc missing but auth exists (rare edge case)
             console.log("No client doc found for user");
             setView('landing');
           }
-        } catch (err) {
-          console.error("Error fetching user data on auth change:", err);
-        }
+        } catch (err) { console.error("Error fetching user data on auth change:", err); }
       } else {
-        // User is signed out.
         setView('landing');
         setCurrentClientData(null);
       }
       setAppLoading(false);
     });
-    
     return () => unsubscribeAuth();
   }, []);
 
   // 2. DATA LISTENER (REAL-TIME UPDATES)
   useEffect(() => {
-    // Wait until auth check is done
     if (appLoading) return;
-
-    // If no user data is loaded yet (and not admin), we can't set up listeners
     if (!currentClientData && userRole !== 'admin') return;
 
     let unsubscribe;
 
     if (userRole === 'admin') {
-       // Admin listens to ALL clients
        const q = collection(db, "clients");
        unsubscribe = onSnapshot(q, (snapshot) => {
          const liveClients = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
@@ -679,11 +660,9 @@ export default function App() {
        }, (err) => console.log("Admin listen error", err));
     } 
     else if (userRole === 'client' && currentClientData?.id) {
-       // Client listens ONLY to their own doc (fixes permission error)
        const docRef = doc(db, "clients", currentClientData.id);
        unsubscribe = onSnapshot(docRef, (docSnap) => {
          if (docSnap.exists()) {
-           // Update local state immediately when doc changes (e.g. after upload)
            setCurrentClientData({ id: docSnap.id, ...docSnap.data() });
          }
        }, (err) => console.log("Client listen error", err));
