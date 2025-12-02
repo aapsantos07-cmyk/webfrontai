@@ -638,188 +638,243 @@ function AdminClientsManager({ clients }) {
   );
 }
 
-// --- NEW COMPONENT: Admin Files & AI Generator ---
+// --- REPLACED COMPONENT: Admin Files & AI Wizard ---
 function AdminFilesView({ clients }) {
-  const [selectedTemplate, setSelectedTemplate] = useState('Onboarding Email');
+  // Wizard States: 'select' -> 'interview' -> 'draft' -> 'review'
+  const [step, setStep] = useState('select'); 
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedClientId, setSelectedClientId] = useState('');
+  
+  // Data States
+  const [aiQuestions, setAiQuestions] = useState([]);
+  const [answers, setAnswers] = useState({});
   const [generatedContent, setGeneratedContent] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
+  
+  // UI States
+  const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
-  // Template definitions with AI prompts
-  const templates = [
-    { 
-      id: 'onboarding', 
-      name: 'Onboarding Email', 
-      icon: Mail,
-      prompt: "Draft a professional onboarding email for a client named '{name}'. Their project is '{project}'. The current phase is '{phase}'. Keep the tone professional, welcoming, and outline the next steps for the Discovery phase. Do not include subject lines." 
-    },
-    { 
-      id: 'invoice', 
-      name: 'Invoice', 
-      icon: DollarSign,
-      prompt: "Generate a detailed text-based invoice for client '{name}' for the project '{project}'. Include today's date. The current project progress is {progress}%. Generate a line item for 'Milestone Payment' based on the current phase ('{phase}') but leave the specific amount as '[VPLEASE ENTER AMOUNT]'. Format it clearly." 
-    },
-    { 
-      id: 'contract', 
-      name: 'Service Contract', 
-      icon: Shield,
-      prompt: "Draft a standard service agreement contract for '{name}' regarding the project '{project}'. Include sections for: Scope of Work (Web Design & AI Integration), Payment Terms (50% upfront), Confidentiality, and Termination. Use placeholders like '[DATE]' where appropriate." 
-    },
-    { 
-      id: 'proposal', 
-      name: 'Project Proposal', 
-      icon: FileText,
-      prompt: "Write a project proposal for '{name}' for a custom web application '{project}'. Outline the value proposition of using AI and modern web tech. Include a timeline estimate of 4-6 weeks and a deliverables list including: Responsive Design, Admin Dashboard, and AI Assistant integration." 
-    }
+  // 1. Templates Definition
+  const docTypes = [
+    { id: 'onboarding', name: 'Onboarding Email', icon: Mail, description: "Welcome email with next steps." },
+    { id: 'invoice', name: 'Invoice', icon: DollarSign, description: "Professional bill for services." },
+    { id: 'contract', name: 'Service Agreement', icon: Shield, description: "Legal contract for project work." },
+    { id: 'proposal', name: 'Project Proposal', icon: FileText, description: "Detailed pitch and timeline." }
   ];
 
-  const handleGenerate = async () => {
-    if (!selectedClientId) return alert("Please select a client first.");
-    setIsGenerating(true);
+  // 2. Step 1 -> 2: Generate Questions
+  const handleStartInterview = async () => {
+    if (!selectedClientId || !selectedTemplate) return alert("Please select a client and document type.");
+    setIsLoading(true);
     
     const client = clients.find(c => c.id === selectedClientId);
-    const template = templates.find(t => t.name === selectedTemplate);
     
-    // Construct the context-aware prompt
-    let fullPrompt = template.prompt
-      .replace('{name}', client.name)
-      .replace('{project}', client.project)
-      .replace('{phase}', client.phase)
-      .replace('{progress}', client.progress);
-
-    const systemPrompt = "You are an expert agency admin assistant. You generate professional business documents. Output only the content of the document, formatted clearly.";
-    
-    const response = await callGemini(fullPrompt, systemPrompt);
-    setGeneratedContent(response);
-    setIsGenerating(false);
-  };
-
-  const handleSendToClient = async () => {
-    if (!generatedContent || !selectedClientId) return;
-    setIsSending(true);
+    // Prompt to get specific questions based on the client context
+    const prompt = `I need to draft a ${selectedTemplate.name} for a client named "${client.name}". 
+    Their project is "${client.project}" (Current Phase: ${client.phase}).
+    Generate 3 to 5 specific, critical questions I need to answer to fill out this document accurately. 
+    Return ONLY a JSON array of strings. Example: ["What is the payment due date?", "What is the total amount?"]`;
 
     try {
+        const response = await callGemini(prompt, "You are a helpful admin assistant. Return only raw JSON.");
+        // Clean the response to ensure it's valid JSON
+        const jsonStr = response.replace(/```json/g, '').replace(/```/g, '').trim();
+        const questions = JSON.parse(jsonStr);
+        setAiQuestions(questions);
+        setStep('interview');
+    } catch (e) {
+        console.error("AI Error:", e);
+        alert("System Overload: Could not generate questions. Please try again.");
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  // 3. Step 2 -> 3: Generate Draft
+  const handleGenerateDraft = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    const client = clients.find(c => c.id === selectedClientId);
+    const answersText = Object.entries(answers).map(([q, a]) => `Q: ${q}\nA: ${a}`).join('\n');
+
+    // Prompt to generate the actual document
+    const prompt = `Draft a professional ${selectedTemplate.name} for "${client.name}".
+    Project: ${client.project}.
+    
+    Here are the details provided by the admin:
+    ${answersText}
+    
+    FORMATTING RULES:
+    1. Output valid HTML code with inline CSS.
+    2. Make it look like a professional document (A4 paper style, clean fonts, padding).
+    3. Use a white background, black text, and standard font.
+    4. Do NOT use markdown blocks (no \`\`\`html). Just the raw HTML.`;
+
+    try {
+        const response = await callGemini(prompt, "You are a professional document generator. Output raw HTML only.");
+        // Strip potential markdown wrappers if the AI ignores instructions
+        const cleanHtml = response.replace(/```html/g, '').replace(/```/g, '');
+        setGeneratedContent(cleanHtml);
+        setStep('review');
+    } catch (e) {
+        alert("System Overload: Could not generate draft.");
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  // 4. Save/Send Logic
+  const handleSendToClient = async () => {
+    setIsSending(true);
+    try {
       const client = clients.find(c => c.id === selectedClientId);
+      const fileName = `${selectedTemplate.name.replace(/\s+/g, '_')}_${Date.now()}.html`;
       
-      // 1. Create a File object from the text content
-      const blob = new Blob([generatedContent], { type: 'text/plain' });
-      const fileName = `${selectedTemplate.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.txt`;
-      const file = new File([blob], fileName, { type: 'text/plain' });
-
-      // 2. Convert to Base64 (using your existing helper)
+      // Create a Blob from the HTML content
+      const blob = new Blob([generatedContent], { type: 'text/html' });
+      const file = new File([blob], fileName, { type: 'text/html' });
+      
       const base64 = await convertToBase64(file);
-
-      // 3. Create the document object matching your ContractsView structure
+      
       const newDoc = { 
         name: fileName, 
         url: base64, 
         date: new Date().toLocaleDateString(), 
-        size: (file.size / 1024).toFixed(2) + " KB" 
+        size: "HTML Doc" 
       };
 
-      // 4. Update the specific client's document in Firestore
       await updateDoc(doc(db, "clients", selectedClientId), { 
         contracts: arrayUnion(newDoc),
-        // Optional: Add an activity log
-        activity: arrayUnion({ action: `Received ${selectedTemplate}`, date: new Date().toLocaleDateString(), status: "Completed" })
+        activity: arrayUnion({ action: `Sent ${selectedTemplate.name}`, date: new Date().toLocaleDateString(), status: "Completed" })
       });
 
-      alert(`Success! ${fileName} has been sent to ${client.name}'s portal.`);
-      setGeneratedContent(''); // Clear after sending
+      alert("Sent successfully!");
+      setStep('select');
+      setGeneratedContent('');
+      setAnswers({});
     } catch (error) {
-      console.error("Error sending file:", error);
-      alert("Failed to send file: " + error.message);
+      alert("Error sending: " + error.message);
     } finally {
       setIsSending(false);
     }
   };
 
+  // Helper: Print/PDF functionality
+  const handlePrintPDF = () => {
+    const printWindow = window.open('', '', 'width=800,height=600');
+    printWindow.document.write(generatedContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
+
   return (
-    <div className="animate-fade-in space-y-8 h-full flex flex-col">
-      <div className="mb-2">
-        <h1 className="text-3xl font-bold mb-1">File Generator</h1>
-        <p className="text-zinc-500">Generate documents with AI and send them directly to client portals.</p>
+    <div className="animate-fade-in h-full flex flex-col">
+      {/* Header */}
+      <div className="mb-6 flex justify-between items-end">
+        <div>
+            <h1 className="text-3xl font-bold mb-1">Smart Document Wizard</h1>
+            <p className="text-zinc-500">Generate tailored PDF-ready documents using AI.</p>
+        </div>
+        {step !== 'select' && (
+            <button onClick={() => setStep('select')} className="text-sm text-zinc-500 hover:text-white underline">Start Over</button>
+        )}
       </div>
 
-      <div className="flex flex-col xl:flex-row gap-8 h-full min-h-0">
-        {/* LEFT COLUMN: Controls */}
-        <div className="w-full xl:w-1/3 space-y-6 flex-shrink-0">
-          
-          {/* 1. Select Client */}
-          <Card className="space-y-4">
-            <h3 className="font-bold text-white flex items-center gap-2"><Users size={18} className="text-blue-500"/> Step 1: Select Client</h3>
-            <div className="relative">
-              <select 
-                value={selectedClientId} 
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white appearance-none focus:outline-none focus:border-blue-500"
-              >
-                <option value="">-- Choose a Client --</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.name} ({c.project})</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" size={16}/>
+      {/* STEP 1: SELECTION */}
+      {step === 'select' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto w-full mt-8">
+            <div className="space-y-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm">1</div> Select Client</h3>
+                <div className="bg-zinc-900/50 border border-zinc-800 p-2 rounded-xl">
+                    {clients.map(c => (
+                        <div key={c.id} onClick={() => setSelectedClientId(c.id)} className={`p-4 rounded-lg cursor-pointer flex justify-between items-center transition-all ${selectedClientId === c.id ? 'bg-blue-600/20 border border-blue-500 text-white' : 'hover:bg-zinc-800 text-zinc-400'}`}>
+                            <span className="font-bold">{c.name}</span>
+                            <span className="text-xs uppercase tracking-wider">{c.project}</span>
+                        </div>
+                    ))}
+                </div>
             </div>
-          </Card>
-
-          {/* 2. Select Template */}
-          <div className="grid grid-cols-2 gap-3">
-            {templates.map((t) => (
-              <div 
-                key={t.id} 
-                onClick={() => setSelectedTemplate(t.name)}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedTemplate === t.name ? 'bg-blue-600/20 border-blue-500 text-white' : 'bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:bg-zinc-800'}`}
-              >
-                <t.icon size={24} className="mb-2" />
-                <div className="font-bold text-sm">{t.name}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* 3. Generate Action */}
-          <Button 
-            onClick={handleGenerate} 
-            disabled={!selectedClientId || isGenerating}
-            variant="primary" 
-            className="w-full py-4 text-lg"
-          >
-            {isGenerating ? <><Loader2 className="animate-spin mr-2"/> Drafting...</> : <><Sparkles className="mr-2 text-purple-500"/> Generate with AI</>}
-          </Button>
-
-          {/* 4. Send Action (Only visible if content exists) */}
-          {generatedContent && (
-             <div className="animate-fade-in bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl">
-                <div className="text-xs text-zinc-500 mb-3">Does this look good? You can edit the text on the right before sending.</div>
-                <Button 
-                  onClick={handleSendToClient} 
-                  disabled={isSending}
-                  variant="success" 
-                  className="w-full"
-                >
-                  {isSending ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2" size={18}/>}
-                  Send to Client Portal
+            <div className="space-y-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm">2</div> Document Type</h3>
+                <div className="grid grid-cols-1 gap-3">
+                    {docTypes.map(t => (
+                        <div key={t.id} onClick={() => setSelectedTemplate(t)} className={`p-4 border rounded-xl cursor-pointer flex items-center gap-4 transition-all ${selectedTemplate?.id === t.id ? 'bg-white text-black border-white' : 'bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:border-zinc-600'}`}>
+                            <t.icon size={24} />
+                            <div>
+                                <div className="font-bold">{t.name}</div>
+                                <div className="text-xs opacity-70">{t.description}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <Button onClick={handleStartInterview} disabled={!selectedClientId || !selectedTemplate || isLoading} className="w-full py-4 mt-4">
+                    {isLoading ? <Loader2 className="animate-spin"/> : "Start AI Interview →"}
                 </Button>
-             </div>
-          )}
+            </div>
         </div>
+      )}
 
-        {/* RIGHT COLUMN: Preview & Editor */}
-        <div className="flex-1 flex flex-col bg-zinc-900/30 border border-zinc-800 rounded-2xl overflow-hidden min-h-[500px]">
-          <div className="bg-zinc-900 p-4 border-b border-zinc-800 flex justify-between items-center">
-            <span className="font-bold text-zinc-400 text-sm flex items-center gap-2"><FileText size={16}/> DOCUMENT PREVIEW</span>
-            {generatedContent && <span className="text-xs bg-blue-900/30 text-blue-400 px-2 py-1 rounded border border-blue-900/50">Editable Mode</span>}
-          </div>
-          <textarea
-            value={generatedContent}
-            onChange={(e) => setGeneratedContent(e.target.value)}
-            placeholder="Select a client and template to generate a document..."
-            className="flex-1 w-full bg-black/50 p-6 text-zinc-300 font-mono text-sm focus:outline-none resize-none"
-            spellCheck="false"
-          />
+      {/* STEP 2: INTERVIEW */}
+      {step === 'interview' && (
+        <div className="max-w-2xl mx-auto w-full mt-8 animate-fade-in">
+            <h3 className="text-2xl font-bold mb-6 text-center">Details Required</h3>
+            <form onSubmit={handleGenerateDraft} className="space-y-6 bg-zinc-900/30 p-8 rounded-2xl border border-zinc-800">
+                {aiQuestions.map((q, i) => (
+                    <div key={i}>
+                        <label className="block text-sm font-bold text-blue-400 mb-2">{q}</label>
+                        <input 
+                            required
+                            className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all"
+                            placeholder="Enter details..."
+                            onChange={(e) => setAnswers({...answers, [q]: e.target.value})}
+                        />
+                    </div>
+                ))}
+                <Button type="submit" disabled={isLoading} className="w-full py-4 text-lg">
+                    {isLoading ? <><Loader2 className="animate-spin mr-2"/> Drafting Document...</> : "Generate Draft"}
+                </Button>
+            </form>
         </div>
-      </div>
+      )}
+
+      {/* STEP 3: REVIEW & SEND */}
+      {step === 'review' && (
+        <div className="flex flex-col lg:flex-row gap-8 h-[600px] animate-fade-in">
+            {/* Preview Window */}
+            <div className="flex-1 bg-white rounded-xl overflow-hidden shadow-2xl relative group">
+                <iframe 
+                    title="preview"
+                    srcDoc={generatedContent}
+                    className="w-full h-full border-none bg-white"
+                />
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={handlePrintPDF} className="bg-black text-white px-4 py-2 rounded-lg shadow-lg hover:bg-zinc-800 flex items-center gap-2 text-xs font-bold">
+                        <Download size={14}/> Save as PDF
+                    </button>
+                </div>
+            </div>
+
+            {/* Controls */}
+            <div className="w-full lg:w-1/3 flex flex-col gap-4">
+                <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl">
+                    <h3 className="font-bold text-white mb-2">Ready to Send?</h3>
+                    <p className="text-sm text-zinc-500 mb-6">The client will receive this document in their 'Contracts' tab immediately.</p>
+                    <div className="space-y-3">
+                        <Button onClick={handleSendToClient} disabled={isSending} variant="success" className="w-full">
+                            {isSending ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2" size={18}/>}
+                            Send to Portal
+                        </Button>
+                        <Button onClick={() => setStep('interview')} variant="secondary" className="w-full">
+                            <Edit3 className="mr-2" size={18}/> Edit Answers
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 }
