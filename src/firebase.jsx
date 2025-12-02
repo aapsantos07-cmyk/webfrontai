@@ -1,9 +1,10 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore";
+// CHANGED: Import memoryLocalCache instead of persistent/tab manager
+import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-import { getStorage } from "firebase/storage"; // <--- IMPORT STORAGE
+import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,11 +19,12 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-
-// Initialize Firebase Analytics (optional)
 export const analytics = getAnalytics(app); 
 
-// Initialize and Export Firebase services
-export const db = getFirestore(app);
+// CHANGED: Use memory cache to prevent "Unexpected State" crash
+export const db = initializeFirestore(app, {
+  localCache: memoryLocalCache()
+});
+
 export const auth = getAuth(app);
-export const storage = getStorage(app); // <--- EXPORT STORAGE
+export const storage = getStorage(app);
