@@ -24,7 +24,7 @@ import {
 import { auth, db, storage } from './firebase'; 
 // --------------------------------
 
-const apiKey = ""; // injected at runtime
+const apiKey = "AIzaSyBB3MXjcC5KcRja7Kl91joSJOUwGCk0q5Q"; // injected at runtime
 
 // --- Helper: Convert File to Base64 ---
 const convertToBase64 = (file) => {
