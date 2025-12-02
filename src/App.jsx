@@ -92,8 +92,8 @@ const callGemini = async (userQuery, systemPrompt) => {
 };
 
 // --- Helper Components ---
-function Button({ children, variant = 'primary', className = '', onClick, type="button", title="" }) {
-  const baseStyle = "px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2";
+function Button({ children, variant = 'primary', className = '', onClick, type="button", title="", disabled=false }) {
+  const baseStyle = "px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed";
   const variants = {
     primary: "bg-white text-black hover:bg-zinc-200 shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_rgba(255,255,255,0.5)]",
     secondary: "bg-transparent border border-zinc-700 text-white hover:border-white hover:bg-zinc-900",
@@ -101,11 +101,61 @@ function Button({ children, variant = 'primary', className = '', onClick, type="
     danger: "bg-red-500/10 text-red-500 border border-red-500/50 hover:bg-red-500/20",
     success: "bg-green-600 text-white hover:bg-green-500 shadow-lg shadow-green-900/20"
   };
-  return <button type={type} onClick={onClick} className={`${baseStyle} ${variants[variant]} ${className}`} title={title}>{children}</button>;
+  return <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`} title={title}>{children}</button>;
 }
 
 function Card({ children, className = '' }) {
   return <div className={`bg-zinc-900/40 backdrop-blur-md border border-zinc-800 p-6 md:p-8 rounded-2xl hover:border-zinc-600 transition-all duration-300 hover:bg-zinc-900/60 ${className}`}>{children}</div>;
+}
+
+// --- NEW COMPONENT: Project Onboarding Modal ---
+function ProjectOnboardingModal({ isOpen, onSubmit }) {
+  const [projectName, setProjectName] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!projectName.trim()) return;
+    setLoading(true);
+    await onSubmit(projectName);
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fade-in">
+      <div className="bg-zinc-950 border border-zinc-800 p-8 rounded-2xl max-w-md w-full shadow-2xl relative overflow-hidden">
+        {/* Decorative Gradient Top */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-purple-600 animate-pulse"></div>
+        
+        <div className="mb-6 text-center">
+            <div className="w-16 h-16 bg-blue-900/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/30 shadow-[0_0_30px_rgba(59,130,246,0.2)]">
+                <Briefcase size={32} />
+            </div>
+            <h2 className="text-3xl font-bold mb-2 text-white tracking-tight">Let's get started.</h2>
+            <p className="text-zinc-500">Name your new project to begin.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 ml-1">Project Name</label>
+            <input 
+              autoFocus
+              type="text" 
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              placeholder="e.g. Acme Corp Redesign"
+              className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-4 text-white text-lg focus:outline-none focus:border-blue-500 focus:bg-zinc-900 transition-all"
+            />
+          </div>
+          <Button type="submit" variant="primary" className="w-full py-4 text-lg" disabled={!projectName.trim() || loading}>
+            {loading ? <><Loader2 className="animate-spin mr-2"/> Setting up...</> : <>Launch Project <ArrowRight size={20}/></>}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 // --- AI Chat Widget ---
@@ -283,7 +333,7 @@ function ClientDashboardView({ data }) {
   return (
     <div className="animate-fade-in space-y-8">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        <div><h1 className="text-3xl font-bold mb-1">Welcome back, {data.name}</h1><p className="text-zinc-500">Project: {data.project}</p></div>
+        <div><h1 className="text-3xl font-bold mb-1">Welcome back, {data.name}</h1><p className="text-zinc-500">Project: <span className="text-white font-bold">{data.project}</span></p></div>
         <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-900/40">{data.name?.charAt(0) || 'U'}</div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -609,8 +659,32 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
 function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount }) {
   const [activeTab, setActiveTab] = useState('dashboard'); const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuItems = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'ai-assistant', label: 'AI Assistant', icon: Sparkles, highlight: true }, { id: 'contracts', label: 'Contracts', icon: FileText }, { id: 'invoices', label: 'Invoices', icon: CreditCard }, { id: 'settings', label: 'Settings', icon: Settings }];
+
+  // --- NEW LOGIC: Show Onboarding Modal if Project is "New Project" ---
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    // If the project is the default "New Project", trigger the modal
+    if (clientData?.project === "New Project") {
+        setShowOnboarding(true);
+    } else {
+        setShowOnboarding(false);
+    }
+  }, [clientData?.project]);
+
+  const handleProjectSubmit = (newProjectName) => {
+    // Update the client data with the new project name
+    // We pass the full object, ensuring 'project' field is updated
+    onUpdateClient({ ...clientData, project: newProjectName });
+  };
+  // -------------------------------------------------------------------
+
   return (
-    <div className="min-h-screen bg-black text-white font-sans flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-black text-white font-sans flex flex-col lg:flex-row relative">
+      
+      {/* Include the Onboarding Modal */}
+      <ProjectOnboardingModal isOpen={showOnboarding} onSubmit={handleProjectSubmit} />
+
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900"><div className="font-bold">WEBFRONT_OS</div><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button></div>
       <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}><h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">WEBFRONT<span className="text-blue-500">_OS</span></h2><nav className="space-y-2 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'} ${item.highlight ? 'border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20' : ''}`}><item.icon size={18} className={item.highlight ? 'text-blue-400' : ''} /> <span className={item.highlight ? 'text-blue-100 font-medium' : ''}>{item.label}</span></div>))}</nav><button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button></div>
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
@@ -873,7 +947,14 @@ export default function App() {
   };
 
   const handleClientUpdate = async (updatedClient) => {
-    try { await updateDoc(doc(db, 'clients', updatedClient.id), { name: updatedClient.name, notifications: updatedClient.notifications }); } catch(e) { console.error("Update failed", e); }
+    try { 
+        // UPDATED: Added 'project' field to updated list so the modal works!
+        await updateDoc(doc(db, 'clients', updatedClient.id), { 
+            name: updatedClient.name, 
+            notifications: updatedClient.notifications,
+            project: updatedClient.project 
+        }); 
+    } catch(e) { console.error("Update failed", e); }
   };
 
   const handleClientDelete = async (id) => {
