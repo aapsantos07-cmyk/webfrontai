@@ -12,18 +12,16 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut,
-  sendPasswordResetEmail 
+  sendPasswordResetEmail,
+  onAuthStateChanged // <--- NEW: Necessary for persistent login
 } from 'firebase/auth';
 
 import { 
   doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs, addDoc, deleteDoc, arrayUnion
 } from 'firebase/firestore';
 
-// We don't need 'storage' imports for the Base64 method
-// import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-
 // --- LOCAL FIREBASE CONFIG ---
-import { auth, db } from './firebase'; 
+import { auth, db, storage } from './firebase'; 
 // --------------------------------
 
 const apiKey = ""; // injected at runtime
@@ -614,131 +612,127 @@ function LandingPage({ onLogin }) {
 export default function App() {
   const [view, setView] = useState('landing'); 
   const [userRole, setUserRole] = useState('client'); 
-  const [clients, setClients] = useState([]); // NOW STARTS EMPTY & FILLS FROM DB
+  const [clients, setClients] = useState([]); 
   const [currentClientData, setCurrentClientData] = useState(null); 
-  
-  const [adminSettings, setAdminSettings] = useState({
-    name: "Admin User",
-    email: "aapsantos07@gmail.com",
-    maintenanceMode: false
-  });
+  const [appLoading, setAppLoading] = useState(true); // <--- NEW: Loading state
+  const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: "aapsantos07@gmail.com", maintenanceMode: false });
 
-  // REAL-TIME LISTENER FOR ADMINS
+  // 1. AUTH STATE LISTENER (PERSISTENCE)
   useEffect(() => {
-    // Only listen if logged in (this simplifies, you could check auth state)
-    // but listening always is fine for this structure, rules will block unauth reads
-    const unsubscribe = onSnapshot(collection(db, "clients"), (snapshot) => {
-      const liveClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setClients(liveClients);
-      // Sync current client view if they are logged in as a client
-      if(currentClientData && userRole === 'client') {
-         const me = liveClients.find(c => c.id === currentClientData.id);
-         if(me) setCurrentClientData(me);
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // User is signed in.
+        const isMaster = user.email.toLowerCase() === 'aapsantos07@gmail.com';
+        
+        // Fetch user doc to get role
+        try {
+          const docRef = doc(db, "clients", user.uid);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const role = isMaster ? 'admin' : (data.role || 'client');
+            
+            setUserRole(role);
+            setCurrentClientData({ id: user.uid, ...data });
+            
+            if (role === 'admin') {
+              setView('admin');
+            } else {
+              setView('portal');
+            }
+          } else {
+            // Doc missing but auth exists (rare edge case)
+            console.log("No client doc found for user");
+            setView('landing');
+          }
+        } catch (err) {
+          console.error("Error fetching user data on auth change:", err);
+        }
+      } else {
+        // User is signed out.
+        setView('landing');
+        setCurrentClientData(null);
       }
-    }, (error) => console.log("Listen failed (likely not admin):", error.code));
-    return () => unsubscribe();
-  }, [userRole, currentClientData]); // Added dependencies to keep client view fresh
+      setAppLoading(false);
+    });
+    
+    return () => unsubscribeAuth();
+  }, []);
+
+  // 2. DATA LISTENER (REAL-TIME UPDATES)
+  useEffect(() => {
+    // Wait until auth check is done
+    if (appLoading) return;
+
+    // If no user data is loaded yet (and not admin), we can't set up listeners
+    if (!currentClientData && userRole !== 'admin') return;
+
+    let unsubscribe;
+
+    if (userRole === 'admin') {
+       // Admin listens to ALL clients
+       const q = collection(db, "clients");
+       unsubscribe = onSnapshot(q, (snapshot) => {
+         const liveClients = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+         setClients(liveClients);
+       }, (err) => console.log("Admin listen error", err));
+    } 
+    else if (userRole === 'client' && currentClientData?.id) {
+       // Client listens ONLY to their own doc (fixes permission error)
+       const docRef = doc(db, "clients", currentClientData.id);
+       unsubscribe = onSnapshot(docRef, (docSnap) => {
+         if (docSnap.exists()) {
+           // Update local state immediately when doc changes (e.g. after upload)
+           setCurrentClientData({ id: docSnap.id, ...docSnap.data() });
+         }
+       }, (err) => console.log("Client listen error", err));
+    }
+
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, [userRole, currentClientData?.id, appLoading]);
 
   const handleLogin = (role, clientData) => {
     setUserRole(role);
-    if (role === 'admin') {
-      setView('admin');
-    } else {
-      setCurrentClientData(clientData); 
-      setView('portal');
-    }
+    if (role === 'admin') { setView('admin'); } else { setCurrentClientData(clientData); setView('portal'); }
   };
 
   const handleClientUpdate = async (updatedClient) => {
-    try {
-      await updateDoc(doc(db, 'clients', updatedClient.id), {
-        name: updatedClient.name,
-        notifications: updatedClient.notifications
-      });
-    } catch(e) { console.error("Update failed", e); }
+    try { await updateDoc(doc(db, 'clients', updatedClient.id), { name: updatedClient.name, notifications: updatedClient.notifications }); } catch(e) { console.error("Update failed", e); }
   };
 
   const handleClientDelete = async (id) => {
     if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
-      try {
-        await deleteDoc(doc(db, 'clients', id));
-        await signOut(auth);
-        setView('landing'); 
-      } catch(e) { alert(e.message); }
+      try { await deleteDoc(doc(db, 'clients', id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); }
     }
   };
 
   const handleAuthSubmit = async (isSignUp, email, password, name) => {
-    
-    // Master Admin Bypass (for role enforcement, not Auth bypass)
     const isMasterAdmin = email.toLowerCase() === 'aapsantos07@gmail.com';
-
-    if (adminSettings.maintenanceMode && isSignUp && !isMasterAdmin) {
-        return { error: "New signups are disabled during maintenance." };
-    }
-
+    if (adminSettings.maintenanceMode && isSignUp && !isMasterAdmin) return { error: "New signups are disabled during maintenance." };
     try {
-        let user;
-        let uid;
-
+        let user; let uid;
         if (isSignUp) {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            user = userCredential.user;
-            uid = user.uid;
-            
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
             const role = isMasterAdmin ? 'admin' : 'client';
-
             const clientData = {
-                id: uid,
-                name: name || (isMasterAdmin ? "Master Admin" : "New User"),
-                email: email,
-                role: role, 
-                project: isMasterAdmin ? "WebFront AI System" : "New Project",
-                phase: "Discovery",
-                progress: 0,
-                milestone: "Onboarding",
-                dueDate: "TBD",
-                revenue: 0,
-                status: "Active",
-                activity: [{ action: "Account Created", date: new Date().toLocaleDateString(), status: "Completed" }],
-                invoices: [],
-                contracts: [],
-                clientUploads: [], // Ensure this field exists
-                notifications: { email: true, push: false }
+                id: uid, name: name || (isMasterAdmin ? "Master Admin" : "New User"), email: email, role: role, 
+                project: isMasterAdmin ? "WebFront AI System" : "New Project", phase: "Discovery", progress: 0, milestone: "Onboarding", dueDate: "TBD", revenue: 0, status: "Active",
+                activity: [{ action: "Account Created", date: new Date().toLocaleDateString(), status: "Completed" }], invoices: [], contracts: [], clientUploads: [], notifications: { email: true, push: false }
             };
-            
-            await setDoc(doc(db, "clients", uid), clientData);
-            handleLogin(role, clientData);
-            
+            await setDoc(doc(db, "clients", uid), clientData); handleLogin(role, clientData);
         } else {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            user = userCredential.user;
-            uid = user.uid;
-            
+            const userCredential = await signInWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
             const clientDocSnap = await getDoc(doc(db, "clients", uid));
-            
             if (clientDocSnap.exists()) {
                 const userData = clientDocSnap.data();
                 const userRole = isMasterAdmin ? 'admin' : (userData.role || 'client');
                 handleLogin(userRole, userData);
             } else {
                 if (isMasterAdmin) {
-                    // Recover Master Admin if DB doc missing
-                    const adminData = {
-                        id: uid,
-                        name: "Master Admin",
-                        email: email,
-                        role: 'admin',
-                        project: "System Admin",
-                        // defaults
-                        phase: "Admin", progress: 100, milestone: "N/A", dueDate: "N/A", revenue: 0, status: "Active", activity: [], invoices: [], contracts: [], clientUploads: []
-                    };
-                    await setDoc(doc(db, "clients", uid), adminData);
-                    handleLogin('admin', adminData);
-                } else {
-                    await signOut(auth); 
-                    return { error: "User data not found. Please contact support." };
-                }
+                    const adminData = { id: uid, name: "Master Admin", email: email, role: 'admin', project: "System Admin", phase: "Admin", progress: 100, milestone: "N/A", dueDate: "N/A", revenue: 0, status: "Active", activity: [], invoices: [], contracts: [], clientUploads: [] };
+                    await setDoc(doc(db, "clients", uid), adminData); handleLogin('admin', adminData);
+                } else { await signOut(auth); return { error: "User data not found. Please contact support." }; }
             }
         }
         return { error: null };
@@ -750,12 +744,20 @@ export default function App() {
     }
   };
 
+  if (appLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="animate-spin text-white w-10 h-10" />
+      </div>
+    );
+  }
+
   return (
     <>
       {view === 'landing' && <LandingPage onLogin={() => setView('auth')} />}
       {view === 'auth' && <AuthScreen onAuthSubmit={handleAuthSubmit} onBack={() => setView('landing')} maintenanceMode={adminSettings.maintenanceMode} />}
-      {view === 'portal' && currentClientData && <ClientPortal onLogout={() => setView('landing')} clientData={currentClientData} onUpdateClient={handleClientUpdate} onDeleteAccount={handleClientDelete} />}
-      {view === 'admin' && <AdminPortal onLogout={() => setView('landing')} clients={clients} setClients={setClients} adminSettings={adminSettings} setAdminSettings={setAdminSettings} />}
+      {view === 'portal' && currentClientData && <ClientPortal onLogout={() => signOut(auth)} clientData={currentClientData} onUpdateClient={handleClientUpdate} onDeleteAccount={handleClientDelete} />}
+      {view === 'admin' && <AdminPortal onLogout={() => signOut(auth)} clients={clients} setClients={setClients} adminSettings={adminSettings} setAdminSettings={setAdminSettings} />}
     </>
   );
 }
