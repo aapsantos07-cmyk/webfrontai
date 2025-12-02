@@ -19,15 +19,24 @@ import {
   doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs, addDoc, deleteDoc, arrayUnion
 } from 'firebase/firestore';
 
-import { 
-  ref, uploadBytes, getDownloadURL 
-} from 'firebase/storage';
+// We don't need 'storage' imports for the Base64 method
+// import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // --- LOCAL FIREBASE CONFIG ---
-import { auth, db, storage } from './firebase'; 
+import { auth, db } from './firebase'; 
 // --------------------------------
 
 const apiKey = ""; // injected at runtime
+
+// --- Helper: Convert File to Base64 ---
+const convertToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+};
 
 // --- API Logic ---
 const callGemini = async (userQuery, systemPrompt) => {
@@ -106,11 +115,13 @@ function AIChatDemo() {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setInput('');
     setIsTyping(true);
+
     const systemPrompt = `You are WEBFRONT_AI, the on-site AI Receptionist for **WebFront AI**. 
     Your only job is to talk to visitors about WebFront AI, our services, pricing, and process, and help them decide to book a strategy call.
     IMPORTANT RULES:
     1. **Keep your answers SHORT.** Maximum 2-3 sentences.
     2. Use **bold** syntax.`;
+
     const response = await callGemini(userMsg, systemPrompt);
     setMessages(prev => [...prev, { role: 'ai', text: response }]);
     setIsTyping(false);
@@ -123,12 +134,34 @@ function AIChatDemo() {
         <Sparkles size={18} className="text-blue-400" />
       </div>
       <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 font-sans text-sm">
-        {messages.map((m, i) => (<div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[80%] p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-zinc-800 text-zinc-200 rounded-bl-none'}`}>{formatMessage(m.text)}</div></div>))}
-        {isTyping && (<div className="flex justify-start"><div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center"><Loader2 size={14} className="animate-spin text-zinc-500" /><span className="text-xs text-zinc-500 ml-2">Thinking...</span></div></div>)}
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-zinc-800 text-zinc-200 rounded-bl-none'}`}>
+              {formatMessage(m.text)}
+            </div>
+          </div>
+        ))}
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center">
+              <Loader2 size={14} className="animate-spin text-zinc-500" />
+              <span className="text-xs text-zinc-500 ml-2">Thinking...</span>
+            </div>
+          </div>
+        )}
       </div>
       <div className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2">
-        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }} placeholder="Ask about pricing..." className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors" />
-        <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors"><Send size={18} /></button>
+        <input 
+          type="text" 
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }}
+          placeholder="Ask about pricing, services..."
+          className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors"
+        />
+        <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors">
+          <Send size={18} />
+        </button>
       </div>
     </div>
   );
@@ -146,33 +179,67 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); setIsLoading(true); setError('');
+    e.preventDefault();
+    setIsLoading(true); setError('');
     const { error: submitError } = await onAuthSubmit(isSignUp, email, password, name);
-    setIsLoading(false); if (submitError) setError(submitError);
+    setIsLoading(false);
+    if (submitError) setError(submitError);
   };
 
   const handlePasswordReset = async (e) => {
-    e.preventDefault(); if (!email) { setError("Please enter your email address first."); return; }
+    e.preventDefault();
+    if (!email) { setError("Please enter your email address first."); return; }
     setIsLoading(true); setError(''); setSuccessMessage('');
-    try { await sendPasswordResetEmail(auth, email); setSuccessMessage("Password reset email sent! Check your inbox."); setIsLoading(false); } catch (err) { setIsLoading(false); setError(err.code === 'auth/user-not-found' ? "No account found." : "Failed to send email."); }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setSuccessMessage("Password reset email sent! Check your inbox.");
+      setIsLoading(false);
+    } catch (err) {
+      setIsLoading(false);
+      setError(err.code === 'auth/user-not-found' ? "No account found." : "Failed to send email.");
+    }
   };
 
   return (
     <div className="min-h-screen bg-black text-white font-sans flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-blue-900/20 rounded-full blur-[100px] -z-10"></div>
       <div className="w-full max-w-md animate-fade-in-up">
-        <div className="text-center mb-8"><div className="inline-flex items-center justify-center w-12 h-12 bg-white text-black rounded-xl mb-4"><Cpu size={24} /></div><h1 className="text-2xl font-bold tracking-tighter">{isForgotPassword ? 'Reset Password' : (isSignUp ? 'Create Account' : 'Welcome Back')}</h1><p className="text-zinc-500 mt-2">{isForgotPassword ? 'Enter your email to receive a reset link' : (isSignUp ? 'Join WebFront AI today' : 'Sign in to your WebFront Dashboard')}</p></div>
+        <div className="text-center mb-8">
+           <div className="inline-flex items-center justify-center w-12 h-12 bg-white text-black rounded-xl mb-4"><Cpu size={24} /></div>
+           <h1 className="text-2xl font-bold tracking-tighter">{isForgotPassword ? 'Reset Password' : (isSignUp ? 'Create Account' : 'Welcome Back')}</h1>
+           <p className="text-zinc-500 mt-2">{isForgotPassword ? 'Enter your email to receive a reset link' : (isSignUp ? 'Join WebFront AI today' : 'Sign in to your WebFront Dashboard')}</p>
+        </div>
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
           {maintenanceMode && !isSignUp && !isForgotPassword && (<div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 p-3 rounded-lg mb-4 text-sm flex items-center gap-2"><AlertTriangle size={16} /> Maintenance Mode Active</div>)}
           <form onSubmit={isForgotPassword ? handlePasswordReset : handleSubmit} className="space-y-4">
             {error && <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded-lg border border-red-500/20">{error}</div>}
             {successMessage && <div className="bg-green-500/10 text-green-500 text-sm p-3 rounded-lg border border-green-500/20">{successMessage}</div>}
-            {isSignUp && !isForgotPassword && (<div className="animate-fade-in"><label className="block text-sm text-zinc-400 mb-2 font-medium">Full Name / Company</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="e.g. Acme Corp" required={isSignUp} /></div>)}
-            <div><label className="block text-sm text-zinc-400 mb-2 font-medium">Email Address</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="name@company.com" required /></div>
-            {!isForgotPassword && (<div><div className="flex justify-between items-center mb-2"><label className="block text-sm text-zinc-400 font-medium">Password</label>{!isSignUp && (<button type="button" onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMessage(''); }} className="text-xs text-blue-400 hover:text-blue-300">Forgot Password?</button>)}</div><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="••••••••" required /></div>)}
-            <button type="submit" disabled={isLoading} className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed">{isLoading ? <><Loader2 size={16} className="animate-spin mr-1"/> Processing...</> : (isForgotPassword ? 'Send Reset Link' : <><span className="mr-1">{isSignUp ? 'Create Account' : 'Sign In'}</span> <ArrowRight size={16} /></>)}</button>
+            {isSignUp && !isForgotPassword && (
+              <div className="animate-fade-in">
+                <label className="block text-sm text-zinc-400 mb-2 font-medium">Full Name / Company</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="e.g. Acme Corp" required={isSignUp} />
+              </div>
+            )}
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2 font-medium">Email Address</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="name@company.com" required />
+            </div>
+            {!isForgotPassword && (
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm text-zinc-400 font-medium">Password</label>
+                  {!isSignUp && (<button type="button" onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMessage(''); }} className="text-xs text-blue-400 hover:text-blue-300">Forgot Password?</button>)}
+                </div>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="••••••••" required />
+              </div>
+            )}
+            <button type="submit" disabled={isLoading} className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              {isLoading ? <><Loader2 size={16} className="animate-spin mr-1"/> Processing...</> : (isForgotPassword ? 'Send Reset Link' : <><span className="mr-1">{isSignUp ? 'Create Account' : 'Sign In'}</span> <ArrowRight size={16} /></>)}
+            </button>
           </form>
-          <div className="mt-6 text-center text-sm text-zinc-500">{isForgotPassword ? (<button onClick={() => { setIsForgotPassword(false); setError(''); setSuccessMessage(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Back to Sign In</button>) : isSignUp ? (<p>Already have an account? <button onClick={() => { setIsSignUp(false); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Log In</button></p>) : (<div className="flex flex-col gap-2"><p>Don't have an account? <button onClick={() => { setIsSignUp(true); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Sign Up</button></p></div>)}</div>
+          <div className="mt-6 text-center text-sm text-zinc-500">
+            {isForgotPassword ? (<button onClick={() => { setIsForgotPassword(false); setError(''); setSuccessMessage(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Back to Sign In</button>) : isSignUp ? (<p>Already have an account? <button onClick={() => { setIsSignUp(false); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Log In</button></p>) : (<div className="flex flex-col gap-2"><p>Don't have an account? <button onClick={() => { setIsSignUp(true); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Sign Up</button></p></div>)}
+          </div>
         </div>
         <button onClick={onBack} className="w-full mt-8 text-zinc-500 text-sm hover:text-white transition-colors flex items-center justify-center gap-2">← Return to website</button>
       </div>
@@ -184,30 +251,44 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
 function ClientDashboardView({ data }) {
   const totalOpenBalance = data.invoices?.reduce((acc, inv) => inv.status !== 'Paid' ? acc + (parseFloat(inv.amount.replace(/[^0-9.-]+/g, "")) || 0) : acc, 0) || 0;
   const formattedBalance = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalOpenBalance);
+
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-center mb-12"><div><h1 className="text-3xl font-bold mb-1">Welcome back, {data.name}</h1><p className="text-zinc-500">Project: {data.project}</p></div><div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold">{data.name?.charAt(0) || 'U'}</div></div>
+      <div className="flex justify-between items-center mb-12">
+        <div><h1 className="text-3xl font-bold mb-1">Welcome back, {data.name}</h1><p className="text-zinc-500">Project: {data.project}</p></div>
+        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold">{data.name?.charAt(0) || 'U'}</div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="border-l-4 border-l-blue-500"><h3 className="text-zinc-400 text-sm mb-1">Current Phase</h3><p className="text-2xl font-bold truncate">{data.phase}</p><div className="w-full bg-zinc-800 h-1 mt-4 rounded-full overflow-hidden"><div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${data.progress}%` }}></div></div><p className="text-right text-xs text-blue-400 mt-1">{data.progress}% Complete</p></Card>
+        <Card className="border-l-4 border-l-blue-500">
+          <h3 className="text-zinc-400 text-sm mb-1">Current Phase</h3><p className="text-2xl font-bold truncate">{data.phase}</p>
+          <div className="w-full bg-zinc-800 h-1 mt-4 rounded-full overflow-hidden"><div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${data.progress}%` }}></div></div><p className="text-right text-xs text-blue-400 mt-1">{data.progress}% Complete</p>
+        </Card>
         <Card><h3 className="text-zinc-400 text-sm mb-1">Next Milestone</h3><p className="text-2xl font-bold truncate">{data.milestone}</p><p className="text-zinc-500 text-sm mt-2">Due: {data.dueDate}</p></Card>
         <Card><h3 className="text-zinc-400 text-sm mb-1">Open Invoices</h3><p className="text-2xl font-bold">{formattedBalance}</p><p className="text-green-500 text-sm mt-2 flex items-center gap-1">{totalOpenBalance > 0 ? <span className="text-yellow-500 flex items-center gap-1"><Activity size={14}/> Action Required</span> : <><Check size={14}/> All paid</>}</p></Card>
       </div>
       <h3 className="text-xl font-bold mb-6">Recent Activity</h3>
-      <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">{data.activity && data.activity.length > 0 ? data.activity.map((item, i) => (<div key={i} className="flex items-center justify-between p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="flex items-center gap-4"><div className={`w-2 h-2 rounded-full ${item.status === 'Completed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div><span className="truncate max-w-[200px] sm:max-w-md">{item.action}</span></div><span className="text-zinc-500 text-sm whitespace-nowrap ml-4">{item.date}</span></div>)) : <div className="p-4 text-zinc-500 text-center">No recent activity</div>}</div>
+      <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">
+        {data.activity && data.activity.length > 0 ? data.activity.map((item, i) => (
+            <div key={i} className="flex items-center justify-between p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors">
+              <div className="flex items-center gap-4"><div className={`w-2 h-2 rounded-full ${item.status === 'Completed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div><span className="truncate max-w-[200px] sm:max-w-md">{item.action}</span></div><span className="text-zinc-500 text-sm whitespace-nowrap ml-4">{item.date}</span>
+            </div>
+        )) : <div className="p-4 text-zinc-500 text-center">No recent activity</div>}
+      </div>
     </div>
   );
 }
 
 function ContractsView({ data }) {
   const [uploading, setUploading] = useState(false);
+  
+  // Free Base64 Upload Handler for CLIENT
   const handleClientUpload = async (e) => {
     const file = e.target.files[0]; if (!file) return;
+    if (file.size > 1048576) { alert("File too large for free storage (Max 1MB)."); return; }
     setUploading(true);
     try {
-      const fileRef = ref(storage, `client_uploads/${data.id}/${file.name}`);
-      await uploadBytes(fileRef, file);
-      const url = await getDownloadURL(fileRef);
-      const newDoc = { name: file.name, url: url, date: new Date().toLocaleDateString(), size: (file.size / 1024 / 1024).toFixed(2) + " MB" };
+      const base64 = await convertToBase64(file);
+      const newDoc = { name: file.name, url: base64, date: new Date().toLocaleDateString(), size: (file.size / 1024).toFixed(2) + " KB" };
       await updateDoc(doc(db, "clients", data.id), { clientUploads: arrayUnion(newDoc) });
       alert("File uploaded successfully!");
     } catch (error) { alert("Upload failed: " + error.message); } finally { setUploading(false); }
@@ -219,21 +300,25 @@ function ContractsView({ data }) {
     <div className="mb-8">
       <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><FileText size={20}/> Contracts & Agreements</h3>
       <div className="space-y-4">
-        {data.contracts && data.contracts.length > 0 ? data.contracts.map((doc, i) => (<div key={i} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl flex items-center justify-between hover:border-zinc-600 transition-all"><div className="flex items-center gap-4 min-w-0"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex-shrink-0 flex items-center justify-center text-blue-500"><FileText size={24} /></div><div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Shared by Admin • {doc.date} • {doc.size}</p></div></div><a href={doc.url} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full flex-shrink-0"><Download size={20} /></a></div>)) : <div className="p-8 text-center text-zinc-500 bg-zinc-900/30 rounded-xl border border-zinc-800 border-dashed">No contracts available yet.</div>}
+        {data.contracts && data.contracts.length > 0 ? data.contracts.map((doc, i) => (
+          <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl flex items-center justify-between hover:border-zinc-600 transition-all">
+            <div className="flex items-center gap-4 min-w-0"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex-shrink-0 flex items-center justify-center text-blue-500"><FileText size={24} /></div><div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Shared by Admin • {doc.date} • {doc.size}</p></div></div><a href={doc.url} download={doc.name} className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full flex-shrink-0"><Download size={20} /></a>
+          </div>
+        )) : <div className="p-8 text-center text-zinc-500 bg-zinc-900/30 rounded-xl border border-zinc-800 border-dashed">No contracts available yet.</div>}
       </div>
     </div>
     <div>
       <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><UploadCloud size={20}/> Your Project Uploads</h3>
       <div className="bg-zinc-900/30 rounded-xl border border-zinc-800 p-6 mb-4">
          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-zinc-700 border-dashed rounded-lg cursor-pointer hover:bg-zinc-800/50 transition-colors">
-            <div className="flex flex-col items-center justify-center pt-5 pb-6">{uploading ? <Loader2 className="animate-spin text-blue-500 mb-2"/> : <UploadCloud className="w-8 h-8 text-zinc-500 mb-2" />}<p className="text-sm text-zinc-500">{uploading ? "Uploading..." : "Click to upload project requirements or assets"}</p></div>
+            <div className="flex flex-col items-center justify-center pt-5 pb-6">{uploading ? <Loader2 className="animate-spin text-blue-500 mb-2"/> : <UploadCloud className="w-8 h-8 text-zinc-500 mb-2" />}<p className="text-sm text-zinc-500">{uploading ? "Saving to Database..." : "Click to upload (Max 1MB)"}</p></div>
             <input type="file" className="hidden" onChange={handleClientUpload} disabled={uploading} />
          </label>
       </div>
       <div className="space-y-4">
         {data.clientUploads && data.clientUploads.length > 0 ? data.clientUploads.map((doc, i) => (
           <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl flex items-center justify-between">
-            <div className="flex items-center gap-4 min-w-0"><div className="w-10 h-10 bg-green-900/20 text-green-500 rounded-lg flex-shrink-0 flex items-center justify-center"><Check size={20} /></div><div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Uploaded by You • {doc.date} • {doc.size}</p></div></div>
+            <div className="flex items-center gap-4 min-w-0"><div className="w-10 h-10 bg-green-900/20 text-green-500 rounded-lg flex-shrink-0 flex items-center justify-center"><Check size={20} /></div><div className="min-w-0"><h3 className="font-bold text-white truncate">{doc.name}</h3><p className="text-sm text-zinc-500">Uploaded by You • {doc.date} • {doc.size}</p></div></div><a href={doc.url} download={doc.name} className="text-blue-400 hover:text-blue-300 p-2"><Download size={20}/></a>
           </div>
         )) : null}
       </div>
@@ -372,15 +457,14 @@ function AdminClientsManager({ clients }) {
   const handleAddInvoice = async () => { if(!newInvoiceData.amount || !newInvoiceData.desc) return; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: arrayUnion({ id: `INV-${Math.floor(Math.random()*10000)}`, desc: newInvoiceData.desc, amount: `$${newInvoiceData.amount}`, date: new Date().toLocaleDateString('en-US', {month:'short', day:'numeric'}), status: "Pending" }) }); setNewInvoiceData({ desc: '', amount: '' }); } catch (err) { alert(err.message); } };
   const handleMarkPaid = async (i) => { const updated = [...selectedClient.invoices]; updated[i].status = "Paid"; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: updated }); } catch(e) { console.error(e); } };
 
-  // ADMIN UPLOAD CONTRACT
+  // FREE ADMIN UPLOAD (BASE64)
   const handleUploadContract = async (e) => {
     const file = e.target.files[0]; if(!file) return;
+    if (file.size > 1048576) { alert("File too large for free storage (Max 1MB)."); return; }
     setContractUploading(true);
     try {
-      const fileRef = ref(storage, `contracts/${selectedClient.id}/${file.name}`);
-      await uploadBytes(fileRef, file);
-      const url = await getDownloadURL(fileRef);
-      const contract = { name: file.name, url, date: new Date().toLocaleDateString(), size: (file.size/1024/1024).toFixed(2)+" MB" };
+      const base64 = await convertToBase64(file);
+      const contract = { name: file.name, url: base64, date: new Date().toLocaleDateString(), size: (file.size/1024).toFixed(2)+" KB" };
       await updateDoc(doc(db, "clients", selectedClient.id), { contracts: arrayUnion(contract) });
     } catch(err) { alert("Upload failed: " + err.message); } finally { setContractUploading(false); }
   };
@@ -438,12 +522,12 @@ function AdminClientsManager({ clients }) {
                 <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full">
                   <div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-blue-400"><FileText size={18}/> Contracts</h3></div>
                   <div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                    {selectedClient.contracts?.map((doc, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors group"><div className="flex items-center gap-3 min-w-0"><div className="bg-blue-500/10 text-blue-500 p-2 rounded-lg flex-shrink-0"><FileText size={16}/></div><div className="min-w-0"><div className="text-white font-medium truncate max-w-[150px]">{doc.name}</div><div className="text-zinc-600 text-xs">{doc.date}</div></div></div><a href={doc.url} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-white"><Download size={16}/></a></div>))}
+                    {selectedClient.contracts?.map((doc, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors group"><div className="flex items-center gap-3 min-w-0"><div className="bg-blue-500/10 text-blue-500 p-2 rounded-lg flex-shrink-0"><FileText size={16}/></div><div className="min-w-0"><div className="text-white font-medium truncate max-w-[150px]">{doc.name}</div><div className="text-zinc-600 text-xs">{doc.date}</div></div></div><a href={doc.url} download={doc.name} className="text-zinc-500 hover:text-white"><Download size={16}/></a></div>))}
                   </div>
                   {/* ADMIN UPLOAD */}
                   <div className="pt-4 border-t border-zinc-800">
                     <label className="flex items-center justify-center w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer transition-colors">
-                        <UploadCloud size={18} className="mr-2"/> {contractUploading ? "Uploading..." : "Upload Contract"}
+                        <UploadCloud size={18} className="mr-2"/> {contractUploading ? "Saving..." : "Upload (Max 1MB)"}
                         <input type="file" className="hidden" onChange={handleUploadContract} disabled={contractUploading} />
                     </label>
                   </div>
@@ -455,7 +539,7 @@ function AdminClientsManager({ clients }) {
                         {selectedClient.clientUploads.map((doc, i) => (
                           <div key={i} className="flex justify-between items-center text-xs p-2 bg-zinc-800/50 rounded border border-zinc-700">
                             <span className="truncate text-zinc-300">{doc.name}</span>
-                            <a href={doc.url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300"><Download size={14}/></a>
+                            <a href={doc.url} download={doc.name} className="text-blue-400 hover:text-blue-300"><Download size={14}/></a>
                           </div>
                         ))}
                       </div>
@@ -478,7 +562,7 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
   return (
     <div className="min-h-screen bg-black text-white font-sans border-l-0 lg:border-l-4 lg:border-red-900 flex flex-col lg:flex-row">
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900"><div className="font-bold text-red-500">ADMIN PANEL</div><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button></div>
-      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full`}><h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2><nav className="space-y-2 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'}`}><item.icon size={18} /> {item.label}</div>))}</nav><button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button></div>
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full`}><h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2><nav className="space-y-2 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'} ${item.id === activeTab ? 'bg-red-900/20 text-red-400 border border-red-900/50' : ''}`}><item.icon size={18} /> {item.label}</div>))}</nav><button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button></div>
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
         {activeTab === 'clients' && <AdminClientsManager clients={clients} setClients={setClients} />}
         {activeTab === 'users' && <AdminUsersManager />}
@@ -530,64 +614,131 @@ function LandingPage({ onLogin }) {
 export default function App() {
   const [view, setView] = useState('landing'); 
   const [userRole, setUserRole] = useState('client'); 
-  const [clients, setClients] = useState([]); 
+  const [clients, setClients] = useState([]); // NOW STARTS EMPTY & FILLS FROM DB
   const [currentClientData, setCurrentClientData] = useState(null); 
-  const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: "aapsantos07@gmail.com", maintenanceMode: false });
+  
+  const [adminSettings, setAdminSettings] = useState({
+    name: "Admin User",
+    email: "aapsantos07@gmail.com",
+    maintenanceMode: false
+  });
 
   // REAL-TIME LISTENER FOR ADMINS
   useEffect(() => {
+    // Only listen if logged in (this simplifies, you could check auth state)
+    // but listening always is fine for this structure, rules will block unauth reads
     const unsubscribe = onSnapshot(collection(db, "clients"), (snapshot) => {
       const liveClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setClients(liveClients);
+      // Sync current client view if they are logged in as a client
       if(currentClientData && userRole === 'client') {
          const me = liveClients.find(c => c.id === currentClientData.id);
          if(me) setCurrentClientData(me);
       }
     }, (error) => console.log("Listen failed (likely not admin):", error.code));
     return () => unsubscribe();
-  }, [userRole, currentClientData]);
+  }, [userRole, currentClientData]); // Added dependencies to keep client view fresh
 
   const handleLogin = (role, clientData) => {
     setUserRole(role);
-    if (role === 'admin') { setView('admin'); } else { setCurrentClientData(clientData); setView('portal'); }
+    if (role === 'admin') {
+      setView('admin');
+    } else {
+      setCurrentClientData(clientData); 
+      setView('portal');
+    }
   };
 
   const handleClientUpdate = async (updatedClient) => {
-    try { await updateDoc(doc(db, 'clients', updatedClient.id), { name: updatedClient.name, notifications: updatedClient.notifications }); } catch(e) { console.error("Update failed", e); }
+    try {
+      await updateDoc(doc(db, 'clients', updatedClient.id), {
+        name: updatedClient.name,
+        notifications: updatedClient.notifications
+      });
+    } catch(e) { console.error("Update failed", e); }
   };
 
   const handleClientDelete = async (id) => {
     if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
-      try { await deleteDoc(doc(db, 'clients', id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); }
+      try {
+        await deleteDoc(doc(db, 'clients', id));
+        await signOut(auth);
+        setView('landing'); 
+      } catch(e) { alert(e.message); }
     }
   };
 
   const handleAuthSubmit = async (isSignUp, email, password, name) => {
+    
+    // Master Admin Bypass (for role enforcement, not Auth bypass)
     const isMasterAdmin = email.toLowerCase() === 'aapsantos07@gmail.com';
-    if (adminSettings.maintenanceMode && isSignUp && !isMasterAdmin) return { error: "New signups are disabled during maintenance." };
+
+    if (adminSettings.maintenanceMode && isSignUp && !isMasterAdmin) {
+        return { error: "New signups are disabled during maintenance." };
+    }
+
     try {
-        let user; let uid;
+        let user;
+        let uid;
+
         if (isSignUp) {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            user = userCredential.user;
+            uid = user.uid;
+            
             const role = isMasterAdmin ? 'admin' : 'client';
+
             const clientData = {
-                id: uid, name: name || (isMasterAdmin ? "Master Admin" : "New User"), email: email, role: role, 
-                project: isMasterAdmin ? "WebFront AI System" : "New Project", phase: "Discovery", progress: 0, milestone: "Onboarding", dueDate: "TBD", revenue: 0, status: "Active",
-                activity: [{ action: "Account Created", date: new Date().toLocaleDateString(), status: "Completed" }], invoices: [], contracts: [], clientUploads: [], notifications: { email: true, push: false }
+                id: uid,
+                name: name || (isMasterAdmin ? "Master Admin" : "New User"),
+                email: email,
+                role: role, 
+                project: isMasterAdmin ? "WebFront AI System" : "New Project",
+                phase: "Discovery",
+                progress: 0,
+                milestone: "Onboarding",
+                dueDate: "TBD",
+                revenue: 0,
+                status: "Active",
+                activity: [{ action: "Account Created", date: new Date().toLocaleDateString(), status: "Completed" }],
+                invoices: [],
+                contracts: [],
+                clientUploads: [], // Ensure this field exists
+                notifications: { email: true, push: false }
             };
-            await setDoc(doc(db, "clients", uid), clientData); handleLogin(role, clientData);
+            
+            await setDoc(doc(db, "clients", uid), clientData);
+            handleLogin(role, clientData);
+            
         } else {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            user = userCredential.user;
+            uid = user.uid;
+            
             const clientDocSnap = await getDoc(doc(db, "clients", uid));
+            
             if (clientDocSnap.exists()) {
                 const userData = clientDocSnap.data();
                 const userRole = isMasterAdmin ? 'admin' : (userData.role || 'client');
                 handleLogin(userRole, userData);
             } else {
                 if (isMasterAdmin) {
-                    const adminData = { id: uid, name: "Master Admin", email: email, role: 'admin', project: "System Admin", phase: "Admin", progress: 100, milestone: "N/A", dueDate: "N/A", revenue: 0, status: "Active", activity: [], invoices: [], contracts: [], clientUploads: [] };
-                    await setDoc(doc(db, "clients", uid), adminData); handleLogin('admin', adminData);
-                } else { await signOut(auth); return { error: "User data not found. Please contact support." }; }
+                    // Recover Master Admin if DB doc missing
+                    const adminData = {
+                        id: uid,
+                        name: "Master Admin",
+                        email: email,
+                        role: 'admin',
+                        project: "System Admin",
+                        // defaults
+                        phase: "Admin", progress: 100, milestone: "N/A", dueDate: "N/A", revenue: 0, status: "Active", activity: [], invoices: [], contracts: [], clientUploads: []
+                    };
+                    await setDoc(doc(db, "clients", uid), adminData);
+                    handleLogin('admin', adminData);
+                } else {
+                    await signOut(auth); 
+                    return { error: "User data not found. Please contact support." };
+                }
             }
         }
         return { error: null };
