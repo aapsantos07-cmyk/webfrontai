@@ -330,7 +330,13 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
 // --- CLIENT PORTAL VIEWS ---
 
 function ClientDashboardView({ data }) {
-  const totalOpenBalance = data.invoices?.reduce((acc, inv) => inv.status !== 'Paid' ? acc + (parseFloat(inv.amount.replace(/[^0-9.-]+/g, "")) || 0) : acc, 0) || 0;
+  // SAFETY: Check valid invoice structure before reducing
+  const totalOpenBalance = (data.invoices || []).reduce((acc, inv) => {
+    if (inv.status === 'Paid') return acc;
+    const amt = typeof inv.amount === 'string' ? parseFloat(inv.amount.replace(/[^0-9.-]+/g, "")) : (inv.amount || 0);
+    return acc + (isNaN(amt) ? 0 : amt);
+  }, 0);
+  
   const formattedBalance = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalOpenBalance);
   const activeTasks = data.tasks?.filter(t => !t.completed)?.length || 0;
 
@@ -851,12 +857,77 @@ function AdminClientsManager({ clients }) {
   );
 }
 
+function AdminUsersManager() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "clients"), (snapshot) => {
+      const usersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setUsers(usersList);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+  
+  const toggleAdminRole = async (userId, currentRole) => {
+    const newRole = currentRole === 'admin' ? 'client' : 'admin';
+    try { await updateDoc(doc(db, "clients", userId), { role: newRole }); } catch (error) { alert("Error updating role: " + error.message); }
+  };
+
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-8"><h1 className="text-3xl font-bold mb-1">User Management</h1><p className="text-zinc-500">Manage user roles and permissions.</p></div>
+      <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto">
+        <div className="min-w-[700px]">
+          <div className="grid grid-cols-12 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div className="col-span-4">User / Email</div><div className="col-span-3">Project</div><div className="col-span-3">Current Role</div><div className="col-span-2 text-right">Actions</div></div>
+          {loading ? <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/></div> : users.map((user) => (
+              <div key={user.id} className="grid grid-cols-12 p-4 border-b border-zinc-800 last:border-0 items-center hover:bg-zinc-800/20 transition-colors">
+                <div className="col-span-4 min-w-0 pr-4"><div className="font-bold text-white truncate">{user.name}</div><div className="text-xs text-zinc-500 truncate">{user.email}</div></div><div className="col-span-3 text-zinc-400 text-sm truncate">{user.project}</div>
+                <div className="col-span-3"><span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${user.role === 'admin' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>{user.role || 'CLIENT'}</span></div>
+                <div className="col-span-2 text-right"><button onClick={() => toggleAdminRole(user.id, user.role)} className={`text-xs px-3 py-1.5 rounded transition-colors ${user.role === 'admin' ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-white text-black hover:bg-gray-200 font-bold'}`}>{user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}</button></div>
+              </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminFinancialsView({ clients }) {
+  // SAFETY: Handle messy/missing data without crashing
+  const parseAmount = (amt) => {
+      if (typeof amt === 'number') return amt;
+      if (typeof amt === 'string') return parseFloat(amt.replace(/[^0-9.-]+/g, "")) || 0;
+      return 0;
+  };
+
+  const totalRevenue = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status === 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
+  const totalOutstanding = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status !== 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
+  
+  const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  const allTransactions = clients.flatMap(client => (client.invoices || []).map(inv => ({ ...inv, clientName: client.name })));
+  
+  return (
+  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Financials</h1><p className="text-zinc-500">Revenue tracking based on active client deals.</p></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><Card><h3 className="text-zinc-400 text-sm mb-1">Total Revenue</h3><p className="text-3xl font-bold text-green-500">{formatCurrency(totalRevenue)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Outstanding</h3><p className="text-3xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Active Deals</h3><p className="text-3xl font-bold text-blue-500">{clients.length}</p></Card></div><h3 className="text-xl font-bold mb-6">All Transactions</h3><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto"><div className="min-w-[600px]"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Client</div><div>Date</div><div>Invoice ID</div><div className="text-right">Amount</div></div>{allTransactions.map((t, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="text-white font-medium truncate">{t.clientName}</div><div className="text-zinc-500">{t.date}</div><div className="text-zinc-500 font-mono text-xs pt-1">{t.id}</div><div className={`text-right font-mono ${t.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{t.amount}</div></div>))}{allTransactions.length === 0 && <div className="p-4 text-center text-zinc-500">No transactions recorded.</div>}</div></div></div>
+  );
+}
+
+function AdminSettingsView({ settings, onUpdateSettings }) {
+  const [name, setName] = useState(settings?.name || "");
+  
+  // Safety: Ensure settings exists before rendering
+  if (!settings) return null;
+
+  return (
+  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Admin Settings</h1><p className="text-zinc-500">System configuration and profile.</p></div><div className="max-w-2xl space-y-8"><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">Admin Profile</h3><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-white" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email</label><input type="text" defaultValue={settings.email} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={() => onUpdateSettings({ ...settings, name })} variant="secondary" className="text-sm py-2 px-4">Update Profile</Button></div><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">System Preferences</h3><div className="flex items-center justify-between p-3 bg-red-900/10 border border-red-900/30 rounded-lg"><div className="flex flex-col"><span className="text-white font-bold flex items-center gap-2"><Power size={16}/> Maintenance Mode</span><span className="text-xs text-zinc-400">Prevents all clients from logging in. Admin only.</span></div><div onClick={() => onUpdateSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${settings.maintenanceMode ? 'bg-red-600' : 'bg-zinc-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.maintenanceMode ? 'left-7' : 'left-1'}`}></div></div></div></div></div></div>
+  );
+}
+
 // --- UPDATED ADMIN PORTAL ---
 function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
   const [activeTab, setActiveTab] = useState('clients'); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Removed 'files' from here to keep it cleaner for now as per request
   const menuItems = [
     { id: 'clients', label: 'Clients', icon: Users }, 
     { id: 'users', label: 'User Roles', icon: Shield }, 
@@ -897,187 +968,6 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
   );
 }
 
-// --- Landing Page ---
-function LandingPage({ onLogin }) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false); 
-  const [scrolled, setScrolled] = useState(false);
-  
-  useEffect(() => { 
-    const handleScroll = () => setScrolled(window.scrollY > 50); 
-    window.addEventListener('scroll', handleScroll); 
-    return () => window.removeEventListener('scroll', handleScroll); 
-  }, []);
-
-  const scrollTo = (id) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-      setIsMenuOpen(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black overflow-x-hidden">
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-md border-b border-zinc-800 py-3 md:py-4' : 'bg-transparent py-4 md:py-6'}`}>
-        <div className="container mx-auto px-6 flex justify-between items-center"><div className="text-xl md:text-2xl font-bold tracking-tighter flex items-center gap-2"><div className="w-8 h-8 bg-white text-black flex items-center justify-center rounded-lg"><Cpu size={20} /></div>WEBFRONT AI</div><div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400"><a href="#services" className="hover:text-white transition-colors">Services</a><a href="#demo" className="hover:text-white transition-colors">AI Demo</a><a href="#pricing" className="hover:text-white transition-colors">Pricing</a><button onClick={() => onLogin()} className="flex items-center gap-2 text-white hover:text-blue-400 transition-colors"><LogIn size={14} /> Login</button><Button variant="primary" onClick={() => scrollTo('demo')}>Book Strategy Call</Button></div><button className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={28}/> : <Menu size={28}/>}</button></div>
-        {isMenuOpen && (
-          <div className="md:hidden fixed inset-0 top-[70px] bg-black/95 backdrop-blur-lg z-40 p-8 flex flex-col gap-6 animate-fade-in border-t border-zinc-800">
-            <a href="#services" onClick={() => { setIsMenuOpen(false); scrollTo('services'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">Services</a>
-            <a href="#demo" onClick={() => { setIsMenuOpen(false); scrollTo('demo'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">AI Demo</a>
-            <a href="#pricing" onClick={() => { setIsMenuOpen(false); scrollTo('pricing'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">Pricing</a>
-            <hr className="border-zinc-800"/>
-            <button onClick={() => onLogin()} className="text-left text-2xl font-bold text-blue-400 hover:text-blue-300">Login to Portal</button>
-            <Button variant="primary" className="mt-4 py-4 w-full" onClick={() => { setIsMenuOpen(false); scrollTo('demo'); }}>Book Strategy Call</Button>
-          </div>
-        )}
-      </nav>
-      
-      <section className="pt-32 pb-16 md:pt-48 md:pb-32 relative overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] md:w-[1000px] md:h-[500px] bg-blue-900/20 rounded-full blur-[80px] md:blur-[120px] -z-10 pointer-events-none animate-[pulse_5s_infinite]"></div>
-        <div className="container mx-auto px-4 md:px-6 text-center">
-          <FadeIn delay={100}>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-zinc-900/80 border border-zinc-800 text-[10px] md:text-xs font-mono mb-6 md:mb-8 backdrop-blur-sm">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_2s_infinite]"></span>ACCEPTING NEW CLIENTS FOR Q4
-            </div>
-          </FadeIn>
-          <FadeIn delay={200}>
-            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-6 md:mb-8 bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent leading-tight md:leading-[1.1]">
-              ELEVATE YOUR <br className="hidden md:block"/> DIGITAL REALITY.
-            </h1>
-          </FadeIn>
-          <FadeIn delay={300}>
-            <p className="text-base md:text-xl text-zinc-400 max-w-2xl mx-auto mb-10 md:mb-12 leading-relaxed px-4">
-              WebFront AI builds high-performance websites and autonomous AI receptionists that work while you sleep. The future isn't coming—it's hired.
-            </p>
-          </FadeIn>
-          <FadeIn delay={400} className="flex flex-col sm:flex-row justify-center gap-4 items-center px-4">
-            <Button variant="primary" onClick={() => onLogin()} className="w-full sm:w-auto py-4">Start Project</Button>
-            <Button variant="secondary" onClick={() => scrollTo('services')} className="w-full sm:w-auto py-4">View Portfolio</Button>
-          </FadeIn>
-        </div>
-      </section>
-
-      <section className="py-8 md:py-12 border-y border-zinc-900 bg-zinc-950/50">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-             {[
-               { icon: Palette, label: "Design", desc: "Minimalist aesthetics" },
-               { icon: Brain, label: "Intelligence", desc: "Autonomous agents" },
-               { icon: Headphones, label: "Support", desc: "24/7 Reliability" },
-               { icon: TrendingUp, label: "Growth", desc: "Scalable architecture" }
-             ].map((item, i) => (
-               <FadeIn key={i} delay={i * 100} className="flex flex-col items-center text-center gap-3 group">
-                 <div className="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 group-hover:text-blue-500 group-hover:bg-zinc-800 transition-all duration-300">
-                   <item.icon size={24} />
-                 </div>
-                 <h3 className="font-bold text-lg">{item.label}</h3>
-                 <p className="text-sm text-zinc-500 hidden sm:block">{item.desc}</p>
-               </FadeIn>
-             ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="services" className="py-16 md:py-24 bg-zinc-950">
-        <div className="container mx-auto px-6">
-          <FadeIn className="mb-12 md:mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">OUR SERVICES</h2>
-            <div className="w-20 h-1 bg-blue-600"></div>
-          </FadeIn>
-          <div className="grid md:grid-cols-2 gap-8">
-            <FadeIn delay={100}>
-              <Card className="group cursor-pointer h-full">
-                <div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors duration-300 shadow-lg"><Code size={24} /></div>
-                <h3 className="text-2xl font-bold mb-4">Web Development</h3>
-                <p className="text-zinc-400 leading-relaxed mb-6">Custom-coded React & Next.js applications designed for speed, SEO, and conversion. We don't use templates; we architect experiences.</p>
-                <ul className="space-y-2 text-zinc-500">
-                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> High-Performance Animations</li>
-                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> CMS Integration</li>
-                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Dark Mode Optimized</li>
-                </ul>
-              </Card>
-            </FadeIn>
-            <FadeIn delay={200}>
-              <Card className="group cursor-pointer h-full">
-                <div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-lg"><MessageSquare size={24} /></div>
-                <h3 className="text-2xl font-bold mb-4">AI Receptionists</h3>
-                <p className="text-zinc-400 leading-relaxed mb-6">Intelligent agents that handle customer support, booking, and inquiries 24/7. Train them on your data and let them run your front desk.</p>
-                <ul className="space-y-2 text-zinc-500">
-                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Natural Language Processing</li>
-                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Calendar Integration</li>
-                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Voice & Chat Support</li>
-                </ul>
-              </Card>
-            </FadeIn>
-          </div>
-        </div>
-      </section>
-
-      <section id="demo" className="py-16 md:py-24 relative overflow-hidden bg-black">
-        <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[800px] h-[800px] bg-blue-900/10 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
-        <div className="container mx-auto px-6 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-          <div className="flex-1 w-full text-center lg:text-left">
-            <FadeIn>
-              <div className="inline-block px-3 py-1 bg-blue-900/30 text-blue-400 rounded-full text-xs font-bold tracking-widest mb-6 border border-blue-900/50">LIVE PREVIEW</div>
-              <h2 className="text-4xl md:text-6xl font-bold mb-6">TALK TO THE <br /> MACHINE.</h2>
-              <p className="text-zinc-400 text-lg mb-8 max-w-md mx-auto lg:mx-0">Test our AI receptionist instantly. It can answer questions about our pricing, services, and availability. No human required.</p>
-              <div className="flex items-center justify-center lg:justify-start gap-4 text-sm text-zinc-500">
-                <div className="flex -space-x-3">{[1,2,3].map(i => (<div key={i} className="w-10 h-10 rounded-full bg-zinc-800 border-2 border-black flex items-center justify-center text-xs text-white">U{i}</div>))}</div>
-                <p>Trusted by 50+ agencies</p>
-              </div>
-            </FadeIn>
-          </div>
-          <div className="flex-1 w-full flex justify-center lg:justify-end">
-            <FadeIn delay={200} className="w-full max-w-md">
-              <AIChatDemo />
-            </FadeIn>
-          </div>
-        </div>
-      </section>
-
-      <section id="pricing" className="py-16 md:py-24 bg-zinc-950 border-t border-zinc-900">
-        <div className="container mx-auto px-6">
-          <FadeIn className="mb-16 text-center">
-             <h2 className="text-3xl md:text-4xl font-bold mb-4">TRANSPARENT PRICING</h2>
-             <p className="text-zinc-400">Invest in your digital infrastructure.</p>
-          </FadeIn>
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { title: 'Starter', price: '$2,500', sub: 'One-time', features: ['Custom Landing Page', 'Mobile Responsive', 'Basic SEO', '1 Week Support'] }, 
-              { title: 'Growth', price: '$4,500', sub: 'One-time', features: ['Multi-page Website', 'CMS Integration', 'Advanced Animations', 'AI Chatbot Setup'] }, 
-              { title: 'Agency', price: '$8,000+', sub: 'Custom Quote', features: ['Full Web App', 'User Authentication', 'Payment Integration', 'Custom AI Training'] }
-            ].map((tier, index) => (
-              <FadeIn key={index} delay={index * 150}>
-                <Card className={`relative flex flex-col h-full transform transition-all duration-300 hover:-translate-y-2 ${index === 1 ? 'border-blue-600/50 bg-zinc-900/80 shadow-[0_0_30px_rgba(37,99,235,0.15)]' : 'bg-transparent'}`}>
-                  {index === 1 && (<div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-1 text-xs font-bold rounded-full shadow-lg">MOST POPULAR</div>)}
-                  <h3 className="text-xl font-bold mb-2">{tier.title}</h3>
-                  <div className="flex items-baseline gap-1 mb-6"><span className="text-4xl font-bold">{tier.price}</span><span className="text-zinc-500 text-sm">{tier.sub}</span></div>
-                  <div className="space-y-4 mb-8 flex-1">
-                    {tier.features.map((f, i) => (<div key={i} className="flex items-center gap-3 text-sm text-zinc-300"><Check size={14} className="text-blue-500 flex-shrink-0" /> {f}</div>))}
-                  </div>
-                  <Button variant={index === 1 ? 'accent' : 'secondary'} className="w-full" onClick={() => onLogin()}>Get Started</Button>
-                </Card>
-              </FadeIn>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <footer className="py-12 border-t border-zinc-900 text-center md:text-left bg-black">
-        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="text-xl font-bold tracking-tighter flex items-center gap-2"><Cpu size={18}/> WEBFRONT AI</div>
-          <div className="text-zinc-500 text-sm">© 2026 WebFront AI. Built for the future.</div>
-          <div className="flex gap-6 text-zinc-400">
-            <a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">Twitter</a>
-            <a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">LinkedIn</a>
-            <a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">Instagram</a>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
 // --- Main App Controller ---
 export default function App() {
   const [view, setView] = useState('landing'); 
@@ -1090,7 +980,6 @@ export default function App() {
 
   // 1. AUTH STATE LISTENER (PERSISTENCE)
   useEffect(() => {
-    // Safety timeout: If Firebase takes too long, force load to prevent black screen
     const safetyTimer = setTimeout(() => {
       if (appLoading) {
         console.warn("Firebase auth timed out - forcing app load.");
@@ -1099,9 +988,8 @@ export default function App() {
     }, 3000); // 3 seconds
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      clearTimeout(safetyTimer); // Clear timeout if auth responds
+      clearTimeout(safetyTimer); 
 
-      // PREVENT RACE CONDITION: Don't read user doc if we are currently signing up
       if (isSigningUp.current) return;
 
       if (user) {
@@ -1121,7 +1009,6 @@ export default function App() {
           }
         } catch (err) { 
             console.error("Error fetching user data on auth change:", err); 
-            // If error is specifically the assertion failure, force landing page
             if (err.message && err.message.includes("INTERNAL ASSERTION FAILED")) {
                 alert("Session Error: Please clear your browser cache and refresh.");
                 setView('landing');
@@ -1172,7 +1059,6 @@ export default function App() {
 
   const handleClientUpdate = async (updatedClient) => {
     try { 
-        // UPDATED: Added 'project' field to updated list so the modal works!
         await updateDoc(doc(db, 'clients', updatedClient.id), { 
             name: updatedClient.name, 
             notifications: updatedClient.notifications,
@@ -1193,7 +1079,7 @@ export default function App() {
     try {
         let user; let uid;
         if (isSignUp) {
-            isSigningUp.current = true; // LOCK LISTENER to prevent race condition
+            isSigningUp.current = true; 
             const userCredential = await createUserWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
             const role = isMasterAdmin ? 'admin' : 'client';
             const clientData = {
@@ -1203,7 +1089,7 @@ export default function App() {
             };
             await setDoc(doc(db, "clients", uid), clientData); 
             handleLogin(role, clientData);
-            isSigningUp.current = false; // UNLOCK
+            isSigningUp.current = false; 
         } else {
             const userCredential = await signInWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
             const clientDocSnap = await getDoc(doc(db, "clients", uid));
@@ -1220,7 +1106,7 @@ export default function App() {
         }
         return { error: null };
     } catch (firebaseError) {
-        isSigningUp.current = false; // Unlock if error
+        isSigningUp.current = false; 
         console.error("Auth Error:", firebaseError);
         if (firebaseError.code === 'auth/email-already-in-use') return { error: "Email already in use." };
         if (firebaseError.code === 'auth/invalid-credential') return { error: "Invalid email or password." };
