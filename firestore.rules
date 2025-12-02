@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 1. Master Admin: Hardcoded Email Check (The most secure check)
+    // 1. Master Admin: Hardcoded Email Check
     function isMasterAdmin() {
       return request.auth.token.email == 'aapsantos07@gmail.com';
     }
@@ -15,7 +15,6 @@ service cloud.firestore {
     match /clients/{clientId} {
       
       // --- READ PERMISSIONS ---
-      // Everyone can read their own doc. Admins (Master or DB) can read ALL docs.
       allow read: if isMasterAdmin() || isDbAdmin() || request.auth.uid == clientId;
 
       // --- WRITE PERMISSIONS ---
@@ -24,17 +23,16 @@ service cloud.firestore {
       allow write: if isMasterAdmin();
 
       // 2. DB Admins (Friends): Can write/delete, BUT NOT to your specific document.
-      //    (resource == null) allows them to create NEW users.
-      //    (resource.data.email != ...) prevents them from touching your existing doc.
       allow write: if isDbAdmin() 
                    && (resource == null || resource.data.email != 'aapsantos07@gmail.com');
 
       // 3. Regular Clients: Can create their own doc (Sign Up)
       allow create: if request.auth.uid == clientId;
 
-      // 4. Regular Clients: Can update only specific fields (Profile/Settings)
+      // 4. Regular Clients: Update specific fields
+      // 👇 FIXED: Added 'clientUploads' to the allowed list 👇
       allow update: if request.auth.uid == clientId 
-                    && request.resource.data.keys().hasOnly(['name', 'notifications']);
+                    && request.resource.data.keys().hasOnly(['name', 'notifications', 'clientUploads']);
     }
 
     // Default Deny
