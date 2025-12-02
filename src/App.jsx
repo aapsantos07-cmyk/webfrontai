@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, 
   Code, 
-  Cpu,  // <--- This was likely missing or causing the error
+  Cpu, 
   ArrowRight, 
   Check, 
   Menu, 
@@ -61,6 +61,7 @@ import { auth, db } from './firebase';
 
 // --- API Configuration ---
 const apiKey = ""; // injected at runtime
+
 // --- Helper: Mock Database (Only used for initial state/admin view persistence simulation) ---
 // NOTE: Client login/signup now uses real Firebase Auth and Firestore for persistence.
 const INITIAL_CLIENTS = [
@@ -166,8 +167,6 @@ const Card = ({ children, className = '' }) => (
 );
 
 // --- Auth Screen (Refactored to use Firebase/Firestore) ---
-// src/App.jsx
-
 const AuthScreen = ({ onAuthSubmit, onBack, maintenanceMode }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false); // New State
@@ -830,6 +829,94 @@ const SettingsView = ({ data, onUpdateClient, onDeleteAccount }) => {
   );
 };
 
+// --- NEW COMPONENT: Admin User Manager ---
+const AdminUsersManager = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch real users from Firestore
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "clients"));
+        const usersList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setUsers(usersList);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  const toggleAdminRole = async (userId, currentRole) => {
+    const newRole = currentRole === 'admin' ? 'client' : 'admin';
+    try {
+      // Update in Firestore
+      await updateDoc(doc(db, "clients", userId), { role: newRole });
+      
+      // Update local state immediately for UI feedback
+      setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    } catch (error) {
+      alert("Error updating role: " + error.message);
+    }
+  };
+
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-1">User Management</h1>
+        <p className="text-zinc-500">Manage user roles and permissions.</p>
+      </div>
+
+      <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="grid grid-cols-12 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50">
+          <div className="col-span-4">User / Email</div>
+          <div className="col-span-3">Project</div>
+          <div className="col-span-3">Current Role</div>
+          <div className="col-span-2 text-right">Actions</div>
+        </div>
+        
+        {loading ? (
+          <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/></div>
+        ) : (
+          users.map((user) => (
+            <div key={user.id} className="grid grid-cols-12 p-4 border-b border-zinc-800 last:border-0 items-center hover:bg-zinc-800/20 transition-colors">
+              <div className="col-span-4 min-w-0 pr-4">
+                <div className="font-bold text-white truncate">{user.name}</div>
+                <div className="text-xs text-zinc-500 truncate">{user.email}</div>
+              </div>
+              <div className="col-span-3 text-zinc-400 text-sm truncate">{user.project}</div>
+              <div className="col-span-3">
+                <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${
+                  user.role === 'admin' 
+                    ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' 
+                    : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                }`}>
+                  {user.role || 'CLIENT'}
+                </span>
+              </div>
+              <div className="col-span-2 text-right">
+                <button 
+                  onClick={() => toggleAdminRole(user.id, user.role)}
+                  className={`text-xs px-3 py-1.5 rounded transition-colors ${
+                    user.role === 'admin'
+                      ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                      : 'bg-white text-black hover:bg-gray-200 font-bold'
+                  }`}
+                >
+                  {user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 const AdminFinancialsView = ({ clients }) => {
   const totalRevenue = clients.reduce((sum, client) => {
     if (!client.invoices) return sum;
@@ -1298,6 +1385,7 @@ const AdminPortal = ({ onLogout, clients, setClients, adminSettings, setAdminSet
 
   const menuItems = [
     { id: 'clients', label: 'Clients', icon: Users },
+    { id: 'users', label: 'User Roles', icon: Shield }, // <--- New User Manager Tab
     { id: 'financials', label: 'Financials', icon: CreditCard },
     { id: 'settings', label: 'Admin Settings', icon: Settings },
   ];
@@ -1338,6 +1426,7 @@ const AdminPortal = ({ onLogout, clients, setClients, adminSettings, setAdminSet
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
         {activeTab === 'clients' && <AdminClientsManager clients={clients} setClients={setClients} />}
+        {activeTab === 'users' && <AdminUsersManager />}
         {activeTab === 'financials' && <AdminFinancialsView clients={clients} />}
         {activeTab === 'settings' && <AdminSettingsView settings={adminSettings} onUpdateSettings={setAdminSettings} />}
       </div>
@@ -1692,7 +1781,7 @@ export default function App() {
     
     // 1. Admin Check (Kept as hardcoded local bypass for admin access)
     if (email.toLowerCase() === 'aapsantos07@gmail.com' && password === 'Andre121.') {
-        handleLogin('admin', null);
+        handleLogin('admin', { name: "Master Admin", email }); // Mock data for master
         return { error: null };
     }
 
@@ -1713,6 +1802,7 @@ export default function App() {
                 id: user.uid, // Use Firebase UID as the unique key
                 name: name,
                 email: email,
+                role: 'client', // Default role
                 project: "New Project",
                 phase: "Discovery",
                 progress: 0,
@@ -1745,7 +1835,10 @@ export default function App() {
             const clientDocSnap = await getDoc(doc(db, "clients", uid));
             
             if (clientDocSnap.exists()) {
-                handleLogin('client', clientDocSnap.data());
+                const userData = clientDocSnap.data();
+                // Check role field, default to client if not present
+                const userRole = userData.role === 'admin' ? 'admin' : 'client';
+                handleLogin(userRole, userData);
             } else {
                 // If the Auth record exists but the Firestore document does not, log out
                 await signOut(auth); 
