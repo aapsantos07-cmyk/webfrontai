@@ -1,7 +1,48 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, 
-  // ... all your other lucide-react icons ...
+  Code, 
+  Cpu,  // <--- This was likely missing or causing the error
+  ArrowRight, 
+  Check, 
+  Menu, 
+  X, 
+  ChevronDown, 
+  Lock, 
+  LayoutDashboard,
+  FileText,
+  CreditCard,
+  Settings,
+  Send,
+  User,
+  Bot,
+  Palette,
+  Brain,
+  Headphones,
+  TrendingUp,
+  LogIn,
+  Download,
+  Bell,
+  Shield,
+  Mail,
+  Sparkles,
+  Loader2,
+  Users,
+  BarChart3,
+  Briefcase,
+  Edit3,
+  Plus,
+  Save,
+  Trash2,
+  Search,
+  DollarSign,
+  Activity,
+  UploadCloud,
+  XCircle,
+  CheckCircle2,
+  LogOut,
+  AlertTriangle,
+  Power
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
@@ -12,15 +53,14 @@ import {
   sendPasswordResetEmail 
 } from 'firebase/auth';
 
+import { doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 
+// --- LOCAL FIREBASE CONFIG ---
 import { auth, db } from './firebase'; 
 // --------------------------------
 
-import { doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
-
 // --- API Configuration ---
 const apiKey = ""; // injected at runtime
-
 // --- Helper: Mock Database (Only used for initial state/admin view persistence simulation) ---
 // NOTE: Client login/signup now uses real Firebase Auth and Firestore for persistence.
 const INITIAL_CLIENTS = [
