@@ -592,10 +592,139 @@ function ClientInvoicesView({ data }) {
 }
 
 function ClientKnowledgeBaseView() {
-    const faqs = [{ q: "How do I update my project requirements?", a: "You can send a message directly to your project manager via the 'Messages' tab or upload a new requirement document in 'Documents'." }, { q: "When are invoices generated?", a: "Invoices are generated typically at the start of each project phase or milestone completion." }, { q: "How do I interpret the 'AI Assistant'?", a: "The AI Assistant has context on your project status and can answer general questions about timelines and deliverables." }];
-    return (<div className="animate-fade-in max-w-3xl"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Knowledge Base</h1><p className="text-zinc-500">Frequently asked questions and guides.</p></div><div className="space-y-4">{faqs.map((item, i) => (<div key={i} className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-xl"><h3 className="font-bold text-white mb-2 flex items-start gap-3"><HelpCircle size={20} className="text-blue-500 mt-0.5 flex-shrink-0"/> {item.q}</h3><p className="text-zinc-400 text-sm pl-8 leading-relaxed">{item.a}</p></div>))}</div></div>);
-}
+    const [openIndex, setOpenIndex] = useState(null);
 
+    const toggle = (id) => {
+        setOpenIndex(openIndex === id ? null : id);
+    };
+
+    const categories = [
+        {
+            title: "General",
+            items: [
+                { q: "What does WebFront AI do?", a: "WebFront AI builds high-performance business websites and deploys AI receptionists that handle customer questions, bookings, and support 24/7. We help businesses automate operations, improve conversions, and look more professional online." },
+                { q: "Who is WebFront AI for?", a: "Our services are designed for small businesses, startups, agencies, creators, and service-based companies who want modern websites, automation tools, and an AI assistant that reduces workload." },
+                { q: "Do you use templates?", a: "No. All websites are custom-coded using React/Next.js. Every build is optimized for speed, SEO, animations, and user experience." }
+            ]
+        },
+        {
+            title: "AI Receptionist",
+            items: [
+                { q: "What is an AI receptionist?", a: "An AI receptionist is a smart, conversational agent that can answer customer questions, book appointments, qualify leads, and respond instantly on your website—without human involvement." },
+                { q: "What can the AI receptionist do?", a: "It can:\n• Answer questions about your business\n• Manage customer support\n• Take messages and qualify leads\n• Explain pricing/services\n• Connect to your calendar\n• Respond via chat or voice (depending on setup)\n• Run 24/7" },
+                { q: "Can the AI be trained on my business information?", a: "Yes. We train your AI using your website, FAQs, documents, menus, policies, pricing sheets, and more. You stay in control of what it knows." },
+                { q: "Is the AI secure?", a: "Yes. The system protects your data, and clients only see what you allow. The AI never reveals private information, internal notes, admin data, or anything not meant for public use." }
+            ]
+        },
+        {
+            title: "Website Development",
+            items: [
+                { q: "What kind of websites do you build?", a: "We build:\n• One-page landing pages\n• Multi-page business websites\n• Full custom web applications\n• Dark-mode experiences\n• CMS-powered sites\n• Sites with advanced animations\n• Apps with user authentication and payments" },
+                { q: "How long does a project take?", a: "Most projects take:\n• Starter Website: 5–10 days\n• Growth Website: 2–3 weeks\n• Full Web App: Timeline based on scope" },
+                { q: "Can you integrate payments, bookings, or custom features?", a: "Yes. We can integrate Stripe, scheduling systems, dashboards, member-only portals, and more." }
+            ]
+        },
+        {
+            title: "Pricing & Packages",
+            items: [
+                { q: "How much does a website cost?", a: "We offer three tiers:\n• Starter – $2,500: Custom landing page, Mobile responsive, Basic SEO, 1 week support\n• Growth – $4,500: Multi-page website, CMS, animations, AI setup\n• Agency – $8,000+ : Full custom web app with payments, authentication, and AI training" },
+                { q: "Do you offer monthly plans?", a: "Yes. Maintenance, updates, hosting, and AI support can be added as a recurring plan if needed." },
+                { q: "Is pricing transparent?", a: "Always. You will see a full breakdown, contract, and project scope before work begins. No hidden fees." }
+            ]
+        },
+        {
+            title: "Project Management",
+            items: [
+                { q: "How do I track my project’s progress?", a: "You get access to the WebFront OS dashboard, where you can view:\n• Your project pipeline stage\n• Daily progress updates\n• Files, invoices, and deliverables\n• Activity logs" },
+                { q: "Can I see examples of previous projects?", a: "Yes, upon request we can show client demos, templates, and completed sites." }
+            ]
+        },
+        {
+            title: "AI & Data Security",
+            items: [
+                { q: "Where is my data stored?", a: "All data is securely stored within your account on WebFront OS. You can view your logs, user roles, invoices, and AI configurations anytime." },
+                { q: "Does the AI ever reveal private business info?", a: "No. The AI is restricted from discussing:\n• Admin data\n• Financials\n• Internal notes\n• Other clients\n• System logs\n• Emails or sensitive info\nIt only speaks about your business publicly-approved information." },
+                { q: "Can I modify what the AI knows?", a: "Yes. You can upload or remove knowledge sources anytime (PDFs, docs, websites, etc.)." }
+            ]
+        },
+        {
+            title: "Onboarding & Setup",
+            items: [
+                { q: "How does onboarding work?", a: "1. Choose your package\n2. Complete the onboarding form\n3. Upload any content or branding\n4. We build your website or AI system\n5. You get access to your dashboard to watch progress in real time" },
+                { q: "How do I add my business information to the AI?", a: "Inside Documents, you can upload documents, FAQs, URLs, or custom instructions." }
+            ]
+        },
+        {
+            title: "Billing & Financials",
+            items: [
+                { q: "How do payments work?", a: "Invoices are sent directly through the WebFront OS financial dashboard. Payments can be made online via card, bank transfer, or approved methods." },
+                { q: "Can I view all my invoices later?", a: "Yes. All past and active invoices are stored in your client dashboard under Financials." },
+                { q: "Are refunds available?", a: "Refunds depend on the project stage and are evaluated on a case-by-case basis." }
+            ]
+        },
+        {
+            title: "Support & Maintenance",
+            items: [
+                { q: "Do you offer ongoing updates?", a: "Yes. We offer optional support plans that include:\n• AI model updates\n• Website improvements\n• Bug fixes\n• Content changes\n• Performance optimization" },
+                { q: "How do I contact support?", a: "You can reach us through the email listed in your dashboard or by messaging through the Messages Tab." }
+            ]
+        },
+        {
+            title: "Technical",
+            items: [
+                { q: "Can I connect third-party tools?", a: "Absolutely. We integrate CRMs, payment providers, booking systems, automations, and custom APIs." }
+            ]
+        }
+    ];
+
+    return (
+        <div className="animate-fade-in max-w-4xl mx-auto">
+            <div className="mb-8 text-center md:text-left">
+                <h1 className="text-3xl font-bold mb-1">Knowledge Base</h1>
+                <p className="text-zinc-500">Frequently asked questions and guides.</p>
+            </div>
+            
+            <div className="space-y-10 pb-12">
+                {categories.map((cat, catIndex) => (
+                    <div key={catIndex} className="animate-fade-in-up" style={{ animationDelay: `${catIndex * 100}ms` }}>
+                        <h2 className="text-xl font-bold text-blue-400 mb-4 px-1 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                            {cat.title}
+                        </h2>
+                        <div className="space-y-3">
+                            {cat.items.map((item, index) => {
+                                const uniqueIndex = `${catIndex}-${index}`;
+                                const isOpen = openIndex === uniqueIndex;
+                                return (
+                                    <div 
+                                        key={index} 
+                                        onClick={() => toggle(uniqueIndex)}
+                                        className={`bg-zinc-900/30 border ${isOpen ? 'border-blue-500/50 bg-zinc-900/50 shadow-lg shadow-blue-900/10' : 'border-zinc-800'} p-6 rounded-xl cursor-pointer transition-all duration-200 hover:border-zinc-700`}
+                                    >
+                                        <div className="flex justify-between items-center gap-4">
+                                            <h3 className={`font-bold text-white flex items-start gap-3 ${isOpen ? 'text-blue-200' : ''}`}>
+                                                <HelpCircle size={20} className="text-blue-500 mt-0.5 flex-shrink-0"/> 
+                                                {item.q}
+                                            </h3>
+                                            <ChevronDown size={20} className={`text-zinc-500 transition-transform duration-300 ${isOpen ? 'rotate-180 text-blue-400' : ''}`} />
+                                        </div>
+                                        <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0'}`}>
+                                            <div className="overflow-hidden">
+                                                <div className="text-zinc-400 text-sm pl-8 leading-relaxed whitespace-pre-line border-t border-zinc-800/50 pt-4">
+                                                    {item.a}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 // --- SHARED SETTINGS VIEW ---
 function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
   const [name, setName] = useState(data?.name || "");
