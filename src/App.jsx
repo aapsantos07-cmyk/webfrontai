@@ -419,7 +419,7 @@ function ClientDashboardView({ data }) {
     return acc + safeParseAmount(inv.amount);
   }, 0);
   const formattedBalance = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalOpenBalance);
-  const activeTasks = data.tasks?.filter(t => !t.completed)?.length || 0;
+  // Removed activeTasks calculation since Tasks view is deleted
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -427,10 +427,10 @@ function ClientDashboardView({ data }) {
         <div className="flex items-center gap-3 mb-1"><h1 className="text-3xl font-bold">Welcome back, {data.name || 'User'}</h1><span className={`text-xs uppercase tracking-wider px-2 py-1 rounded-full font-bold border ${data.status === 'Completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>{data.status || 'Active'}</span></div>
         <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-900/40">{data.name?.charAt(0) || 'U'}</div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="border-l-4 border-l-blue-500"><h3 className="text-zinc-400 text-sm mb-1">Project Status</h3><p className="text-xl font-bold truncate">{data.phase || 'N/A'}</p><p className="text-xs text-blue-400 mt-2">{data.progress || 0}% Complete</p></Card>
         <Card><h3 className="text-zinc-400 text-sm mb-1">Next Milestone</h3><p className="text-xl font-bold truncate">{data.milestone || 'N/A'}</p><p className="text-zinc-500 text-xs mt-2">Due: {data.dueDate || 'TBD'}</p></Card>
-        <Card><h3 className="text-zinc-400 text-sm mb-1">Pending Tasks</h3><p className="text-xl font-bold">{activeTasks}</p><p className="text-zinc-500 text-xs mt-2">Action Items</p></Card>
+        {/* Removed Tasks Card */}
         <Card><h3 className="text-zinc-400 text-sm mb-1">Open Balance</h3><p className="text-xl font-bold">{formattedBalance}</p><p className={`text-xs mt-2 ${totalOpenBalance > 0 ? 'text-yellow-500' : 'text-green-500'}`}>{totalOpenBalance > 0 ? 'Payment Due' : 'Paid'}</p></Card>
       </div>
       <div>
@@ -462,16 +462,6 @@ function ClientProjectsView({ data }) {
                 </div>
             </Card>
             <div><h3 className="text-xl font-bold mb-4">Project Roadmap</h3><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6 space-y-6">{['Discovery', 'Design', 'Development', 'Testing', 'Live'].map((phase, i) => { const isCompleted = (data.progress || 0) > (i + 1) * 20; const isCurrent = data.phase === phase; return (<div key={i} className={`flex items-center gap-4 ${isCompleted || isCurrent ? 'opacity-100' : 'opacity-40'}`}><div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${isCompleted ? 'bg-green-500 border-green-500 text-black' : isCurrent ? 'border-blue-500 text-blue-500' : 'border-zinc-700 text-zinc-700'}`}>{isCompleted ? <Check size={16}/> : i + 1}</div><div className="flex-1"><h4 className={`font-bold ${isCurrent ? 'text-blue-400' : 'text-white'}`}>{phase}</h4></div></div>)})}</div></div>
-        </div>
-    );
-}
-
-function ClientTasksView({ data }) {
-    const tasks = data.tasks || []; 
-    return (
-        <div className="animate-fade-in space-y-6">
-             <div className="mb-4"><h1 className="text-3xl font-bold mb-1">Your Tasks</h1><p className="text-zinc-500">Action items required to move the project forward.</p></div>
-            <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">{tasks.length > 0 ? (tasks.map((task, i) => (<div key={i} className="flex items-center p-5 border-b border-zinc-800 last:border-0 hover:bg-zinc-900/50 transition-colors"><div className={`w-6 h-6 rounded border-2 flex items-center justify-center mr-4 ${task.completed ? 'bg-green-500 border-green-500 text-black' : 'border-zinc-600'}`}>{task.completed && <Check size={14}/>}</div><div className="flex-1"><h4 className={`font-bold ${task.completed ? 'text-zinc-500 line-through' : 'text-white'}`}>{task.title}</h4><p className="text-xs text-zinc-500">Due: {task.dueDate}</p></div><span className={`text-xs px-3 py-1 rounded-full border ${task.completed ? 'bg-green-900/20 text-green-500 border-green-900/50' : 'bg-yellow-900/20 text-yellow-500 border-yellow-900/50'}`}>{task.completed ? 'Done' : 'Pending'}</span></div>))) : (<div className="p-12 text-center flex flex-col items-center text-zinc-500"><ListTodo size={48} className="mb-4 opacity-20"/><p>No tasks assigned yet.</p><p className="text-sm mt-2">Check back later or contact admin.</p></div>)}</div>
         </div>
     );
 }
@@ -1150,7 +1140,7 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
 
 function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount }) {
   const [activeTab, setActiveTab] = useState('dashboard'); const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const menuItems = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'projects', label: 'Projects', icon: Briefcase }, { id: 'tasks', label: 'Tasks', icon: ListTodo }, { id: 'documents', label: 'Documents', icon: FolderOpen }, { id: 'messages', label: 'Messages', icon: MessageSquare }, { id: 'invoices', label: 'Invoices', icon: CreditCard }, { id: 'knowledge', label: 'Knowledge Base', icon: BookOpen }, { id: 'settings', label: 'Settings', icon: Settings }];
+  const menuItems = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'projects', label: 'Projects', icon: Briefcase }, { id: 'documents', label: 'Documents', icon: FolderOpen }, { id: 'messages', label: 'Messages', icon: MessageSquare }, { id: 'invoices', label: 'Invoices', icon: CreditCard }, { id: 'knowledge', label: 'Knowledge Base', icon: BookOpen }, { id: 'settings', label: 'Settings', icon: Settings }];
   const [showOnboarding, setShowOnboarding] = useState(clientData?.project === "New Project");
   const [hasSubmitted, setHasSubmitted] = useState(false);
   useEffect(() => { if (clientData?.project === "New Project" && !hasSubmitted) { setShowOnboarding(true); } else if (clientData?.project !== "New Project") { setShowOnboarding(false); } }, [clientData?.project, hasSubmitted]);
@@ -1164,7 +1154,6 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
         {activeTab === 'dashboard' && <ClientDashboardView data={clientData} />}
         {activeTab === 'projects' && <ClientProjectsView data={clientData} />}
-        {activeTab === 'tasks' && <ClientTasksView data={clientData} />}
         {activeTab === 'documents' && <ClientDocumentsView data={clientData} />}
         {activeTab === 'messages' && <ClientMessagesView data={clientData} />}
         {activeTab === 'invoices' && <ClientInvoicesView data={clientData} />}
