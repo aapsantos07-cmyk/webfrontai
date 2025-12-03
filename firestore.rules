@@ -12,10 +12,16 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // --- ADMIN SETTINGS COLLECTION (NEW) ---
+    // This allows your new "Data & AI Models" tab to save settings
+    match /admin/{document=**} {
+      allow read: if isMasterAdmin() || isDbAdmin();
+      allow write: if isMasterAdmin() || isDbAdmin();
+    }
+
     match /clients/{clientId} {
       
       // --- READ PERMISSIONS ---
-      // Master Admin, DB Admin, or the Client themselves can read
       allow read: if isMasterAdmin() || isDbAdmin() || request.auth.uid == clientId;
 
       // --- WRITE PERMISSIONS ---
@@ -31,7 +37,6 @@ service cloud.firestore {
       allow create: if request.auth.uid == clientId;
 
       // 4. Regular Clients: Update specific fields
-      // UPDATED: Added 'activity' and 'messages' to the allow list so client actions work
       allow update: if request.auth.uid == clientId 
                     && request.resource.data.diff(resource.data).affectedKeys()
                         .hasOnly(['name', 'notifications', 'clientUploads', 'project', 'activity', 'messages']);

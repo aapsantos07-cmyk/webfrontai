@@ -669,51 +669,206 @@ function AdminPipelineView({ clients }) {
 }
 
 function AdminDataAIView() {
-    const [apiKey, setApiKey] = useState("AIzaSy... (Hidden)");
-    
+    const [config, setConfig] = useState({
+        activeModel: 'gemini', 
+        geminiKey: '',
+        openaiKey: '',
+        systemPrompt: "You are WEBFRONT_AI, a helpful assistant for digital agencies. Always be concise and professional.",
+        knowledgeSources: []
+    });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const docRef = doc(db, "admin", "ai_settings");
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    setConfig(prev => ({ ...prev, ...docSnap.data() }));
+                }
+            } catch (error) {
+                console.error("Error fetching AI settings:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSettings();
+    }, []);
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await setDoc(doc(db, "admin", "ai_settings"), config);
+            alert("AI Configuration Saved Successfully!");
+        } catch (error) {
+            console.error("Error saving settings:", error);
+            alert("Failed to save settings: " + error.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleAddSource = () => {
+        const name = prompt("Enter Knowledge Source Name (e.g., 'Q3 Financial Report'):");
+        if (!name) return;
+        const type = prompt("Enter Source Type (e.g., 'File', 'Notion', 'Website'):", "File");
+        
+        const newSource = {
+            id: Date.now(), 
+            name,
+            type: type || "Custom",
+            lastSynced: new Date().toLocaleDateString(),
+            status: "Active"
+        };
+
+        setConfig(prev => ({
+            ...prev,
+            knowledgeSources: [...(prev.knowledgeSources || []), newSource]
+        }));
+    };
+
+    const handleRemoveSource = (id) => {
+        if (!confirm("Are you sure you want to remove this data source? This cannot be undone.")) return;
+        setConfig(prev => ({
+            ...prev,
+            knowledgeSources: prev.knowledgeSources.filter(s => s.id !== id)
+        }));
+    };
+
+    if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/> Loading AI Settings...</div>;
+
     return (
         <div className="animate-fade-in max-w-4xl">
-            <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Data & AI Models</h1><p className="text-zinc-500">Configure LLM parameters and data sources.</p></div>
+            <div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold mb-1">Data & AI Models</h1>
+                    <p className="text-zinc-500">Configure LLM parameters and manage knowledge sources.</p>
+                </div>
+                <Button variant="primary" onClick={handleSave} disabled={saving} className="shadow-blue-900/20">
+                    {saving ? <Loader2 className="animate-spin mr-2" size={18}/> : <Save className="mr-2" size={18}/>} 
+                    {saving ? "Saving..." : "Save Configuration"}
+                </Button>
+            </div>
             
             <div className="grid gap-8">
                 <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
-                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Brain size={20} className="text-purple-500"/> Model Configuration</h3>
+                    <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-white">
+                        <Brain size={20} className="text-purple-500"/> Model Configuration
+                    </h3>
                     <div className="grid gap-6">
                         <div>
                             <label className="block text-sm font-medium text-zinc-400 mb-2">Primary LLM Provider</label>
-                            <select className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none">
-                                <option>Google Gemini 1.5 Flash (Active)</option>
-                                <option>OpenAI GPT-4o</option>
-                                <option>Anthropic Claude 3.5 Sonnet</option>
+                            <select 
+                                value={config.activeModel}
+                                onChange={(e) => setConfig({...config, activeModel: e.target.value})}
+                                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors"
+                            >
+                                <option value="gemini">Google Gemini 1.5 Flash</option>
+                                <option value="openai">OpenAI GPT-4o</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-2">API Key</label>
-                            <div className="flex gap-2">
-                                <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" />
-                                <Button variant="secondary">Update</Button>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-400 mb-2 flex items-center justify-between">
+                                    <span>Google Gemini API Key</span>
+                                    {config.activeModel === 'gemini' && <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">ACTIVE</span>}
+                                </label>
+                                <div className="relative">
+                                    <input 
+                                        type="password" 
+                                        value={config.geminiKey} 
+                                        onChange={(e) => setConfig({...config, geminiKey: e.target.value})} 
+                                        placeholder="AIzaSy..."
+                                        className={`w-full bg-black border rounded-lg px-4 py-3 text-white outline-none focus:ring-1 transition-all ${config.activeModel === 'gemini' ? 'border-purple-500/50 focus:border-purple-500 focus:ring-purple-500/20' : 'border-zinc-700 focus:border-zinc-500'}`} 
+                                    />
+                                    <Lock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600"/>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-400 mb-2 flex items-center justify-between">
+                                    <span>OpenAI API Key</span>
+                                    {config.activeModel === 'openai' && <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">ACTIVE</span>}
+                                </label>
+                                <div className="relative">
+                                    <input 
+                                        type="password" 
+                                        value={config.openaiKey} 
+                                        onChange={(e) => setConfig({...config, openaiKey: e.target.value})} 
+                                        placeholder="sk-..."
+                                        className={`w-full bg-black border rounded-lg px-4 py-3 text-white outline-none focus:ring-1 transition-all ${config.activeModel === 'openai' ? 'border-purple-500/50 focus:border-purple-500 focus:ring-purple-500/20' : 'border-zinc-700 focus:border-zinc-500'}`} 
+                                    />
+                                    <Lock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600"/>
+                                </div>
                             </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-zinc-400 mb-2">System Prompt (Global)</label>
-                            <textarea className="w-full h-32 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none text-sm font-mono" defaultValue="You are WEBFRONT_AI, a helpful assistant for digital agencies. Always be concise and professional." />
+                            <textarea 
+                                className="w-full h-32 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none text-sm font-mono leading-relaxed" 
+                                value={config.systemPrompt}
+                                onChange={(e) => setConfig({...config, systemPrompt: e.target.value})}
+                                placeholder="Define the AI's persona and rules..."
+                            />
                         </div>
                     </div>
                 </div>
-
                 <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
-                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Database size={20} className="text-blue-500"/> Knowledge Sources</h3>
-                    <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold flex items-center gap-2 text-white">
+                            <Database size={20} className="text-blue-500"/> Knowledge Sources
+                        </h3>
+                        <Button variant="secondary" onClick={handleAddSource} className="py-2 px-4 text-xs h-auto border-dashed border-zinc-700 hover:border-blue-500 hover:text-blue-400">
+                            <Plus size={14} className="mr-1"/> Add Source
+                        </Button>
+                    </div>
+                    <div className="border border-zinc-800 rounded-lg overflow-hidden bg-black/20">
                         <table className="w-full text-sm text-left">
-                            <thead className="bg-zinc-900 text-zinc-400"><tr><th className="p-3">Source Name</th><th className="p-3">Type</th><th className="p-3">Last Synced</th><th className="p-3 text-right">Status</th></tr></thead>
+                            <thead className="bg-zinc-900/80 text-zinc-400 font-medium">
+                                <tr>
+                                    <th className="p-4">Source Name</th>
+                                    <th className="p-4">Type</th>
+                                    <th className="p-4">Last Synced</th>
+                                    <th className="p-4">Status</th>
+                                    <th className="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
                             <tbody className="divide-y divide-zinc-800">
-                                <tr><td className="p-3">Company Website</td><td className="p-3"><span className="bg-blue-900/30 text-blue-400 px-2 py-1 rounded text-xs">Scraper</span></td><td className="p-3">2 hours ago</td><td className="p-3 text-right"><span className="text-green-500">Active</span></td></tr>
-                                <tr><td className="p-3">Pricing PDF</td><td className="p-3"><span className="bg-orange-900/30 text-orange-400 px-2 py-1 rounded text-xs">File</span></td><td className="p-3">1 day ago</td><td className="p-3 text-right"><span className="text-green-500">Indexed</span></td></tr>
+                                {config.knowledgeSources && config.knowledgeSources.length > 0 ? (
+                                    config.knowledgeSources.map((source) => (
+                                        <tr key={source.id} className="group hover:bg-zinc-800/30 transition-colors">
+                                            <td className="p-4 font-medium text-white">{source.name}</td>
+                                            <td className="p-4">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${source.type === 'Scraper' ? 'bg-blue-900/30 text-blue-400' : 'bg-orange-900/30 text-orange-400'}`}>
+                                                    {source.type}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-zinc-500">{source.lastSynced}</td>
+                                            <td className="p-4">
+                                                <span className="text-green-500 text-xs flex items-center gap-1">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> {source.status}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <button 
+                                                    onClick={() => handleRemoveSource(source.id)} 
+                                                    className="text-zinc-600 hover:text-red-500 transition-colors p-2 hover:bg-red-500/10 rounded-lg"
+                                                    title="Remove Source"
+                                                >
+                                                    <Trash2 size={16}/>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5" className="p-8 text-center text-zinc-500">
+                                            No knowledge sources added yet.
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
-                    </div>
-                    <div className="mt-4">
-                         <Button variant="secondary" className="w-full border-dashed"><Plus size={16}/> Add Knowledge Source</Button>
                     </div>
                 </div>
             </div>
