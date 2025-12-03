@@ -12,13 +12,21 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // --- ADMIN SETTINGS COLLECTION (NEW) ---
-    // This allows your new "Data & AI Models" tab to save settings
-    match /admin/{document=**} {
-      allow read: if isMasterAdmin() || isDbAdmin();
+    // --- ADMIN SETTINGS COLLECTION ---
+    
+    // 1. AI Settings: Allow PUBLIC READ so the landing page chatbot can load configs.
+    // Writes are still restricted to Admins.
+    match /admin/ai_settings {
+      allow read: if true;
       allow write: if isMasterAdmin() || isDbAdmin();
     }
 
+    // 2. All Other Admin Docs: Strictly for Admins.
+    match /admin/{document=**} {
+      allow read, write: if isMasterAdmin() || isDbAdmin();
+    }
+
+    // --- CLIENTS COLLECTION ---
     match /clients/{clientId} {
       
       // --- READ PERMISSIONS ---

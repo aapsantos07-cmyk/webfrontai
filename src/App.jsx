@@ -46,7 +46,14 @@ const safeParseAmount = (amount) => {
 };
 
 // --- API LOGIC ---
-const callGemini = async (userQuery, systemPrompt) => {
+// ... imports remain the same ...
+
+// --- API LOGIC ---
+
+// 1. Updated Gemini Function (Accepts dynamic key)
+const callGemini = async (userQuery, systemPrompt, apiKey) => {
+  if (!apiKey) throw new Error("Gemini API Key is missing.");
+  
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   const payload = {
     contents: [{ parts: [{ text: userQuery }] }],
@@ -62,17 +69,149 @@ const callGemini = async (userQuery, systemPrompt) => {
 
     if (!response.ok) {
        const errorData = await response.json();
-       console.error("Gemini API Error:", errorData);
-       throw new Error(errorData.error?.message || "API Request Failed");
+       throw new Error(errorData.error?.message || "Gemini API Failed");
     }
     
     const data = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
   } catch (error) {
-    console.error("CallGemini Exception:", error);
-    return null; 
+    console.error("Gemini Error:", error);
+    throw error; 
   }
 };
+
+// 2. New OpenAI Function
+const callOpenAI = async (userQuery, systemPrompt, apiKey) => {
+  if (!apiKey) throw new Error("OpenAI API Key is missing.");
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4o", // Or "gpt-3.5-turbo"
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userQuery }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "OpenAI API Failed");
+    return data.choices[0].message.content;
+  } catch (error) {
+    console.error("OpenAI Error:", error);
+    throw error;
+  }
+};
+
+// --- UPDATED AI CHAT COMPONENT ---
+
+function AIChatDemo() {
+  const [messages, setMessages] = useState([{ role: 'ai', text: "Hello. I am WEBFRONT_AI. How can I assist your agency today?" }]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  
+  // State to hold live settings from Firestore
+  const [aiConfig, setAiConfig] = useState(null); 
+  const chatContainerRef = useRef(null);
+
+  // 1. Fetch Admin Settings on Mount
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "admin", "ai_settings"), (docSnap) => {
+      if (docSnap.exists()) {
+        setAiConfig(docSnap.data());
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
+    }
+  };
+  useEffect(scrollToBottom, [messages]);
+
+  const formatMessage = (text) => {
+    if (!text) return null;
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={index} className="text-white font-bold">{part.slice(2, -2)}</strong>;
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+    const userMsg = input;
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setInput('');
+    setIsTyping(true);
+
+    // 2. Determine Configuration (DB Priority -> Fallback to Defaults/Env)
+    const activeModel = aiConfig?.activeModel || 'gemini';
+    const systemPrompt = aiConfig?.systemPrompt || "You are WEBFRONT_AI... (Default Prompt)";
+    
+    // Use DB key if present, otherwise use secure .env key
+    const geminiKey = aiConfig?.geminiKey || import.meta.env.VITE_GEMINI_API_KEY;
+    const openaiKey = aiConfig?.openaiKey || import.meta.env.VITE_OPENAI_API_KEY;
+
+    try {
+      let responseText;
+      
+      // 3. Switch Logic
+      if (activeModel === 'openai') {
+        responseText = await callOpenAI(userMsg, systemPrompt, openaiKey);
+      } else {
+        responseText = await callGemini(userMsg, systemPrompt, geminiKey);
+      }
+
+      setMessages(prev => [...prev, { role: 'ai', text: responseText }]);
+    } catch (error) {
+      setMessages(prev => [...prev, { role: 'ai', text: "System Error: " + error.message }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  return (
+    // ... (Keep your existing JSX return exactly as it is) ...
+    <div className="w-full max-w-md bg-black/80 backdrop-blur-xl border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[400px] md:h-[500px] transition-all duration-500 hover:shadow-blue-900/20 hover:border-zinc-700">
+      <div className="bg-zinc-900/50 p-4 border-b border-zinc-800 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+           <div className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_2s_infinite]"></div>
+           <span className="font-mono text-sm text-zinc-400">
+             {/* Optional: Show active model name */}
+             WEBFRONT_AI {aiConfig?.activeModel === 'openai' ? '(GPT-4o)' : '(Gemini)'}
+           </span>
+        </div>
+        <Sparkles size={18} className="text-blue-400 animate-pulse" />
+      </div>
+      {/* ... rest of your existing chat UI ... */}
+      <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 font-sans text-sm scrollbar-thin scrollbar-thumb-zinc-800">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
+            <div className={`max-w-[85%] p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-none shadow-lg shadow-blue-900/20' : 'bg-zinc-800 text-zinc-200 rounded-bl-none border border-zinc-700'}`}>
+              {formatMessage(m.text)}
+            </div>
+          </div>
+        ))}
+        {isTyping && <div className="flex justify-start animate-pulse"><div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center border border-zinc-700"><Loader2 size={14} className="animate-spin text-zinc-500" /><span className="text-xs text-zinc-500 ml-2">Thinking...</span></div></div>}
+      </div>
+      <div className="p-4 bg-zinc-900/50 border-t border-zinc-800 flex gap-2">
+        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }} placeholder="Ask about pricing, services..." className="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors"/>
+        <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors transform active:scale-95"><Send size={18} /></button>
+      </div>
+    </div>
+  );
+}
 
 // --- UI HELPERS ---
 function useOnScreen(ref, rootMargin = "0px") {
@@ -120,67 +259,7 @@ function Card({ children, className = '' }) {
   return <div className={`bg-zinc-900/40 backdrop-blur-md border border-zinc-800 p-6 md:p-8 rounded-2xl hover:border-zinc-600 transition-all duration-300 hover:bg-zinc-900/60 ${className}`}>{children}</div>;
 }
 
-// --- SHARED COMPONENTS ---
 
-function AIChatDemo() {
-  const [messages, setMessages] = useState([{ role: 'ai', text: "Hello. I am WEBFRONT_AI. How can I assist your agency today?" }]);
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const chatContainerRef = useRef(null);
-
-  const scrollToBottom = () => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
-    }
-  };
-  useEffect(scrollToBottom, [messages]);
-
-  const formatMessage = (text) => {
-    if (!text) return null;
-    const parts = text.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={index} className="text-white font-bold">{part.slice(2, -2)}</strong>;
-      }
-      return <span key={index}>{part}</span>;
-    });
-  };
-
-  const handleSend = async () => {
-    if (!input.trim()) return;
-    const userMsg = input;
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setInput('');
-    setIsTyping(true);
-    const systemPrompt = `You are WEBFRONT_AI, the on-site AI Receptionist for **WebFront AI**. Your only job is to talk to visitors about WebFront AI, our services, pricing, and process, and help them decide to book a strategy call. IMPORTANT RULES: 1. **Keep your answers SHORT.** Maximum 2-3 sentences. 2. Use **bold** syntax.`;
-    const response = await callGemini(userMsg, systemPrompt);
-    setMessages(prev => [...prev, { role: 'ai', text: response || "I am currently experiencing heavy traffic. Please try again." }]);
-    setIsTyping(false);
-  };
-
-  return (
-    <div className="w-full max-w-md bg-black/80 backdrop-blur-xl border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[400px] md:h-[500px] transition-all duration-500 hover:shadow-blue-900/20 hover:border-zinc-700">
-      <div className="bg-zinc-900/50 p-4 border-b border-zinc-800 flex items-center justify-between">
-        <div className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_2s_infinite]"></div><span className="font-mono text-sm text-zinc-400">WEBFRONT_AI</span></div>
-        <Sparkles size={18} className="text-blue-400 animate-pulse" />
-      </div>
-      <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 font-sans text-sm scrollbar-thin scrollbar-thumb-zinc-800">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
-            <div className={`max-w-[85%] p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-none shadow-lg shadow-blue-900/20' : 'bg-zinc-800 text-zinc-200 rounded-bl-none border border-zinc-700'}`}>
-              {formatMessage(m.text)}
-            </div>
-          </div>
-        ))}
-        {isTyping && <div className="flex justify-start animate-pulse"><div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center border border-zinc-700"><Loader2 size={14} className="animate-spin text-zinc-500" /><span className="text-xs text-zinc-500 ml-2">Thinking...</span></div></div>}
-      </div>
-      <div className="p-4 bg-zinc-900/50 border-t border-zinc-800 flex gap-2">
-        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }} placeholder="Ask about pricing, services..." className="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors"/>
-        <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors transform active:scale-95"><Send size={18} /></button>
-      </div>
-    </div>
-  );
-}
 
 function ProjectOnboardingModal({ isOpen, onSubmit }) {
   const [projectName, setProjectName] = useState("");
