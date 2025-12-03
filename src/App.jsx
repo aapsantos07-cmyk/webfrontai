@@ -51,10 +51,13 @@ const safeParseAmount = (amount) => {
 // --- API LOGIC ---
 
 // 1. Updated Gemini Function (Accepts dynamic key)
+// 1. Updated Gemini Function (Fixed Model Name)
 const callGemini = async (userQuery, systemPrompt, apiKey) => {
   if (!apiKey) throw new Error("Gemini API Key is missing.");
   
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // CHANGED: Added '-001' to the model name
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`;
+  
   const payload = {
     contents: [{ parts: [{ text: userQuery }] }],
     systemInstruction: { parts: [{ text: systemPrompt }] }
@@ -69,6 +72,8 @@ const callGemini = async (userQuery, systemPrompt, apiKey) => {
 
     if (!response.ok) {
        const errorData = await response.json();
+       // Log the full error to help debug if it happens again
+       console.error("Gemini API Full Error:", JSON.stringify(errorData, null, 2));
        throw new Error(errorData.error?.message || "Gemini API Failed");
     }
     
