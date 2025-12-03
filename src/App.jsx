@@ -244,7 +244,7 @@ function AIChatDemo() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }}
           placeholder="Ask about pricing, services..."
-          className="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors"
+          className="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
         />
         <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors transform active:scale-95">
           <Send size={18} />
@@ -337,9 +337,10 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
 // --- CLIENT PORTAL VIEWS ---
 
 function ClientDashboardView({ data }) {
+  // SAFETY: Check valid invoice structure before reducing
   const totalOpenBalance = (data.invoices || []).reduce((acc, inv) => {
-      if (inv.status === 'Paid') return acc;
-      return acc + safeParseAmount(inv.amount);
+    if (inv.status === 'Paid') return acc;
+    return acc + safeParseAmount(inv.amount);
   }, 0);
   
   const formattedBalance = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalOpenBalance);
@@ -667,10 +668,49 @@ function ClientKnowledgeBaseView() {
     );
 }
 
+// --- RESTORED SETTINGS VIEW FOR CLIENTS ---
+function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
+  const [name, setName] = useState(data.name || "");
+  const [notifications, setNotifications] = useState(data.notifications || { email: true, push: false });
+
+  const handleSave = () => { onUpdateClient({ ...data, name, notifications }); };
+  const toggleNotification = (type) => { setNotifications(prev => ({ ...prev, [type]: !prev[type] })); };
+
+  return (
+    <div className="animate-fade-in">
+        <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-1">Settings</h1>
+            <p className="text-zinc-500">Manage your account preferences.</p>
+        </div>
+        <div className="grid gap-8 max-w-2xl">
+            <div className="space-y-4">
+                <h3 className="text-lg font-bold flex items-center gap-2"><User size={18}/> Profile Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">Company / Name</label>
+                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label>
+                        <input type="text" value={data.email} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" />
+                    </div>
+                </div>
+                <Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button>
+            </div>
+            <div className="space-y-4 pt-4 border-t border-zinc-800">
+                <h3 className="text-lg font-bold flex items-center gap-2 text-red-500"><Shield size={18}/> Danger Zone</h3>
+                <Button onClick={() => onDeleteAccount(data.id)} variant="danger" className="w-full justify-start">Delete My Account</Button>
+            </div>
+        </div>
+    </div>
+  );
+}
+
 function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount }) {
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // --- UPDATED NAVIGATION MENU ---
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'projects', label: 'Projects', icon: Briefcase },
@@ -682,6 +722,7 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
 
+  // --- NEW LOGIC: Show Onboarding Modal if Project is "New Project" ---
   const [showOnboarding, setShowOnboarding] = useState(clientData?.project === "New Project");
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -1072,7 +1113,7 @@ export default function App() {
 
   const handleClientDelete = async (id) => {
     if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
-      try { await deleteDoc(doc(db, "clients", id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); }
+      try { await deleteDoc(doc(db, 'clients', id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); }
     }
   };
 
