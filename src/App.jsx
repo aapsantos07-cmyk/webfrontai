@@ -27,7 +27,7 @@ import {
 import { auth, db, storage } from './firebase'; 
 // --------------------------------
 
-const apiKey = "AIzaSyBB3MXjcC5KcRja7Kl91joSJOUwGCk0q5Q"; // injected at runtime
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 // --- HELPER FUNCTIONS ---
 const convertToBase64 = (file) => {
