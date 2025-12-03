@@ -488,7 +488,11 @@ function LandingPage({ onLogin }) {
 
 // --- CLIENT VIEWS ---
 function ClientDashboardView({ data }) {
-  const totalOpenBalance = (data.invoices || []).reduce((acc, inv) => {
+  // Ensure we are working with the isolated client data passed from ClientPortal
+  const invoices = data.invoices || [];
+  const activity = data.activity || [];
+
+  const totalOpenBalance = invoices.reduce((acc, inv) => {
     if (inv.status === 'Paid') return acc;
     return acc + safeParseAmount(inv.amount);
   }, 0);
@@ -508,7 +512,7 @@ function ClientDashboardView({ data }) {
       <div>
         <h3 className="text-xl font-bold mb-6">Recent Activity</h3>
         <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">
-          {data.activity && data.activity.length > 0 ? data.activity.map((item, i) => (
+          {activity.length > 0 ? activity.map((item, i) => (
               <div key={i} className="flex items-center justify-between p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="flex items-center gap-4"><div className={`w-2 h-2 rounded-full ${item.status === 'Completed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div><span className="truncate max-w-[200px] sm:max-w-md">{item.action}</span></div><span className="text-zinc-500 text-sm whitespace-nowrap ml-4">{item.date}</span></div>
           )) : <div className="p-4 text-zinc-500 text-center">No recent activity</div>}
         </div>
@@ -577,7 +581,10 @@ function ClientMessagesView({ data }) {
 }
 
 function ClientInvoicesView({ data }) {
-  return (<div className="animate-fade-in"><div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4"><div><h1 className="text-3xl font-bold mb-1">Invoices</h1><p className="text-zinc-500">View payment history and upcoming charges.</p></div><Button variant="secondary" className="px-4 py-2 text-xs w-full sm:w-auto">Download All CSV</Button></div><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto"><div className="min-w-[600px]"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Description</div><div>Date</div><div className="text-right">Amount</div></div>{data.invoices && data.invoices.length > 0 ? data.invoices.map((inv, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors items-center"><div className="col-span-2 min-w-0"><div className="font-bold truncate pr-4">{inv.desc}</div><div className="text-xs text-zinc-500 flex items-center gap-2 mt-1">{inv.id} <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ${inv.status === 'Paid' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>{inv.status}</span></div></div><div className="text-zinc-400 text-sm">{inv.date}</div><div className="text-right font-mono">{inv.amount}</div></div>)) : <div className="p-12 text-center text-zinc-500">No invoices found.</div>}</div></div></div>);
+  // Use data.invoices to ensure we only show the current client's invoices
+  const invoices = data.invoices || [];
+  
+  return (<div className="animate-fade-in"><div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4"><div><h1 className="text-3xl font-bold mb-1">Invoices</h1><p className="text-zinc-500">View payment history and upcoming charges.</p></div><Button variant="secondary" className="px-4 py-2 text-xs w-full sm:w-auto">Download CSV</Button></div><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto"><div className="min-w-[600px]"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Description</div><div>Date</div><div className="text-right">Amount</div></div>{invoices.length > 0 ? invoices.map((inv, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors items-center"><div className="col-span-2 min-w-0"><div className="font-bold truncate pr-4">{inv.desc}</div><div className="text-xs text-zinc-500 flex items-center gap-2 mt-1">{inv.id} <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ${inv.status === 'Paid' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>{inv.status}</span></div></div><div className="text-zinc-400 text-sm">{inv.date}</div><div className="text-right font-mono">{inv.amount}</div></div>)) : <div className="p-12 text-center text-zinc-500">No invoices found.</div>}</div></div></div>);
 }
 
 function ClientKnowledgeBaseView() {
