@@ -15,6 +15,7 @@ service cloud.firestore {
     match /clients/{clientId} {
       
       // --- READ PERMISSIONS ---
+      // Master Admin, DB Admin, or the Client themselves can read
       allow read: if isMasterAdmin() || isDbAdmin() || request.auth.uid == clientId;
 
       // --- WRITE PERMISSIONS ---
@@ -30,9 +31,10 @@ service cloud.firestore {
       allow create: if request.auth.uid == clientId;
 
       // 4. Regular Clients: Update specific fields
-      // 👇 FIXED: Added 'project' to the allowed list so the onboarding popup works
+      // UPDATED: Added 'activity' and 'messages' to the allow list so client actions work
       allow update: if request.auth.uid == clientId 
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'notifications', 'clientUploads', 'project']);
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['name', 'notifications', 'clientUploads', 'project', 'activity', 'messages']);
     }
 
     // Default Deny
