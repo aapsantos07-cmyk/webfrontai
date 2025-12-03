@@ -37,6 +37,13 @@ const convertToBase64 = (file) => {
   });
 };
 
+// --- Helper: Safe Currency Parser (Prevents Crashes) ---
+const safeParseAmount = (amount) => {
+  if (typeof amount === 'number') return amount;
+  if (typeof amount === 'string') return parseFloat(amount.replace(/[^0-9.-]+/g, "")) || 0;
+  return 0;
+};
+
 // --- Helper: Intersection Observer Hook for Animations ---
 function useOnScreen(ref, rootMargin = "0px") {
   const [isIntersecting, setIntersecting] = useState(false);
@@ -330,11 +337,9 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
 // --- CLIENT PORTAL VIEWS ---
 
 function ClientDashboardView({ data }) {
-  // SAFETY: Check valid invoice structure before reducing
   const totalOpenBalance = (data.invoices || []).reduce((acc, inv) => {
-    if (inv.status === 'Paid') return acc;
-    const amt = typeof inv.amount === 'string' ? parseFloat(inv.amount.replace(/[^0-9.-]+/g, "")) : (inv.amount || 0);
-    return acc + (isNaN(amt) ? 0 : amt);
+      if (inv.status === 'Paid') return acc;
+      return acc + safeParseAmount(inv.amount);
   }, 0);
   
   const formattedBalance = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalOpenBalance);
@@ -344,7 +349,7 @@ function ClientDashboardView({ data }) {
     <div className="animate-fade-in space-y-8">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-3xl font-bold">Welcome back, {data.name}</h1>
+            <h1 className="text-3xl font-bold">Welcome back, {data.name || 'User'}</h1>
             <span className={`text-xs uppercase tracking-wider px-2 py-1 rounded-full font-bold border ${data.status === 'Completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>
                 {data.status || 'Active'}
             </span>
@@ -354,13 +359,13 @@ function ClientDashboardView({ data }) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="border-l-4 border-l-blue-500">
           <h3 className="text-zinc-400 text-sm mb-1">Project Status</h3>
-          <p className="text-xl font-bold truncate">{data.phase}</p>
-          <p className="text-xs text-blue-400 mt-2">{data.progress}% Complete</p>
+          <p className="text-xl font-bold truncate">{data.phase || 'N/A'}</p>
+          <p className="text-xs text-blue-400 mt-2">{data.progress || 0}% Complete</p>
         </Card>
         <Card>
             <h3 className="text-zinc-400 text-sm mb-1">Next Milestone</h3>
-            <p className="text-xl font-bold truncate">{data.milestone}</p>
-            <p className="text-zinc-500 text-xs mt-2">Due: {data.dueDate}</p>
+            <p className="text-xl font-bold truncate">{data.milestone || 'N/A'}</p>
+            <p className="text-zinc-500 text-xs mt-2">Due: {data.dueDate || 'TBD'}</p>
         </Card>
         <Card>
             <h3 className="text-zinc-400 text-sm mb-1">Pending Tasks</h3>
@@ -392,31 +397,31 @@ function ClientProjectsView({ data }) {
         <div className="animate-fade-in space-y-8">
             <div className="mb-4">
                 <h1 className="text-3xl font-bold mb-1">Active Project</h1>
-                <p className="text-zinc-500">{data.project}</p>
+                <p className="text-zinc-500">{data.project || 'No Active Project'}</p>
             </div>
             
             <Card className="p-8">
                 <div className="flex justify-between items-end mb-6">
                     <div>
                         <div className="text-sm text-blue-400 font-bold uppercase tracking-widest mb-1">Current Phase</div>
-                        <h2 className="text-4xl font-bold text-white">{data.phase}</h2>
+                        <h2 className="text-4xl font-bold text-white">{data.phase || 'Discovery'}</h2>
                     </div>
                     <div className="text-right">
-                        <div className="text-3xl font-bold text-white">{data.progress}%</div>
+                        <div className="text-3xl font-bold text-white">{data.progress || 0}%</div>
                     </div>
                 </div>
                 <div className="w-full bg-zinc-800 h-4 rounded-full overflow-hidden mb-8">
-                    <div className="bg-blue-600 h-full transition-all duration-1000" style={{ width: `${data.progress}%` }}></div>
+                    <div className="bg-blue-600 h-full transition-all duration-1000" style={{ width: `${data.progress || 0}%` }}></div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-zinc-800 pt-6">
                     <div>
                         <h4 className="text-zinc-500 text-sm mb-1">Next Milestone</h4>
-                        <p className="text-white font-medium">{data.milestone}</p>
+                        <p className="text-white font-medium">{data.milestone || 'TBD'}</p>
                     </div>
                     <div>
                         <h4 className="text-zinc-500 text-sm mb-1">Target Date</h4>
-                        <p className="text-white font-medium">{data.dueDate}</p>
+                        <p className="text-white font-medium">{data.dueDate || 'TBD'}</p>
                     </div>
                     <div>
                         <h4 className="text-zinc-500 text-sm mb-1">Status</h4>
@@ -433,7 +438,7 @@ function ClientProjectsView({ data }) {
                 <h3 className="text-xl font-bold mb-4">Project Roadmap</h3>
                 <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6 space-y-6">
                     {['Discovery', 'Design', 'Development', 'Testing', 'Live'].map((phase, i) => {
-                        const isCompleted = data.progress > (i + 1) * 20;
+                        const isCompleted = (data.progress || 0) > (i + 1) * 20;
                         const isCurrent = data.phase === phase;
                         return (
                             <div key={i} className={`flex items-center gap-4 ${isCompleted || isCurrent ? 'opacity-100' : 'opacity-40'}`}>
@@ -561,8 +566,6 @@ function ClientDocumentsView({ data }) {
 
 function ClientMessagesView({ data }) {
     const [messageInput, setMessageInput] = useState("");
-    
-    // Mocking messages since DB structure might not be fully ready
     const messages = data.messages || [
         { sender: 'admin', text: 'Welcome to your portal! Let us know if you have questions.', time: 'System • Just now' }
     ];
@@ -570,7 +573,6 @@ function ClientMessagesView({ data }) {
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!messageInput.trim()) return;
-        
         try {
             await updateDoc(doc(db, "clients", data.id), {
                 messages: arrayUnion({
@@ -591,7 +593,6 @@ function ClientMessagesView({ data }) {
                 <h1 className="text-3xl font-bold mb-1">Messages</h1>
                 <p className="text-zinc-500">Direct line to your project manager.</p>
             </div>
-            
             <div className="flex-1 bg-zinc-900/30 border border-zinc-800 rounded-2xl flex flex-col overflow-hidden h-[500px]">
                 <div className="flex-1 p-6 overflow-y-auto space-y-4 custom-scrollbar">
                     {messages.map((msg, i) => (
@@ -670,7 +671,6 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // --- UPDATED NAVIGATION MENU ---
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'projects', label: 'Projects', icon: Briefcase },
@@ -682,7 +682,6 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
 
-  // --- NEW LOGIC: Show Onboarding Modal if Project is "New Project" ---
   const [showOnboarding, setShowOnboarding] = useState(clientData?.project === "New Project");
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -882,7 +881,7 @@ function AdminUsersManager() {
           <div className="grid grid-cols-12 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div className="col-span-4">User / Email</div><div className="col-span-3">Project</div><div className="col-span-3">Current Role</div><div className="col-span-2 text-right">Actions</div></div>
           {loading ? <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/></div> : users.map((user) => (
               <div key={user.id} className="grid grid-cols-12 p-4 border-b border-zinc-800 last:border-0 items-center hover:bg-zinc-800/20 transition-colors">
-                <div className="col-span-4 min-w-0 pr-4"><div className="font-bold text-white truncate">{user.name}</div><div className="text-xs text-zinc-500 truncate">{user.email}</div></div><div className="col-span-3 text-zinc-400 text-sm truncate">{user.project}</div>
+                <div className="col-span-4 min-w-0 pr-4"><div className="font-bold text-white truncate">{user.name || 'Unknown'}</div><div className="text-xs text-zinc-500 truncate">{user.email || 'No Email'}</div></div><div className="col-span-3 text-zinc-400 text-sm truncate">{user.project || 'N/A'}</div>
                 <div className="col-span-3"><span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${user.role === 'admin' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>{user.role || 'CLIENT'}</span></div>
                 <div className="col-span-2 text-right"><button onClick={() => toggleAdminRole(user.id, user.role)} className={`text-xs px-3 py-1.5 rounded transition-colors ${user.role === 'admin' ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-white text-black hover:bg-gray-200 font-bold'}`}>{user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}</button></div>
               </div>
@@ -908,7 +907,7 @@ function AdminFinancialsView({ clients }) {
   const allTransactions = clients.flatMap(client => (client.invoices || []).map(inv => ({ ...inv, clientName: client.name })));
   
   return (
-  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Financials</h1><p className="text-zinc-500">Revenue tracking based on active client deals.</p></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><Card><h3 className="text-zinc-400 text-sm mb-1">Total Revenue</h3><p className="text-3xl font-bold text-green-500">{formatCurrency(totalRevenue)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Outstanding</h3><p className="text-3xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Active Deals</h3><p className="text-3xl font-bold text-blue-500">{clients.length}</p></Card></div><h3 className="text-xl font-bold mb-6">All Transactions</h3><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto"><div className="min-w-[600px]"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Client</div><div>Date</div><div>Invoice ID</div><div className="text-right">Amount</div></div>{allTransactions.map((t, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="text-white font-medium truncate">{t.clientName}</div><div className="text-zinc-500">{t.date}</div><div className="text-zinc-500 font-mono text-xs pt-1">{t.id}</div><div className={`text-right font-mono ${t.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{t.amount}</div></div>))}{allTransactions.length === 0 && <div className="p-4 text-center text-zinc-500">No transactions recorded.</div>}</div></div></div>
+  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Financials</h1><p className="text-zinc-500">Revenue tracking based on active client deals.</p></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><Card><h3 className="text-zinc-400 text-sm mb-1">Total Revenue</h3><p className="text-3xl font-bold text-green-500">{formatCurrency(totalRevenue)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Outstanding</h3><p className="text-3xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Active Deals</h3><p className="text-3xl font-bold text-blue-500">{clients.length}</p></Card></div><h3 className="text-xl font-bold mb-6">All Transactions</h3><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto"><div className="min-w-[600px]"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Client</div><div>Date</div><div>Invoice ID</div><div className="text-right">Amount</div></div>{allTransactions.map((t, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="text-white font-medium truncate">{t.clientName || 'Unknown'}</div><div className="text-zinc-500">{t.date}</div><div className="text-zinc-500 font-mono text-xs pt-1">{t.id}</div><div className={`text-right font-mono ${t.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{t.amount}</div></div>))}{allTransactions.length === 0 && <div className="p-4 text-center text-zinc-500">No transactions recorded.</div>}</div></div></div>
   );
 }
 
@@ -919,7 +918,7 @@ function AdminSettingsView({ settings, onUpdateSettings }) {
   if (!settings) return null;
 
   return (
-  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Admin Settings</h1><p className="text-zinc-500">System configuration and profile.</p></div><div className="max-w-2xl space-y-8"><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">Admin Profile</h3><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-white" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email</label><input type="text" defaultValue={settings.email} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={() => onUpdateSettings({ ...settings, name })} variant="secondary" className="text-sm py-2 px-4">Update Profile</Button></div><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">System Preferences</h3><div className="flex items-center justify-between p-3 bg-red-900/10 border border-red-900/30 rounded-lg"><div className="flex flex-col"><span className="text-white font-bold flex items-center gap-2"><Power size={16}/> Maintenance Mode</span><span className="text-xs text-zinc-400">Prevents all clients from logging in. Admin only.</span></div><div onClick={() => onUpdateSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${settings.maintenanceMode ? 'bg-red-600' : 'bg-zinc-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.maintenanceMode ? 'left-7' : 'left-1'}`}></div></div></div></div></div></div>
+  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Admin Settings</h1><p className="text-zinc-500">System configuration and profile.</p></div><div className="max-w-2xl space-y-8"><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">Admin Profile</h3><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-white" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email</label><input type="text" defaultValue={settings.email || ""} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={() => onUpdateSettings({ ...settings, name })} variant="secondary" className="text-sm py-2 px-4">Update Profile</Button></div><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">System Preferences</h3><div className="flex items-center justify-between p-3 bg-red-900/10 border border-red-900/30 rounded-lg"><div className="flex flex-col"><span className="text-white font-bold flex items-center gap-2"><Power size={16}/> Maintenance Mode</span><span className="text-xs text-zinc-400">Prevents all clients from logging in. Admin only.</span></div><div onClick={() => onUpdateSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${settings.maintenanceMode ? 'bg-red-600' : 'bg-zinc-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.maintenanceMode ? 'left-7' : 'left-1'}`}></div></div></div></div></div></div>
   );
 }
 
@@ -980,6 +979,7 @@ export default function App() {
 
   // 1. AUTH STATE LISTENER (PERSISTENCE)
   useEffect(() => {
+    // Safety timeout: If Firebase takes too long, force load to prevent black screen
     const safetyTimer = setTimeout(() => {
       if (appLoading) {
         console.warn("Firebase auth timed out - forcing app load.");
@@ -988,8 +988,9 @@ export default function App() {
     }, 3000); // 3 seconds
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      clearTimeout(safetyTimer); 
+      clearTimeout(safetyTimer); // Clear timeout if auth responds
 
+      // PREVENT RACE CONDITION: Don't read user doc if we are currently signing up
       if (isSigningUp.current) return;
 
       if (user) {
@@ -1009,6 +1010,7 @@ export default function App() {
           }
         } catch (err) { 
             console.error("Error fetching user data on auth change:", err); 
+            // If error is specifically the assertion failure, force landing page
             if (err.message && err.message.includes("INTERNAL ASSERTION FAILED")) {
                 alert("Session Error: Please clear your browser cache and refresh.");
                 setView('landing');
@@ -1059,6 +1061,7 @@ export default function App() {
 
   const handleClientUpdate = async (updatedClient) => {
     try { 
+        // UPDATED: Added 'project' field to updated list so the modal works!
         await updateDoc(doc(db, 'clients', updatedClient.id), { 
             name: updatedClient.name, 
             notifications: updatedClient.notifications,
@@ -1069,7 +1072,7 @@ export default function App() {
 
   const handleClientDelete = async (id) => {
     if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
-      try { await deleteDoc(doc(db, 'clients', id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); }
+      try { await deleteDoc(doc(db, "clients", id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); }
     }
   };
 
@@ -1079,7 +1082,7 @@ export default function App() {
     try {
         let user; let uid;
         if (isSignUp) {
-            isSigningUp.current = true; 
+            isSigningUp.current = true; // LOCK LISTENER to prevent race condition
             const userCredential = await createUserWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
             const role = isMasterAdmin ? 'admin' : 'client';
             const clientData = {
@@ -1089,7 +1092,7 @@ export default function App() {
             };
             await setDoc(doc(db, "clients", uid), clientData); 
             handleLogin(role, clientData);
-            isSigningUp.current = false; 
+            isSigningUp.current = false; // UNLOCK
         } else {
             const userCredential = await signInWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
             const clientDocSnap = await getDoc(doc(db, "clients", uid));
@@ -1106,7 +1109,7 @@ export default function App() {
         }
         return { error: null };
     } catch (firebaseError) {
-        isSigningUp.current = false; 
+        isSigningUp.current = false; // Unlock if error
         console.error("Auth Error:", firebaseError);
         if (firebaseError.code === 'auth/email-already-in-use') return { error: "Email already in use." };
         if (firebaseError.code === 'auth/invalid-credential') return { error: "Invalid email or password." };
