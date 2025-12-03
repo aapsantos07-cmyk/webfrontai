@@ -27,7 +27,7 @@ import { auth, db, storage } from './firebase';
 
 const apiKey = "AIzaSyBB3MXjcC5KcRja7Kl91joSJOUwGCk0q5Q"; // injected at runtime
 
-// --- Helper: Convert File to Base64 ---
+// --- HELPER FUNCTIONS ---
 const convertToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -37,14 +37,42 @@ const convertToBase64 = (file) => {
   });
 };
 
-// --- Helper: Safe Currency Parser (Prevents Crashes) ---
+// Safe currency parser to prevent crashes
 const safeParseAmount = (amount) => {
   if (typeof amount === 'number') return amount;
   if (typeof amount === 'string') return parseFloat(amount.replace(/[^0-9.-]+/g, "")) || 0;
   return 0;
 };
 
-// --- Helper: Intersection Observer Hook for Animations ---
+const callGemini = async (userQuery, systemPrompt) => {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const payload = {
+    contents: [{ parts: [{ text: userQuery }] }],
+    systemInstruction: { parts: [{ text: systemPrompt }] }
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+       const errorData = await response.json();
+       console.error("Gemini API Error:", errorData);
+       throw new Error(errorData.error?.message || "API Request Failed");
+    }
+    
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch (error) {
+    console.error("CallGemini Exception:", error);
+    return null; 
+  }
+};
+
+// --- UI HELPERS ---
 function useOnScreen(ref, rootMargin = "0px") {
   const [isIntersecting, setIntersecting] = useState(false);
   useEffect(() => {
@@ -74,36 +102,6 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
   );
 };
 
-// --- API Logic ---
-const callGemini = async (userQuery, systemPrompt) => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  const payload = {
-    contents: [{ parts: [{ text: userQuery }] }],
-    systemInstruction: { parts: [{ text: systemPrompt }] }
-  };
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-       const errorData = await response.json();
-       console.error("Gemini API Error:", errorData);
-       throw new Error(errorData.error?.message || "API Request Failed");
-    }
-    
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch (error) {
-    console.error("CallGemini Exception:", error);
-    return null; 
-  }
-};
-
-// --- Helper Components ---
 function Button({ children, variant = 'primary', className = '', onClick, type="button", title="", disabled=false }) {
   const baseStyle = "px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed";
   const variants = {
@@ -120,13 +118,11 @@ function Card({ children, className = '' }) {
   return <div className={`bg-zinc-900/40 backdrop-blur-md border border-zinc-800 p-6 md:p-8 rounded-2xl hover:border-zinc-600 transition-all duration-300 hover:bg-zinc-900/60 ${className}`}>{children}</div>;
 }
 
-// --- NEW COMPONENT: Project Onboarding Modal ---
+// --- FEATURES ---
 function ProjectOnboardingModal({ isOpen, onSubmit }) {
   const [projectName, setProjectName] = useState("");
   const [loading, setLoading] = useState(false);
-
   if (!isOpen) return null;
-
   const handleSubmit = async (e) => {
     e.preventDefault(); 
     if (!projectName.trim()) return;
@@ -134,7 +130,6 @@ function ProjectOnboardingModal({ isOpen, onSubmit }) {
     await onSubmit(projectName);
     setLoading(false);
   };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fade-in">
       <div className="bg-zinc-950 border border-zinc-800 p-8 rounded-2xl max-w-md w-full shadow-2xl relative overflow-hidden">
@@ -149,14 +144,7 @@ function ProjectOnboardingModal({ isOpen, onSubmit }) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 ml-1">Project Name</label>
-            <input 
-              autoFocus
-              type="text" 
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="e.g. Acme Corp Redesign"
-              className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-4 text-white text-lg focus:outline-none focus:border-blue-500 focus:bg-zinc-900 transition-all"
-            />
+            <input autoFocus type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. Acme Corp Redesign" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-4 text-white text-lg focus:outline-none focus:border-blue-500 focus:bg-zinc-900 transition-all"/>
           </div>
           <Button type="submit" variant="primary" className="w-full py-4 text-lg" disabled={!projectName.trim() || loading}>
             {loading ? <><Loader2 className="animate-spin mr-2"/> Setting up...</> : <>Launch Project <ArrowRight size={20}/></>}
@@ -167,7 +155,6 @@ function ProjectOnboardingModal({ isOpen, onSubmit }) {
   );
 }
 
-// --- AI Chat Widget ---
 function AIChatDemo() {
   const [messages, setMessages] = useState([{ role: 'ai', text: "Hello. I am WEBFRONT_AI. How can I assist your agency today?" }]);
   const [input, setInput] = useState('');
@@ -176,13 +163,9 @@ function AIChatDemo() {
 
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: "smooth"
-      });
+      chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
     }
   };
-
   useEffect(scrollToBottom, [messages]);
 
   const formatMessage = (text) => {
@@ -202,13 +185,7 @@ function AIChatDemo() {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setInput('');
     setIsTyping(true);
-
-    const systemPrompt = `You are WEBFRONT_AI, the on-site AI Receptionist for **WebFront AI**. 
-    Your only job is to talk to visitors about WebFront AI, our services, pricing, and process, and help them decide to book a strategy call.
-    IMPORTANT RULES:
-    1. **Keep your answers SHORT.** Maximum 2-3 sentences.
-    2. Use **bold** syntax.`;
-
+    const systemPrompt = `You are WEBFRONT_AI, the on-site AI Receptionist for **WebFront AI**. Your only job is to talk to visitors about WebFront AI, our services, pricing, and process, and help them decide to book a strategy call. IMPORTANT RULES: 1. **Keep your answers SHORT.** Maximum 2-3 sentences. 2. Use **bold** syntax.`;
     const response = await callGemini(userMsg, systemPrompt);
     setMessages(prev => [...prev, { role: 'ai', text: response || "I am currently experiencing heavy traffic. Please try again." }]);
     setIsTyping(false);
@@ -228,33 +205,17 @@ function AIChatDemo() {
             </div>
           </div>
         ))}
-        {isTyping && (
-          <div className="flex justify-start animate-pulse">
-            <div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center border border-zinc-700">
-              <Loader2 size={14} className="animate-spin text-zinc-500" />
-              <span className="text-xs text-zinc-500 ml-2">Thinking...</span>
-            </div>
-          </div>
-        )}
+        {isTyping && <div className="flex justify-start animate-pulse"><div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center border border-zinc-700"><Loader2 size={14} className="animate-spin text-zinc-500" /><span className="text-xs text-zinc-500 ml-2">Thinking...</span></div></div>}
       </div>
       <div className="p-4 bg-zinc-900/50 border-t border-zinc-800 flex gap-2">
-        <input 
-          type="text" 
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }}
-          placeholder="Ask about pricing, services..."
-          className="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-        />
-        <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors transform active:scale-95">
-          <Send size={18} />
-        </button>
+        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }} placeholder="Ask about pricing, services..." className="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors"/>
+        <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors transform active:scale-95"><Send size={18} /></button>
       </div>
     </div>
   );
 }
 
-// --- Auth Screen ---
+// --- AUTH ---
 function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -334,15 +295,12 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
   );
 }
 
-// --- CLIENT PORTAL VIEWS ---
-
+// --- CLIENT VIEWS ---
 function ClientDashboardView({ data }) {
-  // SAFETY: Check valid invoice structure before reducing
   const totalOpenBalance = (data.invoices || []).reduce((acc, inv) => {
     if (inv.status === 'Paid') return acc;
     return acc + safeParseAmount(inv.amount);
   }, 0);
-  
   const formattedBalance = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalOpenBalance);
   const activeTasks = data.tasks?.filter(t => !t.completed)?.length || 0;
 
@@ -400,56 +358,25 @@ function ClientProjectsView({ data }) {
                 <h1 className="text-3xl font-bold mb-1">Active Project</h1>
                 <p className="text-zinc-500">{data.project || 'No Active Project'}</p>
             </div>
-            
             <Card className="p-8">
                 <div className="flex justify-between items-end mb-6">
-                    <div>
-                        <div className="text-sm text-blue-400 font-bold uppercase tracking-widest mb-1">Current Phase</div>
-                        <h2 className="text-4xl font-bold text-white">{data.phase || 'Discovery'}</h2>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-3xl font-bold text-white">{data.progress || 0}%</div>
-                    </div>
+                    <div><div className="text-sm text-blue-400 font-bold uppercase tracking-widest mb-1">Current Phase</div><h2 className="text-4xl font-bold text-white">{data.phase || 'Discovery'}</h2></div>
+                    <div className="text-right"><div className="text-3xl font-bold text-white">{data.progress || 0}%</div></div>
                 </div>
-                <div className="w-full bg-zinc-800 h-4 rounded-full overflow-hidden mb-8">
-                    <div className="bg-blue-600 h-full transition-all duration-1000" style={{ width: `${data.progress || 0}%` }}></div>
-                </div>
-
+                <div className="w-full bg-zinc-800 h-4 rounded-full overflow-hidden mb-8"><div className="bg-blue-600 h-full transition-all duration-1000" style={{ width: `${data.progress || 0}%` }}></div></div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-zinc-800 pt-6">
-                    <div>
-                        <h4 className="text-zinc-500 text-sm mb-1">Next Milestone</h4>
-                        <p className="text-white font-medium">{data.milestone || 'TBD'}</p>
-                    </div>
-                    <div>
-                        <h4 className="text-zinc-500 text-sm mb-1">Target Date</h4>
-                        <p className="text-white font-medium">{data.dueDate || 'TBD'}</p>
-                    </div>
-                    <div>
-                        <h4 className="text-zinc-500 text-sm mb-1">Status</h4>
-                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${data.status === 'Completed' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                            {data.status === 'Completed' ? <CheckCircle2 size={14}/> : <Activity size={14}/>}
-                            {data.status || 'Active'}
-                        </span>
-                    </div>
+                    <div><h4 className="text-zinc-500 text-sm mb-1">Next Milestone</h4><p className="text-white font-medium">{data.milestone || 'TBD'}</p></div>
+                    <div><h4 className="text-zinc-500 text-sm mb-1">Target Date</h4><p className="text-white font-medium">{data.dueDate || 'TBD'}</p></div>
+                    <div><h4 className="text-zinc-500 text-sm mb-1">Status</h4><span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${data.status === 'Completed' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>{data.status === 'Completed' ? <CheckCircle2 size={14}/> : <Activity size={14}/>}{data.status || 'Active'}</span></div>
                 </div>
             </Card>
-
-            {/* Simple Roadmap Visualization */}
-            <div>
-                <h3 className="text-xl font-bold mb-4">Project Roadmap</h3>
+            <div><h3 className="text-xl font-bold mb-4">Project Roadmap</h3>
                 <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6 space-y-6">
                     {['Discovery', 'Design', 'Development', 'Testing', 'Live'].map((phase, i) => {
                         const isCompleted = (data.progress || 0) > (i + 1) * 20;
                         const isCurrent = data.phase === phase;
                         return (
-                            <div key={i} className={`flex items-center gap-4 ${isCompleted || isCurrent ? 'opacity-100' : 'opacity-40'}`}>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${isCompleted ? 'bg-green-500 border-green-500 text-black' : isCurrent ? 'border-blue-500 text-blue-500' : 'border-zinc-700 text-zinc-700'}`}>
-                                    {isCompleted ? <Check size={16}/> : i + 1}
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className={`font-bold ${isCurrent ? 'text-blue-400' : 'text-white'}`}>{phase}</h4>
-                                </div>
-                            </div>
+                            <div key={i} className={`flex items-center gap-4 ${isCompleted || isCurrent ? 'opacity-100' : 'opacity-40'}`}><div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${isCompleted ? 'bg-green-500 border-green-500 text-black' : isCurrent ? 'border-blue-500 text-blue-500' : 'border-zinc-700 text-zinc-700'}`}>{isCompleted ? <Check size={16}/> : i + 1}</div><div className="flex-1"><h4 className={`font-bold ${isCurrent ? 'text-blue-400' : 'text-white'}`}>{phase}</h4></div></div>
                         )
                     })}
                 </div>
@@ -460,37 +387,19 @@ function ClientProjectsView({ data }) {
 
 function ClientTasksView({ data }) {
     const tasks = data.tasks || []; 
-
     return (
         <div className="animate-fade-in space-y-6">
-             <div className="mb-4">
-                <h1 className="text-3xl font-bold mb-1">Your Tasks</h1>
-                <p className="text-zinc-500">Action items required to move the project forward.</p>
-            </div>
-
+             <div className="mb-4"><h1 className="text-3xl font-bold mb-1">Your Tasks</h1><p className="text-zinc-500">Action items required to move the project forward.</p></div>
             <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">
                 {tasks.length > 0 ? (
                     tasks.map((task, i) => (
                         <div key={i} className="flex items-center p-5 border-b border-zinc-800 last:border-0 hover:bg-zinc-900/50 transition-colors">
-                            <div className={`w-6 h-6 rounded border-2 flex items-center justify-center mr-4 ${task.completed ? 'bg-green-500 border-green-500 text-black' : 'border-zinc-600'}`}>
-                                {task.completed && <Check size={14}/>}
-                            </div>
-                            <div className="flex-1">
-                                <h4 className={`font-bold ${task.completed ? 'text-zinc-500 line-through' : 'text-white'}`}>{task.title}</h4>
-                                <p className="text-xs text-zinc-500">Due: {task.dueDate}</p>
-                            </div>
-                            <span className={`text-xs px-3 py-1 rounded-full border ${task.completed ? 'bg-green-900/20 text-green-500 border-green-900/50' : 'bg-yellow-900/20 text-yellow-500 border-yellow-900/50'}`}>
-                                {task.completed ? 'Done' : 'Pending'}
-                            </span>
+                            <div className={`w-6 h-6 rounded border-2 flex items-center justify-center mr-4 ${task.completed ? 'bg-green-500 border-green-500 text-black' : 'border-zinc-600'}`}>{task.completed && <Check size={14}/>}</div>
+                            <div className="flex-1"><h4 className={`font-bold ${task.completed ? 'text-zinc-500 line-through' : 'text-white'}`}>{task.title}</h4><p className="text-xs text-zinc-500">Due: {task.dueDate}</p></div>
+                            <span className={`text-xs px-3 py-1 rounded-full border ${task.completed ? 'bg-green-900/20 text-green-500 border-green-900/50' : 'bg-yellow-900/20 text-yellow-500 border-yellow-900/50'}`}>{task.completed ? 'Done' : 'Pending'}</span>
                         </div>
                     ))
-                ) : (
-                    <div className="p-12 text-center flex flex-col items-center text-zinc-500">
-                        <ListTodo size={48} className="mb-4 opacity-20"/>
-                        <p>No tasks assigned yet.</p>
-                        <p className="text-sm mt-2">Check back later or contact admin.</p>
-                    </div>
-                )}
+                ) : (<div className="p-12 text-center flex flex-col items-center text-zinc-500"><ListTodo size={48} className="mb-4 opacity-20"/><p>No tasks assigned yet.</p><p className="text-sm mt-2">Check back later or contact admin.</p></div>)}
             </div>
         </div>
     );
@@ -498,7 +407,6 @@ function ClientTasksView({ data }) {
 
 function ClientDocumentsView({ data }) {
   const [uploading, setUploading] = useState(false);
-  
   const handleClientUpload = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     if (file.size > 1048576) { alert("File too large for free storage (Max 1MB)."); return; }
@@ -514,49 +422,21 @@ function ClientDocumentsView({ data }) {
   return (
   <div className="animate-fade-in space-y-8">
     <div><h1 className="text-3xl font-bold mb-1">Documents & Files</h1><p className="text-zinc-500">Securely view contracts and share files.</p></div>
-    
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div>
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-blue-400"><FileText size={20}/> Official Documents</h3>
             <div className="space-y-3">
                 {data.contracts && data.contracts.length > 0 ? data.contracts.map((doc, i) => (
-                <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl flex items-center justify-between hover:border-blue-500/50 transition-all group">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex-shrink-0 flex items-center justify-center text-blue-500"><FileText size={20} /></div>
-                        <div className="min-w-0">
-                            <h3 className="font-bold text-white truncate text-sm">{doc.name}</h3>
-                            <p className="text-xs text-zinc-500">{doc.date} • {doc.size}</p>
-                        </div>
-                    </div>
-                    <a href={doc.url} download={doc.name} className="text-zinc-500 hover:text-white p-2 hover:bg-zinc-800 rounded-lg"><Download size={18} /></a>
-                </div>
+                <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl flex items-center justify-between hover:border-blue-500/50 transition-all group"><div className="flex items-center gap-3 min-w-0"><div className="w-10 h-10 bg-blue-500/10 rounded-lg flex-shrink-0 flex items-center justify-center text-blue-500"><FileText size={20} /></div><div className="min-w-0"><h3 className="font-bold text-white truncate text-sm">{doc.name}</h3><p className="text-xs text-zinc-500">{doc.date} • {doc.size}</p></div></div><a href={doc.url} download={doc.name} className="text-zinc-500 hover:text-white p-2 hover:bg-zinc-800 rounded-lg"><Download size={18} /></a></div>
                 )) : <div className="p-6 text-center text-zinc-500 bg-zinc-900/30 rounded-xl border border-zinc-800 border-dashed text-sm">No documents shared yet.</div>}
             </div>
         </div>
-
         <div>
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-green-400"><UploadCloud size={20}/> Your Uploads</h3>
-            <div className="bg-zinc-900/30 rounded-xl border border-zinc-800 p-6 mb-4 hover:border-zinc-600 transition-colors">
-                <label className="flex flex-col items-center justify-center w-full h-24 cursor-pointer">
-                    <div className="flex flex-col items-center justify-center">
-                        {uploading ? <Loader2 className="animate-spin text-blue-500 mb-2"/> : <UploadCloud className="w-8 h-8 text-zinc-500 mb-2" />}
-                        <p className="text-sm text-zinc-500">{uploading ? "Uploading..." : "Click to upload file (Max 1MB)"}</p>
-                    </div>
-                    <input type="file" className="hidden" onChange={handleClientUpload} disabled={uploading} />
-                </label>
-            </div>
+            <div className="bg-zinc-900/30 rounded-xl border border-zinc-800 p-6 mb-4 hover:border-zinc-600 transition-colors"><label className="flex flex-col items-center justify-center w-full h-24 cursor-pointer"><div className="flex flex-col items-center justify-center">{uploading ? <Loader2 className="animate-spin text-blue-500 mb-2"/> : <UploadCloud className="w-8 h-8 text-zinc-500 mb-2" />}<p className="text-sm text-zinc-500">{uploading ? "Uploading..." : "Click to upload file (Max 1MB)"}</p></div><input type="file" className="hidden" onChange={handleClientUpload} disabled={uploading} /></label></div>
             <div className="space-y-3">
                 {data.clientUploads && data.clientUploads.length > 0 ? data.clientUploads.map((doc, i) => (
-                <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl flex items-center justify-between hover:border-zinc-700 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 bg-green-500/10 text-green-500 rounded-lg flex-shrink-0 flex items-center justify-center"><Check size={18} /></div>
-                        <div className="min-w-0">
-                            <h3 className="font-bold text-white truncate text-sm">{doc.name}</h3>
-                            <p className="text-xs text-zinc-500">{doc.date} • {doc.size}</p>
-                        </div>
-                    </div>
-                    <a href={doc.url} download={doc.name} className="text-zinc-500 hover:text-white p-2"><Download size={18}/></a>
-                </div>
+                <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl flex items-center justify-between hover:border-zinc-700 transition-colors"><div className="flex items-center gap-3 min-w-0"><div className="w-10 h-10 bg-green-500/10 text-green-500 rounded-lg flex-shrink-0 flex items-center justify-center"><Check size={18} /></div><div className="min-w-0"><h3 className="font-bold text-white truncate text-sm">{doc.name}</h3><p className="text-xs text-zinc-500">{doc.date} • {doc.size}</p></div></div><a href={doc.url} download={doc.name} className="text-zinc-500 hover:text-white p-2"><Download size={18}/></a></div>
                 )) : null}
             </div>
         </div>
@@ -567,55 +447,19 @@ function ClientDocumentsView({ data }) {
 
 function ClientMessagesView({ data }) {
     const [messageInput, setMessageInput] = useState("");
-    const messages = data.messages || [
-        { sender: 'admin', text: 'Welcome to your portal! Let us know if you have questions.', time: 'System • Just now' }
-    ];
-
+    const messages = data.messages || [{ sender: 'admin', text: 'Welcome to your portal! Let us know if you have questions.', time: 'System • Just now' }];
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!messageInput.trim()) return;
-        try {
-            await updateDoc(doc(db, "clients", data.id), {
-                messages: arrayUnion({
-                    sender: 'client',
-                    text: messageInput,
-                    time: new Date().toLocaleString()
-                })
-            });
-            setMessageInput("");
-        } catch (err) {
-            console.error("Message failed", err);
-        }
+        try { await updateDoc(doc(db, "clients", data.id), { messages: arrayUnion({ sender: 'client', text: messageInput, time: new Date().toLocaleString() }) }); setMessageInput(""); } catch (err) { console.error("Message failed", err); }
     };
 
     return (
         <div className="animate-fade-in h-full flex flex-col">
-            <div className="mb-4">
-                <h1 className="text-3xl font-bold mb-1">Messages</h1>
-                <p className="text-zinc-500">Direct line to your project manager.</p>
-            </div>
+            <div className="mb-4"><h1 className="text-3xl font-bold mb-1">Messages</h1><p className="text-zinc-500">Direct line to your project manager.</p></div>
             <div className="flex-1 bg-zinc-900/30 border border-zinc-800 rounded-2xl flex flex-col overflow-hidden h-[500px]">
-                <div className="flex-1 p-6 overflow-y-auto space-y-4 custom-scrollbar">
-                    {messages.map((msg, i) => (
-                        <div key={i} className={`flex ${msg.sender === 'client' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] p-4 rounded-2xl ${msg.sender === 'client' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>
-                                <p className="text-sm">{msg.text}</p>
-                                <p className={`text-[10px] mt-2 ${msg.sender === 'client' ? 'text-blue-200' : 'text-zinc-500'}`}>{msg.time}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <form onSubmit={handleSendMessage} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2">
-                    <input 
-                        className="flex-1 bg-black border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
-                        placeholder="Type your message..."
-                        value={messageInput}
-                        onChange={(e) => setMessageInput(e.target.value)}
-                    />
-                    <button type="submit" disabled={!messageInput.trim()} className="bg-white text-black p-3 rounded-xl hover:bg-gray-200 disabled:opacity-50">
-                        <Send size={20}/>
-                    </button>
-                </form>
+                <div className="flex-1 p-6 overflow-y-auto space-y-4 custom-scrollbar">{messages.map((msg, i) => (<div key={i} className={`flex ${msg.sender === 'client' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[80%] p-4 rounded-2xl ${msg.sender === 'client' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}><p className="text-sm">{msg.text}</p><p className={`text-[10px] mt-2 ${msg.sender === 'client' ? 'text-blue-200' : 'text-zinc-500'}`}>{msg.time}</p></div></div>))}</div>
+                <form onSubmit={handleSendMessage} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2"><input className="flex-1 bg-black border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="Type your message..." value={messageInput} onChange={(e) => setMessageInput(e.target.value)}/><button type="submit" disabled={!messageInput.trim()} className="bg-white text-black p-3 rounded-xl hover:bg-gray-200 disabled:opacity-50"><Send size={20}/></button></form>
             </div>
         </div>
     );
@@ -628,12 +472,7 @@ function ClientInvoicesView({ data }) {
     <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto">
       <div className="min-w-[600px]">
         <div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Description</div><div>Date</div><div className="text-right">Amount</div></div>
-        {data.invoices && data.invoices.length > 0 ? data.invoices.map((inv, i) => (
-            <div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors items-center">
-              <div className="col-span-2 min-w-0"><div className="font-bold truncate pr-4">{inv.desc}</div><div className="text-xs text-zinc-500 flex items-center gap-2 mt-1">{inv.id} <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ${inv.status === 'Paid' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>{inv.status}</span></div></div>
-              <div className="text-zinc-400 text-sm">{inv.date}</div><div className="text-right font-mono">{inv.amount}</div>
-            </div>
-        )) : <div className="p-12 text-center text-zinc-500">No invoices found.</div>}
+        {data.invoices && data.invoices.length > 0 ? data.invoices.map((inv, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors items-center"><div className="col-span-2 min-w-0"><div className="font-bold truncate pr-4">{inv.desc}</div><div className="text-xs text-zinc-500 flex items-center gap-2 mt-1">{inv.id} <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ${inv.status === 'Paid' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>{inv.status}</span></div></div><div className="text-zinc-400 text-sm">{inv.date}</div><div className="text-right font-mono">{inv.amount}</div></div>)) : <div className="p-12 text-center text-zinc-500">No invoices found.</div>}
       </div>
     </div>
   </div>
@@ -641,40 +480,22 @@ function ClientInvoicesView({ data }) {
 }
 
 function ClientKnowledgeBaseView() {
-    const faqs = [
-        { q: "How do I update my project requirements?", a: "You can send a message directly to your project manager via the 'Messages' tab or upload a new requirement document in 'Documents'." },
-        { q: "When are invoices generated?", a: "Invoices are generated typically at the start of each project phase or milestone completion." },
-        { q: "How do I interpret the 'AI Assistant'?", a: "The AI Assistant has context on your project status and can answer general questions about timelines and deliverables." }
-    ];
-
+    const faqs = [{ q: "How do I update my project requirements?", a: "You can send a message directly to your project manager via the 'Messages' tab or upload a new requirement document in 'Documents'." }, { q: "When are invoices generated?", a: "Invoices are generated typically at the start of each project phase or milestone completion." }, { q: "How do I interpret the 'AI Assistant'?", a: "The AI Assistant has context on your project status and can answer general questions about timelines and deliverables." }];
     return (
         <div className="animate-fade-in max-w-3xl">
-             <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-1">Knowledge Base</h1>
-                <p className="text-zinc-500">Frequently asked questions and guides.</p>
-            </div>
-            <div className="space-y-4">
-                {faqs.map((item, i) => (
-                    <div key={i} className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-xl">
-                        <h3 className="font-bold text-white mb-2 flex items-start gap-3">
-                            <HelpCircle size={20} className="text-blue-500 mt-0.5 flex-shrink-0"/> 
-                            {item.q}
-                        </h3>
-                        <p className="text-zinc-400 text-sm pl-8 leading-relaxed">{item.a}</p>
-                    </div>
-                ))}
-            </div>
+             <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Knowledge Base</h1><p className="text-zinc-500">Frequently asked questions and guides.</p></div>
+            <div className="space-y-4">{faqs.map((item, i) => (<div key={i} className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-xl"><h3 className="font-bold text-white mb-2 flex items-start gap-3"><HelpCircle size={20} className="text-blue-500 mt-0.5 flex-shrink-0"/> {item.q}</h3><p className="text-zinc-400 text-sm pl-8 leading-relaxed">{item.a}</p></div>))}</div>
         </div>
     );
 }
 
-// --- RESTORED SETTINGS VIEW FOR CLIENTS ---
+// --- SETTINGS VIEW FOR CLIENTS AND ADMINS ---
 function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
-  const [name, setName] = useState(data.name || "");
-  const [notifications, setNotifications] = useState(data.notifications || { email: true, push: false });
+  const [name, setName] = useState(data?.name || "");
+  // Safety: Handle if notifications object is missing
+  const [notifications, setNotifications] = useState(data?.notifications || { email: true, push: false });
 
   const handleSave = () => { onUpdateClient({ ...data, name, notifications }); };
-  const toggleNotification = (type) => { setNotifications(prev => ({ ...prev, [type]: !prev[type] })); };
 
   return (
     <div className="animate-fade-in">
@@ -692,14 +513,14 @@ function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label>
-                        <input type="text" value={data.email} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" />
+                        <input type="text" value={data?.email || ""} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" />
                     </div>
                 </div>
                 <Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button>
             </div>
             <div className="space-y-4 pt-4 border-t border-zinc-800">
                 <h3 className="text-lg font-bold flex items-center gap-2 text-red-500"><Shield size={18}/> Danger Zone</h3>
-                <Button onClick={() => onDeleteAccount(data.id)} variant="danger" className="w-full justify-start">Delete My Account</Button>
+                <Button onClick={() => onDeleteAccount(data?.id)} variant="danger" className="w-full justify-start">Delete My Account</Button>
             </div>
         </div>
     </div>
@@ -710,7 +531,6 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // --- UPDATED NAVIGATION MENU ---
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'projects', label: 'Projects', icon: Briefcase },
@@ -722,7 +542,6 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
 
-  // --- NEW LOGIC: Show Onboarding Modal if Project is "New Project" ---
   const [showOnboarding, setShowOnboarding] = useState(clientData?.project === "New Project");
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -742,12 +561,9 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
 
   return (
     <div className="min-h-screen bg-black text-white font-sans flex flex-col lg:flex-row relative">
-      
       <ProjectOnboardingModal isOpen={showOnboarding} onSubmit={handleProjectSubmit} />
-
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900"><div className="font-bold">WEBFRONT_OS</div><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button></div>
       <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}><h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">WEBFRONT<span className="text-blue-500">_OS</span></h2><nav className="space-y-1 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-zinc-800 text-white shadow-lg border-l-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30 border-l-2 border-transparent'}`}><item.icon size={18} className={activeTab === item.id ? 'text-blue-400' : ''} /> <span className={activeTab === item.id ? 'font-medium' : ''}>{item.label}</span></div>))}</nav><button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-4 border-t border-zinc-800">Log Out <ArrowRight size={14} /></button></div>
-      
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
         {activeTab === 'dashboard' && <ClientDashboardView data={clientData} />}
         {activeTab === 'projects' && <ClientProjectsView data={clientData} />}
@@ -763,7 +579,6 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
 }
 
 // --- ADMIN PORTAL VIEWS ---
-
 function AdminClientsManager({ clients }) {
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -1008,6 +823,187 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
   );
 }
 
+// --- Landing Page ---
+function LandingPage({ onLogin }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false); 
+  const [scrolled, setScrolled] = useState(false);
+  
+  useEffect(() => { 
+    const handleScroll = () => setScrolled(window.scrollY > 50); 
+    window.addEventListener('scroll', handleScroll); 
+    return () => window.removeEventListener('scroll', handleScroll); 
+  }, []);
+
+  const scrollTo = (id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+      setIsMenuOpen(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black overflow-x-hidden">
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-md border-b border-zinc-800 py-3 md:py-4' : 'bg-transparent py-4 md:py-6'}`}>
+        <div className="container mx-auto px-6 flex justify-between items-center"><div className="text-xl md:text-2xl font-bold tracking-tighter flex items-center gap-2"><div className="w-8 h-8 bg-white text-black flex items-center justify-center rounded-lg"><Cpu size={20} /></div>WEBFRONT AI</div><div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400"><a href="#services" className="hover:text-white transition-colors">Services</a><a href="#demo" className="hover:text-white transition-colors">AI Demo</a><a href="#pricing" className="hover:text-white transition-colors">Pricing</a><button onClick={() => onLogin()} className="flex items-center gap-2 text-white hover:text-blue-400 transition-colors"><LogIn size={14} /> Login</button><Button variant="primary" onClick={() => scrollTo('demo')}>Book Strategy Call</Button></div><button className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={28}/> : <Menu size={28}/>}</button></div>
+        {isMenuOpen && (
+          <div className="md:hidden fixed inset-0 top-[70px] bg-black/95 backdrop-blur-lg z-40 p-8 flex flex-col gap-6 animate-fade-in border-t border-zinc-800">
+            <a href="#services" onClick={() => { setIsMenuOpen(false); scrollTo('services'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">Services</a>
+            <a href="#demo" onClick={() => { setIsMenuOpen(false); scrollTo('demo'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">AI Demo</a>
+            <a href="#pricing" onClick={() => { setIsMenuOpen(false); scrollTo('pricing'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">Pricing</a>
+            <hr className="border-zinc-800"/>
+            <button onClick={() => onLogin()} className="text-left text-2xl font-bold text-blue-400 hover:text-blue-300">Login to Portal</button>
+            <Button variant="primary" className="mt-4 py-4 w-full" onClick={() => { setIsMenuOpen(false); scrollTo('demo'); }}>Book Strategy Call</Button>
+          </div>
+        )}
+      </nav>
+      
+      <section className="pt-32 pb-16 md:pt-48 md:pb-32 relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] md:w-[1000px] md:h-[500px] bg-blue-900/20 rounded-full blur-[80px] md:blur-[120px] -z-10 pointer-events-none animate-[pulse_5s_infinite]"></div>
+        <div className="container mx-auto px-4 md:px-6 text-center">
+          <FadeIn delay={100}>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-zinc-900/80 border border-zinc-800 text-[10px] md:text-xs font-mono mb-6 md:mb-8 backdrop-blur-sm">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_2s_infinite]"></span>ACCEPTING NEW CLIENTS FOR Q4
+            </div>
+          </FadeIn>
+          <FadeIn delay={200}>
+            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-6 md:mb-8 bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent leading-tight md:leading-[1.1]">
+              ELEVATE YOUR <br className="hidden md:block"/> DIGITAL REALITY.
+            </h1>
+          </FadeIn>
+          <FadeIn delay={300}>
+            <p className="text-base md:text-xl text-zinc-400 max-w-2xl mx-auto mb-10 md:mb-12 leading-relaxed px-4">
+              WebFront AI builds high-performance websites and autonomous AI receptionists that work while you sleep. The future isn't coming—it's hired.
+            </p>
+          </FadeIn>
+          <FadeIn delay={400} className="flex flex-col sm:flex-row justify-center gap-4 items-center px-4">
+            <Button variant="primary" onClick={() => onLogin()} className="w-full sm:w-auto py-4">Start Project</Button>
+            <Button variant="secondary" onClick={() => scrollTo('services')} className="w-full sm:w-auto py-4">View Portfolio</Button>
+          </FadeIn>
+        </div>
+      </section>
+
+      <section className="py-8 md:py-12 border-y border-zinc-900 bg-zinc-950/50">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+             {[
+               { icon: Palette, label: "Design", desc: "Minimalist aesthetics" },
+               { icon: Brain, label: "Intelligence", desc: "Autonomous agents" },
+               { icon: Headphones, label: "Support", desc: "24/7 Reliability" },
+               { icon: TrendingUp, label: "Growth", desc: "Scalable architecture" }
+             ].map((item, i) => (
+               <FadeIn key={i} delay={i * 100} className="flex flex-col items-center text-center gap-3 group">
+                 <div className="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 group-hover:text-blue-500 group-hover:bg-zinc-800 transition-all duration-300">
+                   <item.icon size={24} />
+                 </div>
+                 <h3 className="font-bold text-lg">{item.label}</h3>
+                 <p className="text-sm text-zinc-500 hidden sm:block">{item.desc}</p>
+               </FadeIn>
+             ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="services" className="py-16 md:py-24 bg-zinc-950">
+        <div className="container mx-auto px-6">
+          <FadeIn className="mb-12 md:mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">OUR SERVICES</h2>
+            <div className="w-20 h-1 bg-blue-600"></div>
+          </FadeIn>
+          <div className="grid md:grid-cols-2 gap-8">
+            <FadeIn delay={100}>
+              <Card className="group cursor-pointer h-full">
+                <div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors duration-300 shadow-lg"><Code size={24} /></div>
+                <h3 className="text-2xl font-bold mb-4">Web Development</h3>
+                <p className="text-zinc-400 leading-relaxed mb-6">Custom-coded React & Next.js applications designed for speed, SEO, and conversion. We don't use templates; we architect experiences.</p>
+                <ul className="space-y-2 text-zinc-500">
+                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> High-Performance Animations</li>
+                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> CMS Integration</li>
+                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Dark Mode Optimized</li>
+                </ul>
+              </Card>
+            </FadeIn>
+            <FadeIn delay={200}>
+              <Card className="group cursor-pointer h-full">
+                <div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-lg"><MessageSquare size={24} /></div>
+                <h3 className="text-2xl font-bold mb-4">AI Receptionists</h3>
+                <p className="text-zinc-400 leading-relaxed mb-6">Intelligent agents that handle customer support, booking, and inquiries 24/7. Train them on your data and let them run your front desk.</p>
+                <ul className="space-y-2 text-zinc-500">
+                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Natural Language Processing</li>
+                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Calendar Integration</li>
+                  <li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Voice & Chat Support</li>
+                </ul>
+              </Card>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      <section id="demo" className="py-16 md:py-24 relative overflow-hidden bg-black">
+        <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[800px] h-[800px] bg-blue-900/10 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
+        <div className="container mx-auto px-6 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+          <div className="flex-1 w-full text-center lg:text-left">
+            <FadeIn>
+              <div className="inline-block px-3 py-1 bg-blue-900/30 text-blue-400 rounded-full text-xs font-bold tracking-widest mb-6 border border-blue-900/50">LIVE PREVIEW</div>
+              <h2 className="text-4xl md:text-6xl font-bold mb-6">TALK TO THE <br /> MACHINE.</h2>
+              <p className="text-zinc-400 text-lg mb-8 max-w-md mx-auto lg:mx-0">Test our AI receptionist instantly. It can answer questions about our pricing, services, and availability. No human required.</p>
+              <div className="flex items-center justify-center lg:justify-start gap-4 text-sm text-zinc-500">
+                <div className="flex -space-x-3">{[1,2,3].map(i => (<div key={i} className="w-10 h-10 rounded-full bg-zinc-800 border-2 border-black flex items-center justify-center text-xs text-white">U{i}</div>))}</div>
+                <p>Trusted by 50+ agencies</p>
+              </div>
+            </FadeIn>
+          </div>
+          <div className="flex-1 w-full flex justify-center lg:justify-end">
+            <FadeIn delay={200} className="w-full max-w-md">
+              <AIChatDemo />
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" className="py-16 md:py-24 bg-zinc-950 border-t border-zinc-900">
+        <div className="container mx-auto px-6">
+          <FadeIn className="mb-16 text-center">
+             <h2 className="text-3xl md:text-4xl font-bold mb-4">TRANSPARENT PRICING</h2>
+             <p className="text-zinc-400">Invest in your digital infrastructure.</p>
+          </FadeIn>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { title: 'Starter', price: '$2,500', sub: 'One-time', features: ['Custom Landing Page', 'Mobile Responsive', 'Basic SEO', '1 Week Support'] }, 
+              { title: 'Growth', price: '$4,500', sub: 'One-time', features: ['Multi-page Website', 'CMS Integration', 'Advanced Animations', 'AI Chatbot Setup'] }, 
+              { title: 'Agency', price: '$8,000+', sub: 'Custom Quote', features: ['Full Web App', 'User Authentication', 'Payment Integration', 'Custom AI Training'] }
+            ].map((tier, index) => (
+              <FadeIn key={index} delay={index * 150}>
+                <Card className={`relative flex flex-col h-full transform transition-all duration-300 hover:-translate-y-2 ${index === 1 ? 'border-blue-600/50 bg-zinc-900/80 shadow-[0_0_30px_rgba(37,99,235,0.15)]' : 'bg-transparent'}`}>
+                  {index === 1 && (<div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-1 text-xs font-bold rounded-full shadow-lg">MOST POPULAR</div>)}
+                  <h3 className="text-xl font-bold mb-2">{tier.title}</h3>
+                  <div className="flex items-baseline gap-1 mb-6"><span className="text-4xl font-bold">{tier.price}</span><span className="text-zinc-500 text-sm">{tier.sub}</span></div>
+                  <div className="space-y-4 mb-8 flex-1">
+                    {tier.features.map((f, i) => (<div key={i} className="flex items-center gap-3 text-sm text-zinc-300"><Check size={14} className="text-blue-500 flex-shrink-0" /> {f}</div>))}
+                  </div>
+                  <Button variant={index === 1 ? 'accent' : 'secondary'} className="w-full" onClick={() => onLogin()}>Get Started</Button>
+                </Card>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <footer className="py-12 border-t border-zinc-900 text-center md:text-left bg-black">
+        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="text-xl font-bold tracking-tighter flex items-center gap-2"><Cpu size={18}/> WEBFRONT AI</div>
+          <div className="text-zinc-500 text-sm">© 2026 WebFront AI. Built for the future.</div>
+          <div className="flex gap-6 text-zinc-400">
+            <a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">Twitter</a>
+            <a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">LinkedIn</a>
+            <a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">Instagram</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
 // --- Main App Controller ---
 export default function App() {
   const [view, setView] = useState('landing'); 
@@ -1113,7 +1109,7 @@ export default function App() {
 
   const handleClientDelete = async (id) => {
     if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
-      try { await deleteDoc(doc(db, 'clients', id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); }
+      try { await deleteDoc(doc(db, "clients", id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); }
     }
   };
 
