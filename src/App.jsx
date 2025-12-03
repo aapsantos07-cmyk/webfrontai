@@ -46,11 +46,7 @@ const safeParseAmount = (amount) => {
 };
 
 // --- API LOGIC ---
-// ... imports remain the same ...
 
-// --- API LOGIC ---
-
-// 1. Updated Gemini Function (Accepts dynamic key)
 // 1. Updated Gemini Function (Fixed Model Name)
 const callGemini = async (userQuery, systemPrompt, apiKey) => {
   if (!apiKey) throw new Error("Gemini API Key is missing.");
@@ -186,19 +182,16 @@ function AIChatDemo() {
   };
 
   return (
-    // ... (Keep your existing JSX return exactly as it is) ...
     <div className="w-full max-w-md bg-black/80 backdrop-blur-xl border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[400px] md:h-[500px] transition-all duration-500 hover:shadow-blue-900/20 hover:border-zinc-700">
       <div className="bg-zinc-900/50 p-4 border-b border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
            <div className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_2s_infinite]"></div>
            <span className="font-mono text-sm text-zinc-400">
-             {/* Optional: Show active model name */}
              WEBFRONT_AI {aiConfig?.activeModel === 'openai' ? '(GPT-4o)' : '(Gemini)'}
            </span>
         </div>
         <Sparkles size={18} className="text-blue-400 animate-pulse" />
       </div>
-      {/* ... rest of your existing chat UI ... */}
       <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 font-sans text-sm scrollbar-thin scrollbar-thumb-zinc-800">
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
@@ -262,8 +255,6 @@ function Button({ children, variant = 'primary', className = '', onClick, type="
 function Card({ children, className = '' }) {
   return <div className={`bg-zinc-900/40 backdrop-blur-md border border-zinc-800 p-6 md:p-8 rounded-2xl hover:border-zinc-600 transition-all duration-300 hover:bg-zinc-900/60 ${className}`}>{children}</div>;
 }
-
-
 
 function ProjectOnboardingModal({ isOpen, onSubmit }) {
   const [projectName, setProjectName] = useState("");
@@ -502,7 +493,6 @@ function ClientDashboardView({ data }) {
     return acc + safeParseAmount(inv.amount);
   }, 0);
   const formattedBalance = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalOpenBalance);
-  // Removed activeTasks calculation since Tasks view is deleted
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -513,7 +503,6 @@ function ClientDashboardView({ data }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="border-l-4 border-l-blue-500"><h3 className="text-zinc-400 text-sm mb-1">Project Status</h3><p className="text-xl font-bold truncate">{data.phase || 'N/A'}</p><p className="text-xs text-blue-400 mt-2">{data.progress || 0}% Complete</p></Card>
         <Card><h3 className="text-zinc-400 text-sm mb-1">Next Milestone</h3><p className="text-xl font-bold truncate">{data.milestone || 'N/A'}</p><p className="text-zinc-500 text-xs mt-2">Due: {data.dueDate || 'TBD'}</p></Card>
-        {/* Removed Tasks Card */}
         <Card><h3 className="text-zinc-400 text-sm mb-1">Open Balance</h3><p className="text-xl font-bold">{formattedBalance}</p><p className={`text-xs mt-2 ${totalOpenBalance > 0 ? 'text-yellow-500' : 'text-green-500'}`}>{totalOpenBalance > 0 ? 'Payment Due' : 'Paid'}</p></Card>
       </div>
       <div>
@@ -725,6 +714,7 @@ function ClientKnowledgeBaseView() {
         </div>
     );
 }
+
 // --- SHARED SETTINGS VIEW ---
 function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
   const [name, setName] = useState(data?.name || "");
@@ -1307,7 +1297,6 @@ function AdminClientsManager({ clients }) {
     try {
         await updateDoc(doc(db, "clients", selectedClient.id), {
             messages: arrayUnion({ sender: 'admin', text: adminMessageInput, time: new Date().toLocaleString() }),
-            // Optional: Log chat activity
             activity: arrayUnion({ action: "Admin sent message", date: new Date().toLocaleDateString(), status: "Completed" })
         });
         setAdminMessageInput("");
@@ -1341,7 +1330,52 @@ function AdminClientsManager({ clients }) {
               <div className="flex flex-col sm:flex-row justify-between items-start border-b border-zinc-800 pb-8 gap-4"><div><div className="flex items-center gap-3 mb-1"><h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">{selectedClient.name}</h2><button onClick={() => handleDeleteClient(selectedClient.id)} className="text-zinc-600 hover:text-red-500 p-2 hover:bg-zinc-800 rounded-lg"><Trash2 size={20} /></button></div><p className="text-zinc-400 flex items-center gap-2 text-sm"><Mail size={14}/> {selectedClient.email}</p></div><div className="flex items-center gap-4 self-end sm:self-center"><div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center font-bold shadow-lg cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedClientId(null)}><Check size={16}/></div></div></div>
               
               {/* Status Board */}
-              <div className="bg-black/40 rounded-2xl border border-zinc-800/50 p-1"><div className="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800"><h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6 flex items-center gap-2"><Briefcase size={16} className="text-purple-500"/> Project Status</h3><div className="flex flex-col sm:grid sm:grid-cols-2 gap-6"><div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1">Current Phase</label><div className="relative w-full"><select value={selectedClient.phase} onChange={(e) => handleUpdateClient('phase', e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white appearance-none focus:outline-none focus:border-purple-500"><option>Discovery</option><option>Design</option><option>Development</option><option>Testing</option><option>Live</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" size={16}/></div></div><div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1 flex justify-between"><span>Completion</span><span className="text-white font-bold">{selectedClient.progress}%</span></label><div className="h-12 flex items-center px-1"><input type="range" min="0" max="100" value={selectedClient.progress} onChange={(e) => handleUpdateClient('progress', parseInt(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg accent-blue-500"/></div></div></div></div></div>
+              <div className="bg-black/40 rounded-2xl border border-zinc-800/50 p-1">
+                <div className="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800">
+                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6 flex items-center gap-2"><Briefcase size={16} className="text-purple-500"/> Project Status</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <label className="text-xs text-zinc-500 mb-2 block font-medium ml-1">Current Phase</label>
+                      <div className="relative w-full">
+                        <select value={selectedClient.phase} onChange={(e) => handleUpdateClient('phase', e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white appearance-none focus:outline-none focus:border-purple-500">
+                          <option>Discovery</option><option>Design</option><option>Development</option><option>Testing</option><option>Live</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" size={16}/>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-500 mb-2 block font-medium ml-1 flex justify-between">
+                        <span>Completion</span><span className="text-white font-bold">{selectedClient.progress}%</span>
+                      </label>
+                      <div className="h-12 flex items-center px-1">
+                        <input type="range" min="0" max="100" value={selectedClient.progress} onChange={(e) => handleUpdateClient('progress', parseInt(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg accent-blue-500"/>
+                      </div>
+                    </div>
+                    {/* ADDED: Next Milestone Input */}
+                    <div>
+                      <label className="text-xs text-zinc-500 mb-2 block font-medium ml-1">Next Milestone</label>
+                      <input 
+                        type="text" 
+                        value={selectedClient.milestone || ''} 
+                        onChange={(e) => handleUpdateClient('milestone', e.target.value)} 
+                        className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500"
+                        placeholder="e.g. Homepage Design"
+                      />
+                    </div>
+                    {/* ADDED: Due Date Input */}
+                    <div>
+                      <label className="text-xs text-zinc-500 mb-2 block font-medium ml-1">Due Date</label>
+                      <input 
+                        type="text" 
+                        value={selectedClient.dueDate || ''} 
+                        onChange={(e) => handleUpdateClient('dueDate', e.target.value)} 
+                        className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500"
+                        placeholder="e.g. Oct 24, 2025"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
               
               {/* Grid: Invoices & Contracts */}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
