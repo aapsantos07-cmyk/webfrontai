@@ -6,7 +6,7 @@ import {
   Loader2, Users, BarChart3, Briefcase, Edit3, Plus, Save, Trash2, Search, 
   DollarSign, Activity, UploadCloud, XCircle, CheckCircle2, LogOut, AlertTriangle, 
   Power, ListTodo, FolderOpen, HelpCircle, BookOpen, Clock,
-  // New icons added below
+  // Added Icons for Admin Panel
   Database, FileJson, FileSpreadsheet, History, Sliders
 } from 'lucide-react';
 
@@ -39,7 +39,6 @@ const convertToBase64 = (file) => {
   });
 };
 
-// Safe currency parser
 const safeParseAmount = (amount) => {
   if (typeof amount === 'number') return amount;
   if (typeof amount === 'string') return parseFloat(amount.replace(/[^0-9.-]+/g, "")) || 0;
@@ -121,7 +120,7 @@ function Card({ children, className = '' }) {
   return <div className={`bg-zinc-900/40 backdrop-blur-md border border-zinc-800 p-6 md:p-8 rounded-2xl hover:border-zinc-600 transition-all duration-300 hover:bg-zinc-900/60 ${className}`}>{children}</div>;
 }
 
-// --- SHARED COMPONENTS (Chat, Auth, Modals) ---
+// --- SHARED COMPONENTS ---
 
 function AIChatDemo() {
   const [messages, setMessages] = useState([{ role: 'ai', text: "Hello. I am WEBFRONT_AI. How can I assist your agency today?" }]);
@@ -486,7 +485,11 @@ function ClientDocumentsView({ data }) {
     try {
       const base64 = await convertToBase64(file);
       const newDoc = { name: file.name, url: base64, date: new Date().toLocaleDateString(), size: (file.size / 1024).toFixed(2) + " KB" };
-      await updateDoc(doc(db, "clients", data.id), { clientUploads: arrayUnion(newDoc) });
+      // Update with activity log
+      await updateDoc(doc(db, "clients", data.id), { 
+        clientUploads: arrayUnion(newDoc),
+        activity: arrayUnion({ action: `Client uploaded: ${file.name}`, date: new Date().toLocaleDateString(), status: "Completed" })
+      });
       alert("File uploaded successfully!");
     } catch (error) { alert("Upload failed: " + error.message); } finally { setUploading(false); }
   };
@@ -527,115 +530,22 @@ function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
   return (<div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Settings</h1><p className="text-zinc-500">Manage your account preferences.</p></div><div className="grid gap-8 max-w-2xl"><div className="space-y-4"><h3 className="text-lg font-bold flex items-center gap-2"><User size={18}/> Profile Details</h3><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Company / Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label><input type="text" value={data?.email || ""} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button></div><div className="space-y-4 pt-4 border-t border-zinc-800"><h3 className="text-lg font-bold flex items-center gap-2 text-red-500"><Shield size={18}/> Danger Zone</h3><Button onClick={() => onDeleteAccount(data?.id)} variant="danger" className="w-full justify-start">Delete My Account</Button></div></div></div>);
 }
 
-// --- ADMIN VIEWS ---
-
-function AdminClientsManager({ clients }) {
-  const [selectedClientId, setSelectedClientId] = useState(null);
-  const [isAddingNew, setIsAddingNew] = useState(false);
-  const selectedClient = clients.find(c => c.id === selectedClientId);
-  const [newClientData, setNewClientData] = useState({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 });
-  const [newInvoiceData, setNewInvoiceData] = useState({ desc: '', amount: '' });
-  const [contractUploading, setContractUploading] = useState(false);
-
-  const handleCreateClient = async (e) => { e.preventDefault(); const clientData = { ...newClientData, role: 'client', milestone: "Project Start", dueDate: "TBD", status: "Active", activity: [{ action: "Created by Admin", date: new Date().toLocaleDateString(), status: "Completed" }], contracts: [], invoices: [], clientUploads: [], notifications: { email: true, push: false } }; try { await addDoc(collection(db, 'clients'), clientData); setIsAddingNew(false); setNewClientData({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 }); } catch (err) { alert(err.message); } };
-  const handleDeleteClient = async (id) => { if (confirm("Remove client?")) { try { await deleteDoc(doc(db, "clients", id)); setSelectedClientId(null); } catch(err) { alert(err.message); } } };
-  const handleUpdateClient = async (field, value) => { try { const updates = { [field]: value }; if (field === 'progress') { updates.status = value === 100 ? 'Completed' : 'Active'; } await updateDoc(doc(db, "clients", selectedClient.id), updates); } catch (err) { console.error(err); } };
-  const handleAddInvoice = async () => { if(!newInvoiceData.amount || !newInvoiceData.desc) return; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: arrayUnion({ id: `INV-${Math.floor(Math.random()*10000)}`, desc: newInvoiceData.desc, amount: `$${newInvoiceData.amount}`, date: new Date().toLocaleDateString('en-US', {month:'short', day:'numeric'}), status: "Pending" }) }); setNewInvoiceData({ desc: '', amount: '' }); } catch (err) { alert(err.message); } };
-  const handleMarkPaid = async (i) => { const updated = [...selectedClient.invoices]; updated[i].status = "Paid"; try { await updateDoc(doc(db, "clients", selectedClient.id), { invoices: updated }); } catch(e) { console.error(e); } };
-  const handleUploadContract = async (e) => { const file = e.target.files[0]; if(!file) return; if (file.size > 1048576) { alert("File too large for free storage (Max 1MB)."); return; } setContractUploading(true); try { const base64 = await convertToBase64(file); const contract = { name: file.name, url: base64, date: new Date().toLocaleDateString(), size: (file.size/1024).toFixed(2)+" KB" }; await updateDoc(doc(db, "clients", selectedClient.id), { contracts: arrayUnion(contract) }); } catch(err) { alert("Upload failed: " + err.message); } finally { setContractUploading(false); } };
-
-  return (
-    <div className="flex flex-col lg:flex-row gap-6 h-full animate-fade-in items-start">
-      <div className="w-full lg:w-1/3 flex flex-col gap-4 h-[300px] lg:h-full flex-shrink-0">
-        <Button variant="accent" className="w-full justify-center py-4 rounded-xl shadow-blue-900/30" onClick={() => { setIsAddingNew(true); setSelectedClientId(null); }}><Plus size={18} /> Add New Client</Button>
-        <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-xl overflow-hidden overflow-y-auto">
-          {clients.map(client => (
-            <div key={client.id} onClick={() => { setSelectedClientId(client.id); setIsAddingNew(false); }} className={`p-5 border-b border-zinc-800/80 cursor-pointer transition-all duration-200 group ${selectedClient?.id === client.id ? 'bg-blue-900/10 border-l-4 border-l-blue-500 pl-4' : 'hover:bg-zinc-800/40 border-l-4 border-l-transparent hover:border-l-zinc-700'}`}>
-              <div className="flex justify-between items-start mb-1"><span className={`font-bold text-lg truncate ${selectedClient?.id === client.id ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>{client.name}</span><span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-full font-bold border ${client.status === 'Completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>{client.status || 'Active'}</span></div><p className="text-sm text-zinc-500 mb-3 truncate group-hover:text-zinc-400">{client.project}</p><div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div className={`h-full rounded-full ${client.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${client.progress}%` }}></div></div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl p-8 h-full w-full overflow-y-auto shadow-2xl relative">
-        {isAddingNew && (<div className="animate-fade-in max-w-xl mx-auto mt-10"><div className="text-center mb-10"><div className="w-16 h-16 bg-blue-600/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/30"><Users size={32}/></div><h2 className="text-3xl font-bold text-white">Onboard New Client</h2><p className="text-zinc-500 mt-2">Create a secure workspace.</p></div><form onSubmit={handleCreateClient} className="space-y-6"><div className="space-y-4"><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Company</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.name} onChange={e => setNewClientData({...newClientData, name: e.target.value})} placeholder="e.g. Acme Corp"/></div><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Email</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.email} onChange={e => setNewClientData({...newClientData, email: e.target.value})} placeholder="client@acme.com"/></div><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Project</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.project} onChange={e => setNewClientData({...newClientData, project: e.target.value})} placeholder="e.g. Website Redesign"/></div></div><div className="pt-6 flex gap-3"><Button variant="secondary" className="flex-1 py-3" onClick={() => setIsAddingNew(false)}>Cancel</Button><Button type="submit" variant="success" className="flex-[2] py-3 font-bold">Create</Button></div></form></div>)}
-        {selectedClient && !isAddingNew && (
-           <div className="animate-fade-in space-y-8">
-              <div className="flex flex-col sm:flex-row justify-between items-start border-b border-zinc-800 pb-8 gap-4"><div><div className="flex items-center gap-3 mb-1"><h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">{selectedClient.name}</h2><button onClick={() => handleDeleteClient(selectedClient.id)} className="text-zinc-600 hover:text-red-500 p-2 hover:bg-zinc-800 rounded-lg"><Trash2 size={20} /></button></div><p className="text-zinc-400 flex items-center gap-2 text-sm"><Mail size={14}/> {selectedClient.email}</p></div><div className="flex items-center gap-4 self-end sm:self-center"><div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center font-bold shadow-lg cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedClientId(null)}><Check size={16}/></div></div></div>
-              <div className="bg-black/40 rounded-2xl border border-zinc-800/50 p-1"><div className="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800"><h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6 flex items-center gap-2"><Briefcase size={16} className="text-purple-500"/> Project Status</h3><div className="flex flex-col sm:grid sm:grid-cols-2 gap-6"><div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1">Current Phase</label><div className="relative w-full"><select value={selectedClient.phase} onChange={(e) => handleUpdateClient('phase', e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white appearance-none focus:outline-none focus:border-purple-500"><option>Discovery</option><option>Design</option><option>Development</option><option>Testing</option><option>Live</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" size={16}/></div></div><div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1 flex justify-between"><span>Completion</span><span className="text-white font-bold">{selectedClient.progress}%</span></label><div className="h-12 flex items-center px-1"><input type="range" min="0" max="100" value={selectedClient.progress} onChange={(e) => handleUpdateClient('progress', parseInt(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg accent-blue-500"/></div></div></div></div></div>
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full"><div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-green-400"><DollarSign size={18}/> Invoices</h3></div><div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">{selectedClient.invoices?.map((inv, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors"><div className="min-w-0 pr-2"><div className="text-white font-medium truncate">{inv.desc}</div><div className="text-zinc-600 text-xs">{inv.id} • {inv.date}</div></div><div className="flex items-center gap-3 flex-shrink-0"><div className="text-right"><div className="font-mono text-zinc-300">{inv.amount}</div><span className={`text-[10px] font-bold ${inv.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{inv.status}</span></div>{inv.status !== 'Paid' && (<button onClick={() => handleMarkPaid(i)} className="bg-green-500/20 hover:bg-green-500/40 text-green-500 p-1.5 rounded-full"><CheckCircle2 size={16} /></button>)}</div></div>))}</div><div className="pt-4 border-t border-zinc-800"><div className="flex gap-2 flex-col sm:flex-row"><div className="flex-1 space-y-2 min-w-0"><input type="text" placeholder="Description" value={newInvoiceData.desc} onChange={e => setNewInvoiceData({...newInvoiceData, desc: e.target.value})} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none truncate"/><div className="flex gap-2"><input type="number" placeholder="$ Amount" value={newInvoiceData.amount} onChange={e => setNewInvoiceData({...newInvoiceData, amount: e.target.value})} className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none min-w-0"/><Button variant="success" className="px-4 py-2" onClick={handleAddInvoice}><Send size={16}/></Button></div></div></div></div></div>
-                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full"><div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-blue-400"><FileText size={18}/> Contracts</h3></div><div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">{selectedClient.contracts?.map((doc, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors group"><div className="flex items-center gap-3 min-w-0"><div className="bg-blue-500/10 text-blue-500 p-2 rounded-lg flex-shrink-0"><FileText size={16}/></div><div className="min-w-0"><div className="text-white font-medium truncate max-w-[150px]">{doc.name}</div><div className="text-zinc-600 text-xs">{doc.date}</div></div></div><a href={doc.url} download={doc.name} className="text-zinc-500 hover:text-white"><Download size={16}/></a></div>))}</div><div className="pt-4 border-t border-zinc-800"><label className="flex items-center justify-center w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer transition-colors"><UploadCloud size={18} className="mr-2"/> {contractUploading ? "Saving..." : "Upload (Max 1MB)"}<input type="file" className="hidden" onChange={handleUploadContract} disabled={contractUploading} /></label></div>{selectedClient.clientUploads?.length > 0 && (<div className="mt-4 pt-4 border-t border-zinc-800"><h4 className="text-xs font-bold text-zinc-500 uppercase mb-2">Client Files</h4><div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">{selectedClient.clientUploads.map((doc, i) => (<div key={i} className="flex justify-between items-center text-xs p-2 bg-zinc-800/50 rounded border border-zinc-700"><span className="truncate text-zinc-300">{doc.name}</span><a href={doc.url} download={doc.name} className="text-blue-400 hover:text-blue-300"><Download size={14}/></a></div>))}</div></div>)}</div>
-              </div>
-           </div>
-        )}
-        {!selectedClient && !isAddingNew && (<div className="flex flex-col items-center justify-center h-full text-zinc-600 gap-6"><div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 shadow-inner"><Users size={48} className="opacity-50"/></div><div className="text-center"><h3 className="text-xl font-bold text-white mb-2">Select a Client</h3><p>Manage projects, invoices, and files.</p></div></div>)}
-      </div>
-    </div>
-  );
-}
-
-function AdminUsersManager() {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "clients"), (snapshot) => {
-      const usersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setUsers(usersList);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-  const toggleAdminRole = async (userId, currentRole) => {
-    const newRole = currentRole === 'admin' ? 'client' : 'admin';
-    try { await updateDoc(doc(db, "clients", userId), { role: newRole }); } catch (error) { alert("Error updating role: " + error.message); }
-  };
-  return (
-    <div className="animate-fade-in">
-      <div className="mb-8"><h1 className="text-3xl font-bold mb-1">User Management</h1><p className="text-zinc-500">Manage user roles and permissions.</p></div>
-      <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto">
-        <div className="min-w-[700px]">
-          <div className="grid grid-cols-12 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div className="col-span-4">User / Email</div><div className="col-span-3">Project</div><div className="col-span-3">Current Role</div><div className="col-span-2 text-right">Actions</div></div>
-          {loading ? <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/></div> : users.map((user) => (
-              <div key={user.id} className="grid grid-cols-12 p-4 border-b border-zinc-800 last:border-0 items-center hover:bg-zinc-800/20 transition-colors">
-                <div className="col-span-4 min-w-0 pr-4"><div className="font-bold text-white truncate">{user.name || 'Unknown'}</div><div className="text-xs text-zinc-500 truncate">{user.email || 'No Email'}</div></div><div className="col-span-3 text-zinc-400 text-sm truncate">{user.project || 'N/A'}</div>
-                <div className="col-span-3"><span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${user.role === 'admin' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>{user.role || 'CLIENT'}</span></div>
-                <div className="col-span-2 text-right"><button onClick={() => toggleAdminRole(user.id, user.role)} className={`text-xs px-3 py-1.5 rounded transition-colors ${user.role === 'admin' ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-white text-black hover:bg-gray-200 font-bold'}`}>{user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}</button></div>
-              </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AdminFinancialsView({ clients }) {
-  const parseAmount = (amt) => {
-      if (typeof amt === 'number') return amt;
-      if (typeof amt === 'string') return parseFloat(amt.replace(/[^0-9.-]+/g, "")) || 0;
-      return 0;
-  };
-  const totalRevenue = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status === 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
-  const totalOutstanding = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status !== 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
-  const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
-  const allTransactions = clients.flatMap(client => (client.invoices || []).map(inv => ({ ...inv, clientName: client.name })));
-  return (
-  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Financials</h1><p className="text-zinc-500">Revenue tracking based on active client deals.</p></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><Card><h3 className="text-zinc-400 text-sm mb-1">Total Revenue</h3><p className="text-3xl font-bold text-green-500">{formatCurrency(totalRevenue)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Outstanding</h3><p className="text-3xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Active Deals</h3><p className="text-3xl font-bold text-blue-500">{clients.length}</p></Card></div><h3 className="text-xl font-bold mb-6">All Transactions</h3><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto"><div className="min-w-[600px]"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Client</div><div>Date</div><div>Invoice ID</div><div className="text-right">Amount</div></div>{allTransactions.map((t, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="text-white font-medium truncate">{t.clientName || 'Unknown'}</div><div className="text-zinc-500">{t.date}</div><div className="text-zinc-500 font-mono text-xs pt-1">{t.id}</div><div className={`text-right font-mono ${t.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{t.amount}</div></div>))}{allTransactions.length === 0 && <div className="p-4 text-center text-zinc-500">No transactions recorded.</div>}</div></div></div>
-  );
-}
-
 // --- NEW ADMIN VIEWS ---
 
 function AdminDashboardView({ clients }) {
+  // Helper to parse amounts safely
   const parseAmount = (amt) => {
       if (typeof amt === 'number') return amt;
       if (typeof amt === 'string') return parseFloat(amt.replace(/[^0-9.-]+/g, "")) || 0;
       return 0;
   };
 
+  // Calculate Real-Time Stats from the 'clients' prop
   const totalRevenue = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status === 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
   const activeProjects = clients.filter(c => c.status === 'Active').length;
   const pendingTasks = clients.reduce((sum, c) => sum + (c.tasks?.filter(t => !t.completed).length || 0), 0);
   
+  // Aggregate recent global activity from all clients
   const recentActivity = clients
     .flatMap(c => (c.activity || []).map(a => ({ ...a, clientName: c.name, clientId: c.id })))
     .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -715,7 +625,8 @@ function AdminPipelineView({ clients }) {
         await updateDoc(doc(db, "clients", clientId), { 
             phase: newPhase, 
             progress: newProgress,
-            status: status
+            status: status,
+            activity: arrayUnion({ action: `Phase advanced to ${newPhase}`, date: new Date().toLocaleDateString(), status: "Completed" })
         });
     } catch (e) {
         console.error("Error updating phase:", e);
@@ -865,6 +776,7 @@ function AdminActivityLogsView({ clients }) {
             date: a.date,
             status: a.status
         })))
+        // Simple string sort; for production, ensure 'date' is stored as ISO or timestamp
         .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     return (
@@ -940,6 +852,241 @@ function AdminGlobalSettingsView({ settings, onUpdateSettings }) {
     );
 }
 
+// --- UPDATED ADMIN LOGIC COMPONENTS (Logging & Chat Added) ---
+
+function AdminClientsManager({ clients }) {
+  const [selectedClientId, setSelectedClientId] = useState(null);
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const [newClientData, setNewClientData] = useState({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 });
+  const [newInvoiceData, setNewInvoiceData] = useState({ desc: '', amount: '' });
+  const [contractUploading, setContractUploading] = useState(false);
+  
+  // --- Chat State ---
+  const [adminMessageInput, setAdminMessageInput] = useState("");
+  const chatScrollRef = useRef(null);
+
+  // --- Auto-scroll chat ---
+  useEffect(() => {
+    if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [selectedClient?.messages, selectedClientId]);
+
+  const handleCreateClient = async (e) => { 
+      e.preventDefault(); 
+      const clientData = { 
+          ...newClientData, role: 'client', milestone: "Project Start", dueDate: "TBD", status: "Active", 
+          activity: [{ action: "Created by Admin", date: new Date().toLocaleDateString(), status: "Completed" }], 
+          contracts: [], invoices: [], clientUploads: [], notifications: { email: true, push: false } 
+      }; 
+      try { 
+          await addDoc(collection(db, 'clients'), clientData); 
+          setIsAddingNew(false); 
+          setNewClientData({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 }); 
+      } catch (err) { alert(err.message); } 
+  };
+
+  const handleDeleteClient = async (id) => { 
+      if (confirm("Remove client?")) { 
+          try { 
+              await deleteDoc(doc(db, "clients", id)); 
+              setSelectedClientId(null); 
+          } catch(err) { alert(err.message); } 
+      } 
+  };
+
+  const handleUpdateClient = async (field, value) => { 
+      try { 
+          const updates = { [field]: value }; 
+          if (field === 'progress') { updates.status = value === 100 ? 'Completed' : 'Active'; } 
+          await updateDoc(doc(db, "clients", selectedClient.id), {
+              ...updates,
+              activity: arrayUnion({ action: `Updated ${field} to ${value}`, date: new Date().toLocaleDateString(), status: "Completed" })
+          }); 
+      } catch (err) { console.error(err); } 
+  };
+
+  const handleAddInvoice = async () => { 
+      if(!newInvoiceData.amount || !newInvoiceData.desc) return; 
+      try { 
+          await updateDoc(doc(db, "clients", selectedClient.id), { 
+              invoices: arrayUnion({ id: `INV-${Math.floor(Math.random()*10000)}`, desc: newInvoiceData.desc, amount: `$${newInvoiceData.amount}`, date: new Date().toLocaleDateString('en-US', {month:'short', day:'numeric'}), status: "Pending" }),
+              activity: arrayUnion({ action: `Invoice created: ${newInvoiceData.desc} ($${newInvoiceData.amount})`, date: new Date().toLocaleDateString(), status: "Pending" })
+          }); 
+          setNewInvoiceData({ desc: '', amount: '' }); 
+      } catch (err) { alert(err.message); } 
+  };
+
+  const handleMarkPaid = async (i) => { 
+      const updated = [...selectedClient.invoices]; 
+      updated[i].status = "Paid"; 
+      try { 
+          await updateDoc(doc(db, "clients", selectedClient.id), { 
+              invoices: updated,
+              activity: arrayUnion({ action: `Invoice paid: ${updated[i].desc}`, date: new Date().toLocaleDateString(), status: "Completed" })
+          }); 
+      } catch(e) { console.error(e); } 
+  };
+
+  const handleUploadContract = async (e) => { 
+      const file = e.target.files[0]; if(!file) return; 
+      if (file.size > 1048576) { alert("File too large for free storage (Max 1MB)."); return; } 
+      setContractUploading(true); 
+      try { 
+          const base64 = await convertToBase64(file); 
+          const contract = { name: file.name, url: base64, date: new Date().toLocaleDateString(), size: (file.size/1024).toFixed(2)+" KB" }; 
+          await updateDoc(doc(db, "clients", selectedClient.id), { 
+              contracts: arrayUnion(contract),
+              activity: arrayUnion({ action: `Contract uploaded: ${file.name}`, date: new Date().toLocaleDateString(), status: "Completed" })
+          }); 
+      } catch(err) { alert("Upload failed: " + err.message); } finally { setContractUploading(false); } 
+  };
+
+  // --- Admin Send Message Handler ---
+  const handleAdminSendMessage = async (e) => {
+    e.preventDefault();
+    if (!adminMessageInput.trim()) return;
+    try {
+        await updateDoc(doc(db, "clients", selectedClient.id), {
+            messages: arrayUnion({ sender: 'admin', text: adminMessageInput, time: new Date().toLocaleString() }),
+            // Optional: Log chat activity
+            activity: arrayUnion({ action: "Admin sent message", date: new Date().toLocaleDateString(), status: "Completed" })
+        });
+        setAdminMessageInput("");
+    } catch (err) {
+        console.error("Message failed", err);
+        alert("Failed to send message.");
+    }
+  };
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-6 h-full animate-fade-in items-start">
+      {/* Client List Sidebar */}
+      <div className="w-full lg:w-1/3 flex flex-col gap-4 h-[300px] lg:h-full flex-shrink-0">
+        <Button variant="accent" className="w-full justify-center py-4 rounded-xl shadow-blue-900/30" onClick={() => { setIsAddingNew(true); setSelectedClientId(null); }}><Plus size={18} /> Add New Client</Button>
+        <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-xl overflow-hidden overflow-y-auto custom-scrollbar">
+          {clients.map(client => (
+            <div key={client.id} onClick={() => { setSelectedClientId(client.id); setIsAddingNew(false); }} className={`p-5 border-b border-zinc-800/80 cursor-pointer transition-all duration-200 group ${selectedClient?.id === client.id ? 'bg-blue-900/10 border-l-4 border-l-blue-500 pl-4' : 'hover:bg-zinc-800/40 border-l-4 border-l-transparent hover:border-l-zinc-700'}`}>
+              <div className="flex justify-between items-start mb-1"><span className={`font-bold text-lg truncate ${selectedClient?.id === client.id ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>{client.name}</span><span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-full font-bold border ${client.status === 'Completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>{client.status || 'Active'}</span></div><p className="text-sm text-zinc-500 mb-3 truncate group-hover:text-zinc-400">{client.project}</p><div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div className={`h-full rounded-full ${client.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${client.progress}%` }}></div></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Details View */}
+      <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl p-8 h-full w-full overflow-y-auto shadow-2xl relative custom-scrollbar">
+        {isAddingNew && (<div className="animate-fade-in max-w-xl mx-auto mt-10"><div className="text-center mb-10"><div className="w-16 h-16 bg-blue-600/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/30"><Users size={32}/></div><h2 className="text-3xl font-bold text-white">Onboard New Client</h2><p className="text-zinc-500 mt-2">Create a secure workspace.</p></div><form onSubmit={handleCreateClient} className="space-y-6"><div className="space-y-4"><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Company</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.name} onChange={e => setNewClientData({...newClientData, name: e.target.value})} placeholder="e.g. Acme Corp"/></div><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Email</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.email} onChange={e => setNewClientData({...newClientData, email: e.target.value})} placeholder="client@acme.com"/></div><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Project</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.project} onChange={e => setNewClientData({...newClientData, project: e.target.value})} placeholder="e.g. Website Redesign"/></div></div><div className="pt-6 flex gap-3"><Button variant="secondary" className="flex-1 py-3" onClick={() => setIsAddingNew(false)}>Cancel</Button><Button type="submit" variant="success" className="flex-[2] py-3 font-bold">Create</Button></div></form></div>)}
+        
+        {selectedClient && !isAddingNew && (
+           <div className="animate-fade-in space-y-8">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start border-b border-zinc-800 pb-8 gap-4"><div><div className="flex items-center gap-3 mb-1"><h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">{selectedClient.name}</h2><button onClick={() => handleDeleteClient(selectedClient.id)} className="text-zinc-600 hover:text-red-500 p-2 hover:bg-zinc-800 rounded-lg"><Trash2 size={20} /></button></div><p className="text-zinc-400 flex items-center gap-2 text-sm"><Mail size={14}/> {selectedClient.email}</p></div><div className="flex items-center gap-4 self-end sm:self-center"><div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center font-bold shadow-lg cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedClientId(null)}><Check size={16}/></div></div></div>
+              
+              {/* Status Board */}
+              <div className="bg-black/40 rounded-2xl border border-zinc-800/50 p-1"><div className="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800"><h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6 flex items-center gap-2"><Briefcase size={16} className="text-purple-500"/> Project Status</h3><div className="flex flex-col sm:grid sm:grid-cols-2 gap-6"><div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1">Current Phase</label><div className="relative w-full"><select value={selectedClient.phase} onChange={(e) => handleUpdateClient('phase', e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white appearance-none focus:outline-none focus:border-purple-500"><option>Discovery</option><option>Design</option><option>Development</option><option>Testing</option><option>Live</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" size={16}/></div></div><div><label className="text-xs text-zinc-500 mb-2 block font-medium ml-1 flex justify-between"><span>Completion</span><span className="text-white font-bold">{selectedClient.progress}%</span></label><div className="h-12 flex items-center px-1"><input type="range" min="0" max="100" value={selectedClient.progress} onChange={(e) => handleUpdateClient('progress', parseInt(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg accent-blue-500"/></div></div></div></div></div>
+              
+              {/* Grid: Invoices & Contracts */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full"><div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-green-400"><DollarSign size={18}/> Invoices</h3></div><div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">{selectedClient.invoices?.map((inv, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors"><div className="min-w-0 pr-2"><div className="text-white font-medium truncate">{inv.desc}</div><div className="text-zinc-600 text-xs">{inv.id} • {inv.date}</div></div><div className="flex items-center gap-3 flex-shrink-0"><div className="text-right"><div className="font-mono text-zinc-300">{inv.amount}</div><span className={`text-[10px] font-bold ${inv.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{inv.status}</span></div>{inv.status !== 'Paid' && (<button onClick={() => handleMarkPaid(i)} className="bg-green-500/20 hover:bg-green-500/40 text-green-500 p-1.5 rounded-full"><CheckCircle2 size={16} /></button>)}</div></div>))}</div><div className="pt-4 border-t border-zinc-800"><div className="flex gap-2 flex-col sm:flex-row"><div className="flex-1 space-y-2 min-w-0"><input type="text" placeholder="Description" value={newInvoiceData.desc} onChange={e => setNewInvoiceData({...newInvoiceData, desc: e.target.value})} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none truncate"/><div className="flex gap-2"><input type="number" placeholder="$ Amount" value={newInvoiceData.amount} onChange={e => setNewInvoiceData({...newInvoiceData, amount: e.target.value})} className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none min-w-0"/><Button variant="success" className="px-4 py-2" onClick={handleAddInvoice}><Send size={16}/></Button></div></div></div></div></div>
+                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full"><div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-blue-400"><FileText size={18}/> Contracts</h3></div><div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">{selectedClient.contracts?.map((doc, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors group"><div className="flex items-center gap-3 min-w-0"><div className="bg-blue-500/10 text-blue-500 p-2 rounded-lg flex-shrink-0"><FileText size={16}/></div><div className="min-w-0"><div className="text-white font-medium truncate max-w-[150px]">{doc.name}</div><div className="text-zinc-600 text-xs">{doc.date}</div></div></div><a href={doc.url} download={doc.name} className="text-zinc-500 hover:text-white"><Download size={16}/></a></div>))}</div><div className="pt-4 border-t border-zinc-800"><label className="flex items-center justify-center w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer transition-colors"><UploadCloud size={18} className="mr-2"/> {contractUploading ? "Saving..." : "Upload (Max 1MB)"}<input type="file" className="hidden" onChange={handleUploadContract} disabled={contractUploading} /></label></div>{selectedClient.clientUploads?.length > 0 && (<div className="mt-4 pt-4 border-t border-zinc-800"><h4 className="text-xs font-bold text-zinc-500 uppercase mb-2">Client Files</h4><div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">{selectedClient.clientUploads.map((doc, i) => (<div key={i} className="flex justify-between items-center text-xs p-2 bg-zinc-800/50 rounded border border-zinc-700"><span className="truncate text-zinc-300">{doc.name}</span><a href={doc.url} download={doc.name} className="text-blue-400 hover:text-blue-300"><Download size={14}/></a></div>))}</div></div>)}</div>
+              </div>
+
+              {/* --- NEW CHAT SECTION --- */}
+              <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-[500px]">
+                  <div className="flex items-center justify-between mb-6">
+                      <h3 className="font-bold flex items-center gap-2 text-blue-400"><MessageSquare size={18}/> Client Messages</h3>
+                  </div>
+                  <div ref={chatScrollRef} className="flex-1 space-y-4 mb-6 overflow-y-auto pr-2 custom-scrollbar p-4 bg-black/20 rounded-xl border border-zinc-800/50">
+                      {(selectedClient.messages || []).map((msg, i) => (
+                          <div key={i} className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-[80%] p-3 rounded-xl text-sm ${msg.sender === 'admin' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-zinc-800 text-zinc-300 rounded-bl-none'}`}>
+                                  <p>{msg.text}</p>
+                                  <p className="text-[10px] opacity-50 mt-1">{msg.time}</p>
+                              </div>
+                          </div>
+                      ))}
+                      {(!selectedClient.messages || selectedClient.messages.length === 0) && (
+                          <div className="text-center text-zinc-500 text-sm mt-10">No messages yet. Start the conversation.</div>
+                      )}
+                  </div>
+                  <form onSubmit={handleAdminSendMessage} className="flex gap-2">
+                      <input 
+                          type="text" 
+                          placeholder="Type a message to client..." 
+                          value={adminMessageInput} 
+                          onChange={(e) => setAdminMessageInput(e.target.value)} 
+                          className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white focus:border-blue-500 outline-none"
+                      />
+                      <Button variant="primary" type="submit" className="px-4"><Send size={18}/></Button>
+                  </form>
+              </div>
+           </div>
+        )}
+        {!selectedClient && !isAddingNew && (<div className="flex flex-col items-center justify-center h-full text-zinc-600 gap-6"><div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 shadow-inner"><Users size={48} className="opacity-50"/></div><div className="text-center"><h3 className="text-xl font-bold text-white mb-2">Select a Client</h3><p>Manage projects, invoices, and files.</p></div></div>)}
+      </div>
+    </div>
+  );
+}
+
+function AdminUsersManager() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "clients"), (snapshot) => {
+      const usersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setUsers(usersList);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const toggleAdminRole = async (userId, currentRole) => {
+    const newRole = currentRole === 'admin' ? 'client' : 'admin';
+    try { 
+        await updateDoc(doc(db, "clients", userId), { 
+            role: newRole,
+            activity: arrayUnion({ action: `Role changed to ${newRole}`, date: new Date().toLocaleDateString(), status: "Completed" })
+        }); 
+    } catch (error) { alert("Error updating role: " + error.message); }
+  };
+
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-8"><h1 className="text-3xl font-bold mb-1">User Management</h1><p className="text-zinc-500">Manage user roles and permissions.</p></div>
+      <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto">
+        <div className="min-w-[700px]">
+          <div className="grid grid-cols-12 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div className="col-span-4">User / Email</div><div className="col-span-3">Project</div><div className="col-span-3">Current Role</div><div className="col-span-2 text-right">Actions</div></div>
+          {loading ? <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/></div> : users.map((user) => (
+              <div key={user.id} className="grid grid-cols-12 p-4 border-b border-zinc-800 last:border-0 items-center hover:bg-zinc-800/20 transition-colors">
+                <div className="col-span-4 min-w-0 pr-4"><div className="font-bold text-white truncate">{user.name || 'Unknown'}</div><div className="text-xs text-zinc-500 truncate">{user.email || 'No Email'}</div></div><div className="col-span-3 text-zinc-400 text-sm truncate">{user.project || 'N/A'}</div>
+                <div className="col-span-3"><span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${user.role === 'admin' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>{user.role || 'CLIENT'}</span></div>
+                <div className="col-span-2 text-right"><button onClick={() => toggleAdminRole(user.id, user.role)} className={`text-xs px-3 py-1.5 rounded transition-colors ${user.role === 'admin' ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-white text-black hover:bg-gray-200 font-bold'}`}>{user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}</button></div>
+              </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminFinancialsView({ clients }) {
+  const parseAmount = (amt) => {
+      if (typeof amt === 'number') return amt;
+      if (typeof amt === 'string') return parseFloat(amt.replace(/[^0-9.-]+/g, "")) || 0;
+      return 0;
+  };
+  const totalRevenue = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status === 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
+  const totalOutstanding = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status !== 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
+  const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  const allTransactions = clients.flatMap(client => (client.invoices || []).map(inv => ({ ...inv, clientName: client.name })));
+  return (
+  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Financials</h1><p className="text-zinc-500">Revenue tracking based on active client deals.</p></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><Card><h3 className="text-zinc-400 text-sm mb-1">Total Revenue</h3><p className="text-3xl font-bold text-green-500">{formatCurrency(totalRevenue)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Outstanding</h3><p className="text-3xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Active Deals</h3><p className="text-3xl font-bold text-blue-500">{clients.length}</p></Card></div><h3 className="text-xl font-bold mb-6">All Transactions</h3><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto"><div className="min-w-[600px]"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Client</div><div>Date</div><div>Invoice ID</div><div className="text-right">Amount</div></div>{allTransactions.map((t, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="text-white font-medium truncate">{t.clientName || 'Unknown'}</div><div className="text-zinc-500">{t.date}</div><div className="text-zinc-500 font-mono text-xs pt-1">{t.id}</div><div className={`text-right font-mono ${t.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{t.amount}</div></div>))}{allTransactions.length === 0 && <div className="p-4 text-center text-zinc-500">No transactions recorded.</div>}</div></div></div>
+  );
+}
+
+// --- UPDATED ADMIN PORTAL ---
 function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -958,6 +1105,7 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
 
   return (
     <div className="min-h-screen bg-black text-white font-sans border-l-0 lg:border-l-4 lg:border-red-900 flex flex-col lg:flex-row">
+      {/* Mobile Header */}
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900">
         <div className="font-bold text-red-500">ADMIN PANEL</div>
         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">
@@ -965,6 +1113,7 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
         </button>
       </div>
 
+      {/* Sidebar */}
       <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}>
         <h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2>
         <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
@@ -983,6 +1132,7 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
         </button>
       </div>
 
+      {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
         {activeTab === 'dashboard' && <AdminDashboardView clients={clients} />}
         {activeTab === 'projects' && <AdminPipelineView clients={clients} />}
