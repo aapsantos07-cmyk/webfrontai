@@ -5,7 +5,9 @@ import {
   Brain, Headphones, TrendingUp, LogIn, Download, Bell, Shield, Mail, Sparkles, 
   Loader2, Users, BarChart3, Briefcase, Edit3, Plus, Save, Trash2, Search, 
   DollarSign, Activity, UploadCloud, XCircle, CheckCircle2, LogOut, AlertTriangle, 
-  Power, ListTodo, FolderOpen, HelpCircle, BookOpen, Clock
+  Power, ListTodo, FolderOpen, HelpCircle, BookOpen, Clock,
+  // New icons added below
+  Database, FileJson, FileSpreadsheet, History, Sliders
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
@@ -296,7 +298,7 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
   );
 }
 
-// --- LANDING PAGE (DEFINED HERE SO APP CAN FIND IT) ---
+// --- LANDING PAGE ---
 function LandingPage({ onLogin }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false); 
   const [scrolled, setScrolled] = useState(false);
@@ -525,13 +527,8 @@ function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
   return (<div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Settings</h1><p className="text-zinc-500">Manage your account preferences.</p></div><div className="grid gap-8 max-w-2xl"><div className="space-y-4"><h3 className="text-lg font-bold flex items-center gap-2"><User size={18}/> Profile Details</h3><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Company / Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label><input type="text" value={data?.email || ""} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button></div><div className="space-y-4 pt-4 border-t border-zinc-800"><h3 className="text-lg font-bold flex items-center gap-2 text-red-500"><Shield size={18}/> Danger Zone</h3><Button onClick={() => onDeleteAccount(data?.id)} variant="danger" className="w-full justify-start">Delete My Account</Button></div></div></div>);
 }
 
-function AdminSettingsView({ settings, onUpdateSettings }) {
-  const [name, setName] = useState(settings?.name || "");
-  if (!settings) return null;
-  return (<div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Admin Settings</h1><p className="text-zinc-500">System configuration and profile.</p></div><div className="max-w-2xl space-y-8"><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">Admin Profile</h3><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-white" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email</label><input type="text" defaultValue={settings.email || ""} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={() => onUpdateSettings({ ...settings, name })} variant="secondary" className="text-sm py-2 px-4">Update Profile</Button></div><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6"><h3 className="text-lg font-bold mb-4">System Preferences</h3><div className="flex items-center justify-between p-3 bg-red-900/10 border border-red-900/30 rounded-lg"><div className="flex flex-col"><span className="text-white font-bold flex items-center gap-2"><Power size={16}/> Maintenance Mode</span><span className="text-xs text-zinc-400">Prevents all clients from logging in. Admin only.</span></div><div onClick={() => onUpdateSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${settings.maintenanceMode ? 'bg-red-600' : 'bg-zinc-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.maintenanceMode ? 'left-7' : 'left-1'}`}></div></div></div></div></div></div>);
-}
-
 // --- ADMIN VIEWS ---
+
 function AdminClientsManager({ clients }) {
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -626,19 +623,376 @@ function AdminFinancialsView({ clients }) {
   );
 }
 
+// --- NEW ADMIN VIEWS ---
+
+function AdminDashboardView({ clients }) {
+  const parseAmount = (amt) => {
+      if (typeof amt === 'number') return amt;
+      if (typeof amt === 'string') return parseFloat(amt.replace(/[^0-9.-]+/g, "")) || 0;
+      return 0;
+  };
+
+  const totalRevenue = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status === 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
+  const activeProjects = clients.filter(c => c.status === 'Active').length;
+  const pendingTasks = clients.reduce((sum, c) => sum + (c.tasks?.filter(t => !t.completed).length || 0), 0);
+  
+  const recentActivity = clients
+    .flatMap(c => (c.activity || []).map(a => ({ ...a, clientName: c.name, clientId: c.id })))
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5);
+
+  const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
+  return (
+    <div className="animate-fade-in space-y-8">
+      <div className="mb-4">
+        <h1 className="text-3xl font-bold mb-1">Agency Overview</h1>
+        <p className="text-zinc-500">Real-time insights into agency performance.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="border-l-4 border-l-green-500">
+           <h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2"><DollarSign size={14}/> Total Revenue</h3>
+           <p className="text-2xl font-bold text-white">{formatCurrency(totalRevenue)}</p>
+        </Card>
+        <Card className="border-l-4 border-l-blue-500">
+           <h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2"><Briefcase size={14}/> Active Projects</h3>
+           <p className="text-2xl font-bold text-white">{activeProjects}</p>
+        </Card>
+        <Card className="border-l-4 border-l-purple-500">
+           <h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2"><Users size={14}/> Total Clients</h3>
+           <p className="text-2xl font-bold text-white">{clients.length}</p>
+        </Card>
+        <Card className="border-l-4 border-l-yellow-500">
+           <h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2"><ListTodo size={14}/> Pending Tasks</h3>
+           <p className="text-2xl font-bold text-white">{pendingTasks}</p>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+          <h3 className="font-bold mb-4 flex items-center gap-2"><Activity size={18} className="text-blue-400"/> Global Activity Feed</h3>
+          <div className="space-y-4">
+            {recentActivity.length > 0 ? recentActivity.map((act, i) => (
+              <div key={i} className="flex items-start gap-3 text-sm pb-3 border-b border-zinc-800 last:border-0 last:pb-0">
+                <div className="mt-1 w-2 h-2 rounded-full bg-blue-500"></div>
+                <div>
+                  <p className="text-zinc-300"><span className="font-bold text-white">{act.clientName}</span>: {act.action}</p>
+                  <p className="text-xs text-zinc-500">{act.date}</p>
+                </div>
+              </div>
+            )) : <p className="text-zinc-500 text-sm">No recent activity.</p>}
+          </div>
+        </div>
+
+        <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+          <h3 className="font-bold mb-4 flex items-center gap-2"><TrendingUp size={18} className="text-green-400"/> Revenue Targets</h3>
+          <div className="space-y-6">
+             <div>
+               <div className="flex justify-between text-sm mb-2"><span className="text-zinc-400">Monthly Goal ($50k)</span><span className="text-white font-bold">{Math.min(100, (totalRevenue / 50000) * 100).toFixed(0)}%</span></div>
+               <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden"><div className="bg-green-500 h-full" style={{ width: `${Math.min(100, (totalRevenue / 50000) * 100)}%` }}></div></div>
+             </div>
+             <div>
+               <div className="flex justify-between text-sm mb-2"><span className="text-zinc-400">Client Capacity (20)</span><span className="text-white font-bold">{clients.length}/20</span></div>
+               <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden"><div className="bg-blue-500 h-full" style={{ width: `${(clients.length / 20) * 100}%` }}></div></div>
+             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminPipelineView({ clients }) {
+  const phases = ['Discovery', 'Design', 'Development', 'Testing', 'Live'];
+  
+  const handlePhaseChange = async (clientId, newPhase) => {
+    try {
+        const progressMap = { 'Discovery': 10, 'Design': 30, 'Development': 60, 'Testing': 90, 'Live': 100 };
+        const newProgress = progressMap[newPhase] || 0;
+        const status = newPhase === 'Live' ? 'Completed' : 'Active';
+        
+        await updateDoc(doc(db, "clients", clientId), { 
+            phase: newPhase, 
+            progress: newProgress,
+            status: status
+        });
+    } catch (e) {
+        console.error("Error updating phase:", e);
+    }
+  };
+
+  return (
+    <div className="animate-fade-in h-full flex flex-col">
+       <div className="mb-6"><h1 className="text-3xl font-bold mb-1">Projects Pipeline</h1><p className="text-zinc-500">Drag and drop management of client lifecycles.</p></div>
+       <div className="flex-1 overflow-x-auto pb-4">
+         <div className="flex gap-6 min-w-[1200px] h-full">
+            {phases.map(phase => (
+                <div key={phase} className="flex-1 bg-zinc-900/30 border border-zinc-800 rounded-xl flex flex-col min-w-[280px]">
+                    <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 rounded-t-xl flex justify-between items-center">
+                        <h3 className="font-bold text-white">{phase}</h3>
+                        <span className="bg-zinc-800 text-xs px-2 py-1 rounded-full text-zinc-400">{clients.filter(c => c.phase === phase).length}</span>
+                    </div>
+                    <div className="p-4 space-y-3 flex-1 overflow-y-auto custom-scrollbar">
+                        {clients.filter(c => c.phase === phase).map(client => (
+                            <div key={client.id} className="bg-black border border-zinc-700 p-4 rounded-lg shadow-sm hover:border-blue-500 transition-colors group">
+                                <div className="flex justify-between items-start mb-2">
+                                    <h4 className="font-bold text-white truncate max-w-[150px]">{client.name}</h4>
+                                    <div className="relative group/edit">
+                                        <button className="text-zinc-500 hover:text-white"><Edit3 size={14}/></button>
+                                        <div className="absolute right-0 top-6 w-32 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-1 z-10 hidden group-hover/edit:block">
+                                            {phases.map(p => (
+                                                <button key={p} onClick={() => handlePhaseChange(client.id, p)} className="w-full text-left text-xs p-2 hover:bg-zinc-800 text-zinc-300 rounded block">{p}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-zinc-500 mb-3 truncate">{client.project}</p>
+                                <div className="w-full bg-zinc-800 h-1.5 rounded-full mb-2"><div className="bg-blue-600 h-full rounded-full" style={{width: `${client.progress}%`}}></div></div>
+                                <div className="flex justify-between text-[10px] text-zinc-400">
+                                    <span>{client.progress}%</span>
+                                    <span>{client.status}</span>
+                                </div>
+                            </div>
+                        ))}
+                        {clients.filter(c => c.phase === phase).length === 0 && (
+                            <div className="text-center py-8 text-zinc-600 text-sm border-2 border-dashed border-zinc-800 rounded-lg">No Projects</div>
+                        )}
+                    </div>
+                </div>
+            ))}
+         </div>
+       </div>
+    </div>
+  );
+}
+
+function AdminDataAIView() {
+    const [apiKey, setApiKey] = useState("AIzaSy... (Hidden)");
+    
+    return (
+        <div className="animate-fade-in max-w-4xl">
+            <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Data & AI Models</h1><p className="text-zinc-500">Configure LLM parameters and data sources.</p></div>
+            
+            <div className="grid gap-8">
+                <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Brain size={20} className="text-purple-500"/> Model Configuration</h3>
+                    <div className="grid gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-2">Primary LLM Provider</label>
+                            <select className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none">
+                                <option>Google Gemini 1.5 Flash (Active)</option>
+                                <option>OpenAI GPT-4o</option>
+                                <option>Anthropic Claude 3.5 Sonnet</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-2">API Key</label>
+                            <div className="flex gap-2">
+                                <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" />
+                                <Button variant="secondary">Update</Button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-2">System Prompt (Global)</label>
+                            <textarea className="w-full h-32 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none text-sm font-mono" defaultValue="You are WEBFRONT_AI, a helpful assistant for digital agencies. Always be concise and professional." />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Database size={20} className="text-blue-500"/> Knowledge Sources</h3>
+                    <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-zinc-900 text-zinc-400"><tr><th className="p-3">Source Name</th><th className="p-3">Type</th><th className="p-3">Last Synced</th><th className="p-3 text-right">Status</th></tr></thead>
+                            <tbody className="divide-y divide-zinc-800">
+                                <tr><td className="p-3">Company Website</td><td className="p-3"><span className="bg-blue-900/30 text-blue-400 px-2 py-1 rounded text-xs">Scraper</span></td><td className="p-3">2 hours ago</td><td className="p-3 text-right"><span className="text-green-500">Active</span></td></tr>
+                                <tr><td className="p-3">Pricing PDF</td><td className="p-3"><span className="bg-orange-900/30 text-orange-400 px-2 py-1 rounded text-xs">File</span></td><td className="p-3">1 day ago</td><td className="p-3 text-right"><span className="text-green-500">Indexed</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="mt-4">
+                         <Button variant="secondary" className="w-full border-dashed"><Plus size={16}/> Add Knowledge Source</Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function AdminReportsView({ clients }) {
+  const generateCSV = () => {
+      const headers = "Client,Project,Phase,Revenue,Status\n";
+      const rows = clients.map(c => `${c.name},${c.project},${c.phase},${c.revenue || 0},${c.status}`).join("\n");
+      const blob = new Blob([headers + rows], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `agency_report_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+  };
+
+  return (
+    <div className="animate-fade-in max-w-5xl">
+       <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Reporting Tools</h1><p className="text-zinc-500">Export data and generate performance summaries.</p></div>
+       
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+           <Card className="hover:border-green-500/50 cursor-pointer transition-colors group">
+               <div className="w-12 h-12 bg-green-900/20 text-green-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><FileSpreadsheet size={24}/></div>
+               <h3 className="text-xl font-bold mb-2">Financial Report</h3>
+               <p className="text-zinc-400 text-sm mb-6">Detailed breakdown of all invoices, revenue by client, and outstanding balances.</p>
+               <Button variant="secondary" className="w-full" onClick={generateCSV}>Download CSV</Button>
+           </Card>
+           
+           <Card className="hover:border-blue-500/50 cursor-pointer transition-colors group">
+               <div className="w-12 h-12 bg-blue-900/20 text-blue-500 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Briefcase size={24}/></div>
+               <h3 className="text-xl font-bold mb-2">Project Velocity</h3>
+               <p className="text-zinc-400 text-sm mb-6">Analysis of project completion rates, phase duration, and bottlenecks.</p>
+               <Button variant="secondary" className="w-full">Generate PDF</Button>
+           </Card>
+       </div>
+    </div>
+  );
+}
+
+function AdminActivityLogsView({ clients }) {
+    const allLogs = clients
+        .flatMap(c => (c.activity || []).map(a => ({
+            id: c.id + a.date + a.action, 
+            client: c.name,
+            role: c.role === 'admin' ? 'Admin' : 'Client',
+            action: a.action,
+            date: a.date,
+            status: a.status
+        })))
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    return (
+        <div className="animate-fade-in">
+             <div className="mb-8"><h1 className="text-3xl font-bold mb-1">Activity Logs</h1><p className="text-zinc-500">System-wide audit trail for compliance and security.</p></div>
+             
+             <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-zinc-900 text-zinc-400">
+                        <tr><th className="p-4">Timestamp</th><th className="p-4">User</th><th className="p-4">Action</th><th className="p-4 text-right">Result</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800">
+                        {allLogs.length > 0 ? allLogs.map((log, i) => (
+                            <tr key={i} className="hover:bg-zinc-800/30 transition-colors">
+                                <td className="p-4 font-mono text-zinc-500 text-xs">{log.date}</td>
+                                <td className="p-4 font-medium text-white">{log.client} <span className="text-zinc-500 text-xs font-normal">({log.role})</span></td>
+                                <td className="p-4 text-zinc-300">{log.action}</td>
+                                <td className="p-4 text-right">
+                                    <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold tracking-wider ${log.status === 'Completed' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>{log.status || 'Info'}</span>
+                                </td>
+                            </tr>
+                        )) : <tr><td colSpan="4" className="p-8 text-center text-zinc-500">No logs found.</td></tr>}
+                    </tbody>
+                </table>
+             </div>
+        </div>
+    );
+}
+
+function AdminGlobalSettingsView({ settings, onUpdateSettings }) {
+    const [config, setConfig] = useState(settings);
+
+    const handleSave = () => {
+        onUpdateSettings(config);
+        alert("System settings saved.");
+    };
+
+    return (
+        <div className="animate-fade-in max-w-3xl">
+             <div className="mb-8"><h1 className="text-3xl font-bold mb-1">System Configuration</h1><p className="text-zinc-500">Global settings for the WebFront OS.</p></div>
+             
+             <div className="space-y-6">
+                <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Settings size={20}/> General Settings</h3>
+                    <div className="grid gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-2">Platform Name</label>
+                            <input type="text" value="WebFront OS" disabled className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-zinc-500" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-2">Admin Email Notification</label>
+                            <input type="text" value={config.email} onChange={(e) => setConfig({...config, email: e.target.value})} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-blue-500" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+                     <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-red-500"><Shield size={20}/> Security & Maintenance</h3>
+                     <div className="flex items-center justify-between p-4 bg-red-900/10 border border-red-900/30 rounded-xl">
+                        <div className="flex flex-col">
+                            <span className="text-white font-bold flex items-center gap-2"><Power size={16}/> Maintenance Mode</span>
+                            <span className="text-xs text-zinc-400">Prevents client logins. Admin access only.</span>
+                        </div>
+                        <div onClick={() => setConfig({ ...config, maintenanceMode: !config.maintenanceMode })} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${config.maintenanceMode ? 'bg-red-600' : 'bg-zinc-700'}`}>
+                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${config.maintenanceMode ? 'left-7' : 'left-1'}`}></div>
+                        </div>
+                    </div>
+                </div>
+
+                <Button variant="primary" onClick={handleSave}>Save Configuration</Button>
+             </div>
+        </div>
+    );
+}
+
 function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
-  const [activeTab, setActiveTab] = useState('clients'); 
+  const [activeTab, setActiveTab] = useState('dashboard'); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const menuItems = [{ id: 'clients', label: 'Clients', icon: Users }, { id: 'users', label: 'User Roles', icon: Shield }, { id: 'financials', label: 'Financials', icon: CreditCard }, { id: 'settings', label: 'Admin Settings', icon: Settings }];
+  
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'projects', label: 'Projects / Pipeline', icon: Briefcase },
+    { id: 'clients', label: 'Clients List', icon: Users },
+    { id: 'financials', label: 'Financials', icon: CreditCard },
+    { id: 'data', label: 'Data & AI Models', icon: Brain },
+    { id: 'reports', label: 'Reporting Tools', icon: FileSpreadsheet },
+    { id: 'logs', label: 'Activity Logs', icon: History },
+    { id: 'users', label: 'User Roles', icon: Shield },
+    { id: 'settings', label: 'Configuration', icon: Sliders },
+  ];
+
   return (
     <div className="min-h-screen bg-black text-white font-sans border-l-0 lg:border-l-4 lg:border-red-900 flex flex-col lg:flex-row">
-      <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900"><div className="font-bold text-red-500">ADMIN PANEL</div><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button></div>
-      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}><h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2><nav className="space-y-2 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'} ${item.id === activeTab ? 'bg-red-900/20 text-red-400 border border-red-900/50' : ''}`}><item.icon size={18} /> {item.label}</div>))}</nav><button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-2">Log Out <ArrowRight size={14} /></button></div>
+      <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900">
+        <div className="font-bold text-red-500">ADMIN PANEL</div>
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">
+          {mobileMenuOpen ? <X /> : <Menu />}
+        </button>
+      </div>
+
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}>
+        <h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">ADMIN<span className="text-white">_PANEL</span></h2>
+        <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
+          {menuItems.map((item) => (
+            <div 
+              key={item.id} 
+              onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} 
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 text-sm font-medium ${activeTab === item.id ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'}`}
+            >
+              <item.icon size={18} /> {item.label}
+            </div>
+          ))}
+        </nav>
+        <button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-4 px-4 py-2 border-t border-zinc-800 pt-4">
+          Log Out <ArrowRight size={14} />
+        </button>
+      </div>
+
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
+        {activeTab === 'dashboard' && <AdminDashboardView clients={clients} />}
+        {activeTab === 'projects' && <AdminPipelineView clients={clients} />}
         {activeTab === 'clients' && <AdminClientsManager clients={clients} setClients={setClients} />}
-        {activeTab === 'users' && <AdminUsersManager />}
         {activeTab === 'financials' && <AdminFinancialsView clients={clients} />}
-        {activeTab === 'settings' && <AdminSettingsView settings={adminSettings} onUpdateSettings={setAdminSettings} />}
+        {activeTab === 'data' && <AdminDataAIView />}
+        {activeTab === 'reports' && <AdminReportsView clients={clients} />}
+        {activeTab === 'logs' && <AdminActivityLogsView clients={clients} />}
+        {activeTab === 'users' && <AdminUsersManager />}
+        {activeTab === 'settings' && <AdminGlobalSettingsView settings={adminSettings} onUpdateSettings={setAdminSettings} />}
       </div>
     </div>
   );
