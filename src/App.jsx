@@ -656,12 +656,10 @@ function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
 }
 
 function AdminDataAIView() {
-    // Only UI configuration remains here. 
-    // Actual keys should be stored in Firebase Functions secrets or Firestore (now that it is secured).
-    // For security, we remove the display of API keys here or mask them significantly.
-    
+    // State now initializes with a placeholder for geminiKey
     const [config, setConfig] = useState({
         activeModel: 'gemini', 
+        geminiKey: '', // Added field for the key
         systemPrompt: "You are WEBFRONT_AI, a helpful assistant for digital agencies. Always be concise and professional.",
         knowledgeSources: []
     });
@@ -674,13 +672,12 @@ function AdminDataAIView() {
                 const docRef = doc(db, "admin", "ai_settings");
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
-                    // Do not load keys into frontend state if possible, unless you have a secure way to mask them.
                     const data = docSnap.data();
                     setConfig(prev => ({ 
                         ...prev, 
                         ...data,
-                        geminiKey: '', // Don't show actual key
-                        openaiKey: ''  // Don't show actual key
+                        // Optional: If you want to mask the key on load so it isn't fully visible
+                        // geminiKey: data.geminiKey ? '••••••••••••••••' : '' 
                     }));
                 }
             } catch (error) {
@@ -695,9 +692,6 @@ function AdminDataAIView() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            // Save logic...
-            // Note: If you want to update keys, you'd send them here.
-            // But they are now protected by Firestore Rules.
             await setDoc(doc(db, "admin", "ai_settings"), config, { merge: true });
             alert("AI Configuration Saved Successfully!");
         } catch (error) {
@@ -708,6 +702,7 @@ function AdminDataAIView() {
         }
     };
 
+    // ... handleAddSource and handleRemoveSource remain the same ...
     const handleAddSource = () => {
         const name = prompt("Enter Knowledge Source Name (e.g., 'Q3 Financial Report'):");
         if (!name) return;
@@ -761,17 +756,32 @@ function AdminDataAIView() {
                             <select 
                                 value={config.activeModel}
                                 onChange={(e) => setConfig({...config, activeModel: e.target.value})}
-                                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors"
+                                className="w-full bg-blackHv border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-noneKP transition-colors"
                             >
                                 <option value="gemini">Google Gemini 1.5 Flash</option>
                                 <option value="openai">OpenAI GPT-4o</option>
                             </select>
                         </div>
-                        {/* NOTE: We removed the API Key Input fields here.
-                           Keys should be set in Firebase Functions Secrets or 
-                           stored in the secure admin/ai_settings document via a secure Admin script, 
-                           not displayed in plain text in the browser.
-                        */}
+
+                        {/* --- ADDED: Gemini API Key Input --- */}
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-2">Gemini API Key</label>
+                            <div className="relative">
+                                <input 
+                                    type="password" 
+                                    value={config.geminiKey || ''}
+                                    onChange={(e) => setConfig({...config, geminiKey: e.target.value})}
+                                    className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors"
+                                    placeholder="AIzaSy..."
+                                />
+                                <Lock size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                            </div>
+                            <p className="text-xs text-zinc-500 mt-2">
+                                stored securely in Firestore (admin only).
+                            </p>
+                        </div>
+                        {/* ----------------------------------- */}
+
                         <div>
                             <label className="block text-sm font-medium text-zinc-400 mb-2">System Prompt (Global)</label>
                             <textarea 
@@ -783,6 +793,7 @@ function AdminDataAIView() {
                         </div>
                     </div>
                 </div>
+
                 {/* Knowledge Sources Section (Unchanged) */}
                 <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
                     <div className="flex justify-between items-center mb-6">
@@ -846,7 +857,6 @@ function AdminDataAIView() {
         </div>
     );
 }
-
 // ... Admin Views (AdminDashboardView, AdminPipelineView, etc) ...
 // ... AdminReportsView, AdminActivityLogsView, AdminGlobalSettingsView, AdminClientsManager, AdminUsersManager, AdminFinancialsView, AdminPortal ...
 // [Assume these components are unchanged from your original upload]
