@@ -23,11 +23,13 @@ import {
   doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs, addDoc, deleteDoc, arrayUnion, arrayRemove
 } from 'firebase/firestore';
 
+import { httpsCallable } from 'firebase/functions'; // ADDED
+
 // --- LOCAL FIREBASE CONFIG ---
-import { auth, db, storage } from './firebase'; 
+import { auth, db, storage, functions } from './firebase'; 
 // --------------------------------
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+// SECURITY: Removed API keys from frontend. They are no longer safe here.
 
 // --- HELPER FUNCTIONS ---
 const convertToBase64 = (file) => {
@@ -45,90 +47,16 @@ const safeParseAmount = (amount) => {
   return 0;
 };
 
-// --- API LOGIC ---
-
-// 1. Updated Gemini Function (Fixed Model Name)
-const callGemini = async (userQuery, systemPrompt, apiKey) => {
-  if (!apiKey) throw new Error("Gemini API Key is missing.");
-  
-  // UPDATED: Using gemini-2.5-flash as 1.5 is deprecated
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-  
-  const payload = {
-    contents: [{ parts: [{ text: userQuery }] }],
-    systemInstruction: { parts: [{ text: systemPrompt }] }
-  };
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-       const errorData = await response.json();
-       console.error("Gemini API Error:", JSON.stringify(errorData, null, 2));
-       throw new Error(errorData.error?.message || "Gemini API Failed");
-    }
-    
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch (error) {
-    console.error("Gemini Error:", error);
-    throw error; 
-  }
-};
-
-// 2. New OpenAI Function
-const callOpenAI = async (userQuery, systemPrompt, apiKey) => {
-  if (!apiKey) throw new Error("OpenAI API Key is missing.");
-
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: "gpt-4o", // Or "gpt-3.5-turbo"
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userQuery }
-        ]
-      })
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || "OpenAI API Failed");
-    return data.choices[0].message.content;
-  } catch (error) {
-    console.error("OpenAI Error:", error);
-    throw error;
-  }
-};
-
-// --- UPDATED AI CHAT COMPONENT ---
+// --- UPDATED AI CHAT COMPONENT (SECURE) ---
 
 function AIChatDemo() {
   const [messages, setMessages] = useState([{ role: 'ai', text: "Hello. I am WEBFRONT_AI. How can I assist your agency today?" }]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  
-  // State to hold live settings from Firestore
-  const [aiConfig, setAiConfig] = useState(null); 
   const chatContainerRef = useRef(null);
 
-  // 1. Fetch Admin Settings on Mount
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "admin", "ai_settings"), (docSnap) => {
-      if (docSnap.exists()) {
-        setAiConfig(docSnap.data());
-      }
-    });
-    return () => unsub();
-  }, []);
+  // SECURITY FIX: Removed useEffect that fetched admin/ai_settings. 
+  // Client should NEVER know the system prompt or API keys.
 
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
@@ -155,27 +83,22 @@ function AIChatDemo() {
     setInput('');
     setIsTyping(true);
 
-    // 2. Determine Configuration (DB Priority -> Fallback to Defaults/Env)
-    const activeModel = aiConfig?.activeModel || 'gemini';
-    const systemPrompt = aiConfig?.systemPrompt || "You are WEBFRONT_AI... (Default Prompt)";
-    
-    // Use DB key if present, otherwise use secure .env key
-    const geminiKey = aiConfig?.geminiKey || import.meta.env.VITE_GEMINI_API_KEY;
-    const openaiKey = aiConfig?.openaiKey || import.meta.env.VITE_OPENAI_API_KEY;
-
     try {
-      let responseText;
+      // SECURITY FIX: Call Cloud Function instead of calling OpenAI/Gemini directly
+      const chatFunction = httpsCallable(functions, 'chatWithAI');
       
-      // 3. Switch Logic
-      if (activeModel === 'openai') {
-        responseText = await callOpenAI(userMsg, systemPrompt, openaiKey);
-      } else {
-        responseText = await callGemini(userMsg, systemPrompt, geminiKey);
-      }
+      const result = await chatFunction({ 
+        message: userMsg,
+        history: messages // Optional: Send history if your backend supports it
+      });
+
+      // The backend should return { text: "response" }
+      const responseText = result.data.text;
 
       setMessages(prev => [...prev, { role: 'ai', text: responseText }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'ai', text: "System Error: " + error.message }]);
+      console.error("AI Error:", error);
+      setMessages(prev => [...prev, { role: 'ai', text: "I am currently undergoing maintenance. Please try again later." }]);
     } finally {
       setIsTyping(false);
     }
@@ -187,7 +110,7 @@ function AIChatDemo() {
         <div className="flex items-center gap-2">
            <div className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_2s_infinite]"></div>
            <span className="font-mono text-sm text-zinc-400">
-             WEBFRONT_AI {aiConfig?.activeModel === 'openai' ? '(GPT-4o)' : '(Gemini)'}
+             WEBFRONT_AI
            </span>
         </div>
         <Sparkles size={18} className="text-blue-400 animate-pulse" />
@@ -210,7 +133,10 @@ function AIChatDemo() {
   );
 }
 
-// --- UI HELPERS ---
+// ... Rest of your UI Helper Components (FadeIn, Button, Card, etc.) remain exactly the same ...
+// [The rest of the code for ProjectOnboardingModal, AuthScreen, LandingPage, Client Views, Admin Views is unchanged]
+// [Only minor adjustment below in AdminDataAIView to remove placeholder text about keys being exposed]
+
 function useOnScreen(ref, rootMargin = "0px") {
   const [isIntersecting, setIntersecting] = useState(false);
   useEffect(() => {
@@ -371,7 +297,6 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
   );
 }
 
-// --- LANDING PAGE ---
 function LandingPage({ onLogin }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false); 
   const [scrolled, setScrolled] = useState(false);
@@ -486,7 +411,9 @@ function LandingPage({ onLogin }) {
   );
 }
 
-// --- CLIENT VIEWS ---
+// ... Client Views (Dashboard, Projects, etc) - No changes required here ...
+// [Assume ClientDashboardView, ClientProjectsView, ClientDocumentsView, ClientMessagesView, ClientInvoicesView, ClientKnowledgeBaseView, SettingsView exist as before]
+
 function ClientDashboardView({ data }) {
   // Ensure we are working with the isolated client data passed from ClientPortal
   const invoices = data.invoices || [];
@@ -722,15 +649,209 @@ function ClientKnowledgeBaseView() {
     );
 }
 
-// --- SHARED SETTINGS VIEW ---
 function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
   const [name, setName] = useState(data?.name || "");
   const handleSave = () => { onUpdateClient({ ...data, name }); };
   return (<div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Settings</h1><p className="text-zinc-500">Manage your account preferences.</p></div><div className="grid gap-8 max-w-2xl"><div className="space-y-4"><h3 className="text-lg font-bold flex items-center gap-2"><User size={18}/> Profile Details</h3><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Company / Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label><input type="text" value={data?.email || ""} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button></div><div className="space-y-4 pt-4 border-t border-zinc-800"><h3 className="text-lg font-bold flex items-center gap-2 text-red-500"><Shield size={18}/> Danger Zone</h3><Button onClick={() => onDeleteAccount(data?.id)} variant="danger" className="w-full justify-start">Delete My Account</Button></div></div></div>);
 }
 
-// --- NEW ADMIN VIEWS ---
+function AdminDataAIView() {
+    // Only UI configuration remains here. 
+    // Actual keys should be stored in Firebase Functions secrets or Firestore (now that it is secured).
+    // For security, we remove the display of API keys here or mask them significantly.
+    
+    const [config, setConfig] = useState({
+        activeModel: 'gemini', 
+        systemPrompt: "You are WEBFRONT_AI, a helpful assistant for digital agencies. Always be concise and professional.",
+        knowledgeSources: []
+    });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const docRef = doc(db, "admin", "ai_settings");
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    // Do not load keys into frontend state if possible, unless you have a secure way to mask them.
+                    const data = docSnap.data();
+                    setConfig(prev => ({ 
+                        ...prev, 
+                        ...data,
+                        geminiKey: '', // Don't show actual key
+                        openaiKey: ''  // Don't show actual key
+                    }));
+                }
+            } catch (error) {
+                console.error("Error fetching AI settings:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSettings();
+    }, []);
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            // Save logic...
+            // Note: If you want to update keys, you'd send them here.
+            // But they are now protected by Firestore Rules.
+            await setDoc(doc(db, "admin", "ai_settings"), config, { merge: true });
+            alert("AI Configuration Saved Successfully!");
+        } catch (error) {
+            console.error("Error saving settings:", error);
+            alert("Failed to save settings: " + error.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleAddSource = () => {
+        const name = prompt("Enter Knowledge Source Name (e.g., 'Q3 Financial Report'):");
+        if (!name) return;
+        const type = prompt("Enter Source Type (e.g., 'File', 'Notion', 'Website'):", "File");
+        
+        const newSource = {
+            id: Date.now(), 
+            name,
+            type: type || "Custom",
+            lastSynced: new Date().toLocaleDateString(),
+            status: "Active"
+        };
+
+        setConfig(prev => ({
+            ...prev,
+            knowledgeSources: [...(prev.knowledgeSources || []), newSource]
+        }));
+    };
+
+    const handleRemoveSource = (id) => {
+        if (!confirm("Are you sure you want to remove this data source? This cannot be undone.")) return;
+        setConfig(prev => ({
+            ...prev,
+            knowledgeSources: prev.knowledgeSources.filter(s => s.id !== id)
+        }));
+    };
+
+    if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/> Loading AI Settings...</div>;
+
+    return (
+        <div className="animate-fade-in max-w-4xl">
+            <div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold mb-1">Data & AI Models</h1>
+                    <p className="text-zinc-500">Configure LLM parameters and manage knowledge sources.</p>
+                </div>
+                <Button variant="primary" onClick={handleSave} disabled={saving} className="shadow-blue-900/20">
+                    {saving ? <Loader2 className="animate-spin mr-2" size={18}/> : <Save className="mr-2" size={18}/>} 
+                    {saving ? "Saving..." : "Save Configuration"}
+                </Button>
+            </div>
+            
+            <div className="grid gap-8">
+                <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+                    <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-white">
+                        <Brain size={20} className="text-purple-500"/> Model Configuration
+                    </h3>
+                    <div className="grid gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-2">Primary LLM Provider</label>
+                            <select 
+                                value={config.activeModel}
+                                onChange={(e) => setConfig({...config, activeModel: e.target.value})}
+                                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors"
+                            >
+                                <option value="gemini">Google Gemini 1.5 Flash</option>
+                                <option value="openai">OpenAI GPT-4o</option>
+                            </select>
+                        </div>
+                        {/* NOTE: We removed the API Key Input fields here.
+                           Keys should be set in Firebase Functions Secrets or 
+                           stored in the secure admin/ai_settings document via a secure Admin script, 
+                           not displayed in plain text in the browser.
+                        */}
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-2">System Prompt (Global)</label>
+                            <textarea 
+                                className="w-full h-32 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none text-sm font-mono leading-relaxed" 
+                                value={config.systemPrompt}
+                                onChange={(e) => setConfig({...config, systemPrompt: e.target.value})}
+                                placeholder="Define the AI's persona and rules..."
+                            />
+                        </div>
+                    </div>
+                </div>
+                {/* Knowledge Sources Section (Unchanged) */}
+                <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold flex items-center gap-2 text-white">
+                            <Database size={20} className="text-blue-500"/> Knowledge Sources
+                        </h3>
+                        <Button variant="secondary" onClick={handleAddSource} className="py-2 px-4 text-xs h-auto border-dashed border-zinc-700 hover:border-blue-500 hover:text-blue-400">
+                            <Plus size={14} className="mr-1"/> Add Source
+                        </Button>
+                    </div>
+                    <div className="border border-zinc-800 rounded-lg overflow-hidden bg-black/20">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-zinc-900/80 text-zinc-400 font-medium">
+                                <tr>
+                                    <th className="p-4">Source Name</th>
+                                    <th className="p-4">Type</th>
+                                    <th className="p-4">Last Synced</th>
+                                    <th className="p-4">Status</th>
+                                    <th className="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800">
+                                {config.knowledgeSources && config.knowledgeSources.length > 0 ? (
+                                    config.knowledgeSources.map((source) => (
+                                        <tr key={source.id} className="group hover:bg-zinc-800/30 transition-colors">
+                                            <td className="p-4 font-medium text-white">{source.name}</td>
+                                            <td className="p-4">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${source.type === 'Scraper' ? 'bg-blue-900/30 text-blue-400' : 'bg-orange-900/30 text-orange-400'}`}>
+                                                    {source.type}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-zinc-500">{source.lastSynced}</td>
+                                            <td className="p-4">
+                                                <span className="text-green-500 text-xs flex items-center gap-1">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> {source.status}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <button 
+                                                    onClick={() => handleRemoveSource(source.id)} 
+                                                    className="text-zinc-600 hover:text-red-500 transition-colors p-2 hover:bg-red-500/10 rounded-lg"
+                                                    title="Remove Source"
+                                                >
+                                                    <Trash2 size={16}/>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5" className="p-8 text-center text-zinc-500">
+                                            No knowledge sources added yet.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ... Admin Views (AdminDashboardView, AdminPipelineView, etc) ...
+// ... AdminReportsView, AdminActivityLogsView, AdminGlobalSettingsView, AdminClientsManager, AdminUsersManager, AdminFinancialsView, AdminPortal ...
+// [Assume these components are unchanged from your original upload]
+
+// [RE-INSERTING Unchanged Components for completeness so the file is runnable]
 function AdminDashboardView({ clients }) {
   // Helper to parse amounts safely
   const parseAmount = (amt) => {
@@ -877,214 +998,6 @@ function AdminPipelineView({ clients }) {
   );
 }
 
-function AdminDataAIView() {
-    const [config, setConfig] = useState({
-        activeModel: 'gemini', 
-        geminiKey: '',
-        openaiKey: '',
-        systemPrompt: "You are WEBFRONT_AI, a helpful assistant for digital agencies. Always be concise and professional.",
-        knowledgeSources: []
-    });
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-
-    useEffect(() => {
-        const fetchSettings = async () => {
-            try {
-                const docRef = doc(db, "admin", "ai_settings");
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    setConfig(prev => ({ ...prev, ...docSnap.data() }));
-                }
-            } catch (error) {
-                console.error("Error fetching AI settings:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchSettings();
-    }, []);
-
-    const handleSave = async () => {
-        setSaving(true);
-        try {
-            await setDoc(doc(db, "admin", "ai_settings"), config);
-            alert("AI Configuration Saved Successfully!");
-        } catch (error) {
-            console.error("Error saving settings:", error);
-            alert("Failed to save settings: " + error.message);
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleAddSource = () => {
-        const name = prompt("Enter Knowledge Source Name (e.g., 'Q3 Financial Report'):");
-        if (!name) return;
-        const type = prompt("Enter Source Type (e.g., 'File', 'Notion', 'Website'):", "File");
-        
-        const newSource = {
-            id: Date.now(), 
-            name,
-            type: type || "Custom",
-            lastSynced: new Date().toLocaleDateString(),
-            status: "Active"
-        };
-
-        setConfig(prev => ({
-            ...prev,
-            knowledgeSources: [...(prev.knowledgeSources || []), newSource]
-        }));
-    };
-
-    const handleRemoveSource = (id) => {
-        if (!confirm("Are you sure you want to remove this data source? This cannot be undone.")) return;
-        setConfig(prev => ({
-            ...prev,
-            knowledgeSources: prev.knowledgeSources.filter(s => s.id !== id)
-        }));
-    };
-
-    if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/> Loading AI Settings...</div>;
-
-    return (
-        <div className="animate-fade-in max-w-4xl">
-            <div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold mb-1">Data & AI Models</h1>
-                    <p className="text-zinc-500">Configure LLM parameters and manage knowledge sources.</p>
-                </div>
-                <Button variant="primary" onClick={handleSave} disabled={saving} className="shadow-blue-900/20">
-                    {saving ? <Loader2 className="animate-spin mr-2" size={18}/> : <Save className="mr-2" size={18}/>} 
-                    {saving ? "Saving..." : "Save Configuration"}
-                </Button>
-            </div>
-            
-            <div className="grid gap-8">
-                <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
-                    <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-white">
-                        <Brain size={20} className="text-purple-500"/> Model Configuration
-                    </h3>
-                    <div className="grid gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-2">Primary LLM Provider</label>
-                            <select 
-                                value={config.activeModel}
-                                onChange={(e) => setConfig({...config, activeModel: e.target.value})}
-                                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors"
-                            >
-                                <option value="gemini">Google Gemini 1.5 Flash</option>
-                                <option value="openai">OpenAI GPT-4o</option>
-                            </select>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-400 mb-2 flex items-center justify-between">
-                                    <span>Google Gemini API Key</span>
-                                    {config.activeModel === 'gemini' && <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">ACTIVE</span>}
-                                </label>
-                                <div className="relative">
-                                    <input 
-                                        type="password" 
-                                        value={config.geminiKey} 
-                                        onChange={(e) => setConfig({...config, geminiKey: e.target.value})} 
-                                        placeholder="AIzaSy..."
-                                        className={`w-full bg-black border rounded-lg px-4 py-3 text-white outline-none focus:ring-1 transition-all ${config.activeModel === 'gemini' ? 'border-purple-500/50 focus:border-purple-500 focus:ring-purple-500/20' : 'border-zinc-700 focus:border-zinc-500'}`} 
-                                    />
-                                    <Lock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600"/>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-400 mb-2 flex items-center justify-between">
-                                    <span>OpenAI API Key</span>
-                                    {config.activeModel === 'openai' && <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">ACTIVE</span>}
-                                </label>
-                                <div className="relative">
-                                    <input 
-                                        type="password" 
-                                        value={config.openaiKey} 
-                                        onChange={(e) => setConfig({...config, openaiKey: e.target.value})} 
-                                        placeholder="sk-..."
-                                        className={`w-full bg-black border rounded-lg px-4 py-3 text-white outline-none focus:ring-1 transition-all ${config.activeModel === 'openai' ? 'border-purple-500/50 focus:border-purple-500 focus:ring-purple-500/20' : 'border-zinc-700 focus:border-zinc-500'}`} 
-                                    />
-                                    <Lock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600"/>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-2">System Prompt (Global)</label>
-                            <textarea 
-                                className="w-full h-32 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none text-sm font-mono leading-relaxed" 
-                                value={config.systemPrompt}
-                                onChange={(e) => setConfig({...config, systemPrompt: e.target.value})}
-                                placeholder="Define the AI's persona and rules..."
-                            />
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-bold flex items-center gap-2 text-white">
-                            <Database size={20} className="text-blue-500"/> Knowledge Sources
-                        </h3>
-                        <Button variant="secondary" onClick={handleAddSource} className="py-2 px-4 text-xs h-auto border-dashed border-zinc-700 hover:border-blue-500 hover:text-blue-400">
-                            <Plus size={14} className="mr-1"/> Add Source
-                        </Button>
-                    </div>
-                    <div className="border border-zinc-800 rounded-lg overflow-hidden bg-black/20">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-zinc-900/80 text-zinc-400 font-medium">
-                                <tr>
-                                    <th className="p-4">Source Name</th>
-                                    <th className="p-4">Type</th>
-                                    <th className="p-4">Last Synced</th>
-                                    <th className="p-4">Status</th>
-                                    <th className="p-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-800">
-                                {config.knowledgeSources && config.knowledgeSources.length > 0 ? (
-                                    config.knowledgeSources.map((source) => (
-                                        <tr key={source.id} className="group hover:bg-zinc-800/30 transition-colors">
-                                            <td className="p-4 font-medium text-white">{source.name}</td>
-                                            <td className="p-4">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold ${source.type === 'Scraper' ? 'bg-blue-900/30 text-blue-400' : 'bg-orange-900/30 text-orange-400'}`}>
-                                                    {source.type}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 text-zinc-500">{source.lastSynced}</td>
-                                            <td className="p-4">
-                                                <span className="text-green-500 text-xs flex items-center gap-1">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> {source.status}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 text-right">
-                                                <button 
-                                                    onClick={() => handleRemoveSource(source.id)} 
-                                                    className="text-zinc-600 hover:text-red-500 transition-colors p-2 hover:bg-red-500/10 rounded-lg"
-                                                    title="Remove Source"
-                                                >
-                                                    <Trash2 size={16}/>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="5" className="p-8 text-center text-zinc-500">
-                                            No knowledge sources added yet.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 function AdminReportsView({ clients }) {
   const generateCSV = () => {
       const headers = "Client,Project,Phase,Revenue,Status\n";
@@ -1205,8 +1118,6 @@ function AdminGlobalSettingsView({ settings, onUpdateSettings }) {
         </div>
     );
 }
-
-// --- UPDATED ADMIN LOGIC COMPONENTS (Logging & Chat Added) ---
 
 function AdminClientsManager({ clients }) {
   const [selectedClientId, setSelectedClientId] = useState(null);
@@ -1484,7 +1395,6 @@ function AdminFinancialsView({ clients }) {
   );
 }
 
-// --- UPDATED ADMIN PORTAL ---
 function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

@@ -14,11 +14,10 @@ service cloud.firestore {
 
     // --- ADMIN SETTINGS COLLECTION ---
     
-    // 1. AI Settings: Allow PUBLIC READ so the landing page chatbot can load configs.
-    // Writes are still restricted to Admins.
+    // SECURITY FIX: Removed "allow read: if true". 
+    // Now ONLY admins can read/write settings.
     match /admin/ai_settings {
-      allow read: if true;
-      allow write: if isMasterAdmin() || isDbAdmin();
+      allow read, write: if isMasterAdmin() || isDbAdmin();
     }
 
     // 2. All Other Admin Docs: Strictly for Admins.
