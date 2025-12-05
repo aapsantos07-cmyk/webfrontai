@@ -126,7 +126,7 @@ function AIChatDemo() {
         {isTyping && <div className="flex justify-start animate-pulse"><div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center border border-zinc-700"><Loader2 size={14} className="animate-spin text-zinc-500" /><span className="text-xs text-zinc-500 ml-2">Thinking...</span></div></div>}
       </div>
       <div className="p-4 bg-zinc-900/50 border-t border-zinc-800 flex gap-2">
-        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }} placeholder="Ask about pricing, services..." className="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-white transition-colors"/>
+        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }} placeholder="Ask about pricing, services..." className="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-4 py-2 text-base md:text-sm text-white focus:outline-none focus:border-white transition-colors"/>
         <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors transform active:scale-95"><Send size={18} /></button>
       </div>
     </div>
@@ -205,7 +205,7 @@ function ProjectOnboardingModal({ isOpen, onSubmit }) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 ml-1">Project Name</label>
-            <input autoFocus type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. Acme Corp Redesign" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-4 text-white text-lg focus:outline-none focus:border-blue-500 focus:bg-zinc-900 transition-all"/>
+            <input autoFocus type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. Acme Corp Redesign" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-4 text-white text-base md:text-lg focus:outline-none focus:border-blue-500 focus:bg-zinc-900 transition-all"/>
           </div>
           <Button type="submit" variant="primary" className="w-full py-4 text-lg" disabled={!projectName.trim() || loading}>
             {loading ? <><Loader2 className="animate-spin mr-2"/> Setting up...</> : <>Launch Project <ArrowRight size={20}/></>}
@@ -265,12 +265,12 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
             {isSignUp && !isForgotPassword && (
               <div className="animate-fade-in">
                 <label className="block text-sm text-zinc-400 mb-2 font-medium">Full Name / Company</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="e.g. Acme Corp" required={isSignUp} />
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="e.g. Acme Corp" required={isSignUp} />
               </div>
             )}
             <div>
               <label className="block text-sm text-zinc-400 mb-2 font-medium">Email Address</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="name@company.com" required />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="name@company.com" required />
             </div>
             {!isForgotPassword && (
               <div>
@@ -278,7 +278,7 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
                   <label className="block text-sm text-zinc-400 font-medium">Password</label>
                   {!isSignUp && (<button type="button" onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMessage(''); }} className="text-xs text-blue-400 hover:text-blue-300">Forgot Password?</button>)}
                 </div>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required />
               </div>
             )}
             <button type="submit" disabled={isLoading} className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -501,7 +501,7 @@ function ClientMessagesView({ data }) {
     const messages = data.messages || [{ sender: 'admin', text: 'Welcome to your portal! Let us know if you have questions.', time: 'System • Just now' }];
     const handleSendMessage = async (e) => { e.preventDefault(); if (!messageInput.trim()) return; try { await updateDoc(doc(db, "clients", data.id), { messages: arrayUnion({ sender: 'client', text: messageInput, time: new Date().toLocaleString() }) }); setMessageInput(""); } catch (err) { console.error("Message failed", err); } };
     return (
-        <div className="animate-fade-in h-full flex flex-col"><div className="mb-4"><h1 className="text-3xl font-bold mb-1">Messages</h1><p className="text-zinc-500">Direct line to your project manager.</p></div><div className="flex-1 bg-zinc-900/30 border border-zinc-800 rounded-2xl flex flex-col overflow-hidden h-[500px]"><div className="flex-1 p-6 overflow-y-auto space-y-4 custom-scrollbar">{messages.map((msg, i) => (<div key={i} className={`flex ${msg.sender === 'client' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[80%] p-4 rounded-2xl ${msg.sender === 'client' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}><p className="text-sm">{msg.text}</p><p className={`text-[10px] mt-2 ${msg.sender === 'client' ? 'text-blue-200' : 'text-zinc-500'}`}>{msg.time}</p></div></div>))}</div><form onSubmit={handleSendMessage} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2"><input className="flex-1 bg-black border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="Type your message..." value={messageInput} onChange={(e) => setMessageInput(e.target.value)}/><button type="submit" disabled={!messageInput.trim()} className="bg-white text-black p-3 rounded-xl hover:bg-gray-200 disabled:opacity-50"><Send size={20}/></button></form></div></div>
+        <div className="animate-fade-in h-full flex flex-col"><div className="mb-4"><h1 className="text-3xl font-bold mb-1">Messages</h1><p className="text-zinc-500">Direct line to your project manager.</p></div><div className="flex-1 bg-zinc-900/30 border border-zinc-800 rounded-2xl flex flex-col overflow-hidden h-[500px]"><div className="flex-1 p-6 overflow-y-auto space-y-4 custom-scrollbar">{messages.map((msg, i) => (<div key={i} className={`flex ${msg.sender === 'client' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[80%] p-4 rounded-2xl ${msg.sender === 'client' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}><p className="text-sm">{msg.text}</p><p className={`text-[10px] mt-2 ${msg.sender === 'client' ? 'text-blue-200' : 'text-zinc-500'}`}>{msg.time}</p></div></div>))}</div><form onSubmit={handleSendMessage} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2"><input className="flex-1 bg-black border border-zinc-700 rounded-xl px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500" placeholder="Type your message..." value={messageInput} onChange={(e) => setMessageInput(e.target.value)}/><button type="submit" disabled={!messageInput.trim()} className="bg-white text-black p-3 rounded-xl hover:bg-gray-200 disabled:opacity-50"><Send size={20}/></button></form></div></div>
     );
 }
 
@@ -650,7 +650,7 @@ function ClientKnowledgeBaseView() {
 function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
   const [name, setName] = useState(data?.name || "");
   const handleSave = () => { onUpdateClient({ ...data, name }); };
-  return (<div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Settings</h1><p className="text-zinc-500">Manage your account preferences.</p></div><div className="grid gap-8 max-w-2xl"><div className="space-y-4"><h3 className="text-lg font-bold flex items-center gap-2"><User size={18}/> Profile Details</h3><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Company / Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label><input type="text" value={data?.email || ""} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button></div><div className="space-y-4 pt-4 border-t border-zinc-800"><h3 className="text-lg font-bold flex items-center gap-2 text-red-500"><Shield size={18}/> Danger Zone</h3><Button onClick={() => onDeleteAccount(data?.id)} variant="danger" className="w-full justify-start">Delete My Account</Button></div></div></div>);
+  return (<div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Settings</h1><p className="text-zinc-500">Manage your account preferences.</p></div><div className="grid gap-8 max-w-2xl"><div className="space-y-4"><h3 className="text-lg font-bold flex items-center gap-2"><User size={18}/> Profile Details</h3><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Company / Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-base md:text-sm text-white focus:border-blue-500 focus:outline-none" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label><input type="text" value={data?.email || ""} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-base md:text-sm text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button></div><div className="space-y-4 pt-4 border-t border-zinc-800"><h3 className="text-lg font-bold flex items-center gap-2 text-red-500"><Shield size={18}/> Danger Zone</h3><Button onClick={() => onDeleteAccount(data?.id)} variant="danger" className="w-full justify-start">Delete My Account</Button></div></div></div>);
 }
 
 function AdminDataAIView() {
@@ -754,7 +754,7 @@ function AdminDataAIView() {
                             <select 
                                 value={config.activeModel}
                                 onChange={(e) => setConfig({...config, activeModel: e.target.value})}
-                                className="w-full bg-blackHv border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-noneKP transition-colors"
+                                className="w-full bg-blackHv border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:border-purple-500 outline-noneKP transition-colors"
                             >
                                 <option value="gemini">Google Gemini 1.5 Flash</option>
                                 <option value="openai">OpenAI GPT-4o</option>
@@ -769,7 +769,7 @@ function AdminDataAIView() {
                                     type="password" 
                                     value={config.geminiKey || ''}
                                     onChange={(e) => setConfig({...config, geminiKey: e.target.value})}
-                                    className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors"
+                                    className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:border-purple-500 outline-none transition-colors"
                                     placeholder="AIzaSy..."
                                 />
                                 <Lock size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -783,7 +783,7 @@ function AdminDataAIView() {
                         <div>
                             <label className="block text-sm font-medium text-zinc-400 mb-2">System Prompt (Global)</label>
                             <textarea 
-                                className="w-full h-32 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none text-sm font-mono leading-relaxed" 
+                                className="w-full h-32 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:border-purple-500 outline-none font-mono leading-relaxed" 
                                 value={config.systemPrompt}
                                 onChange={(e) => setConfig({...config, systemPrompt: e.target.value})}
                                 placeholder="Define the AI's persona and rules..."
@@ -1099,11 +1099,11 @@ function AdminGlobalSettingsView({ settings, onUpdateSettings }) {
                     <div className="grid gap-4">
                         <div>
                             <label className="block text-sm font-medium text-zinc-400 mb-2">Platform Name</label>
-                            <input type="text" value="WebFront OS" disabled className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-zinc-500" />
+                            <input type="text" value="WebFront OS" disabled className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-zinc-500" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-zinc-400 mb-2">Admin Email Notification</label>
-                            <input type="text" value={config.email} onChange={(e) => setConfig({...config, email: e.target.value})} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:border-blue-500" />
+                            <input type="text" value={config.email} onChange={(e) => setConfig({...config, email: e.target.value})} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:border-blue-500" />
                         </div>
                     </div>
                 </div>
@@ -1248,7 +1248,7 @@ function AdminClientsManager({ clients }) {
 
       {/* Main Details View */}
       <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl p-8 h-full w-full overflow-y-auto shadow-2xl relative custom-scrollbar">
-        {isAddingNew && (<div className="animate-fade-in max-w-xl mx-auto mt-10"><div className="text-center mb-10"><div className="w-16 h-16 bg-blue-600/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/30"><Users size={32}/></div><h2 className="text-3xl font-bold text-white">Onboard New Client</h2><p className="text-zinc-500 mt-2">Create a secure workspace.</p></div><form onSubmit={handleCreateClient} className="space-y-6"><div className="space-y-4"><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Company</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.name} onChange={e => setNewClientData({...newClientData, name: e.target.value})} placeholder="e.g. Acme Corp"/></div><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Email</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.email} onChange={e => setNewClientData({...newClientData, email: e.target.value})} placeholder="client@acme.com"/></div><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Project</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white" value={newClientData.project} onChange={e => setNewClientData({...newClientData, project: e.target.value})} placeholder="e.g. Website Redesign"/></div></div><div className="pt-6 flex gap-3"><Button variant="secondary" className="flex-1 py-3" onClick={() => setIsAddingNew(false)}>Cancel</Button><Button type="submit" variant="success" className="flex-[2] py-3 font-bold">Create</Button></div></form></div>)}
+        {isAddingNew && (<div className="animate-fade-in max-w-xl mx-auto mt-10"><div className="text-center mb-10"><div className="w-16 h-16 bg-blue-600/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/30"><Users size={32}/></div><h2 className="text-3xl font-bold text-white">Onboard New Client</h2><p className="text-zinc-500 mt-2">Create a secure workspace.</p></div><form onSubmit={handleCreateClient} className="space-y-6"><div className="space-y-4"><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Company</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-base md:text-sm text-white" value={newClientData.name} onChange={e => setNewClientData({...newClientData, name: e.target.value})} placeholder="e.g. Acme Corp"/></div><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Email</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-base md:text-sm text-white" value={newClientData.email} onChange={e => setNewClientData({...newClientData, email: e.target.value})} placeholder="client@acme.com"/></div><div><label className="block text-sm font-medium text-zinc-400 mb-1.5 ml-1">Project</label><input required className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-base md:text-sm text-white" value={newClientData.project} onChange={e => setNewClientData({...newClientData, project: e.target.value})} placeholder="e.g. Website Redesign"/></div></div><div className="pt-6 flex gap-3"><Button variant="secondary" className="flex-1 py-3" onClick={() => setIsAddingNew(false)}>Cancel</Button><Button type="submit" variant="success" className="flex-[2] py-3 font-bold">Create</Button></div></form></div>)}
         
         {selectedClient && !isAddingNew && (
            <div className="animate-fade-in space-y-8">
@@ -1263,7 +1263,7 @@ function AdminClientsManager({ clients }) {
                     <div>
                       <label className="text-xs text-zinc-500 mb-2 block font-medium ml-1">Current Phase</label>
                       <div className="relative w-full">
-                        <select value={selectedClient.phase} onChange={(e) => handleUpdateClient('phase', e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white appearance-none focus:outline-none focus:border-purple-500">
+                        <select value={selectedClient.phase} onChange={(e) => handleUpdateClient('phase', e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white appearance-none focus:outline-none focus:border-purple-500">
                           <option>Discovery</option><option>Design</option><option>Development</option><option>Testing</option><option>Live</option>
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" size={16}/>
@@ -1284,7 +1284,7 @@ function AdminClientsManager({ clients }) {
                         type="text" 
                         value={selectedClient.milestone || ''} 
                         onChange={(e) => handleUpdateClient('milestone', e.target.value)} 
-                        className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500"
+                        className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-purple-500"
                         placeholder="e.g. Homepage Design"
                       />
                     </div>
@@ -1295,7 +1295,7 @@ function AdminClientsManager({ clients }) {
                         type="text" 
                         value={selectedClient.dueDate || ''} 
                         onChange={(e) => handleUpdateClient('dueDate', e.target.value)} 
-                        className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500"
+                        className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-purple-500"
                         placeholder="e.g. Oct 24, 2025"
                       />
                     </div>
@@ -1305,7 +1305,7 @@ function AdminClientsManager({ clients }) {
               
               {/* Grid: Invoices & Contracts */}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full"><div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-green-400"><DollarSign size={18}/> Invoices</h3></div><div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">{selectedClient.invoices?.map((inv, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors"><div className="min-w-0 pr-2"><div className="text-white font-medium truncate">{inv.desc}</div><div className="text-zinc-600 text-xs">{inv.id} • {inv.date}</div></div><div className="flex items-center gap-3 flex-shrink-0"><div className="text-right"><div className="font-mono text-zinc-300">{inv.amount}</div><span className={`text-[10px] font-bold ${inv.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{inv.status}</span></div>{inv.status !== 'Paid' && (<button onClick={() => handleMarkPaid(i)} className="bg-green-500/20 hover:bg-green-500/40 text-green-500 p-1.5 rounded-full"><CheckCircle2 size={16} /></button>)}</div></div>))}</div><div className="pt-4 border-t border-zinc-800"><div className="flex gap-2 flex-col sm:flex-row"><div className="flex-1 space-y-2 min-w-0"><input type="text" placeholder="Description" value={newInvoiceData.desc} onChange={e => setNewInvoiceData({...newInvoiceData, desc: e.target.value})} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none truncate"/><div className="flex gap-2"><input type="number" placeholder="$ Amount" value={newInvoiceData.amount} onChange={e => setNewInvoiceData({...newInvoiceData, amount: e.target.value})} className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none min-w-0"/><Button variant="success" className="px-4 py-2" onClick={handleAddInvoice}><Send size={16}/></Button></div></div></div></div></div>
+                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full"><div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-green-400"><DollarSign size={18}/> Invoices</h3></div><div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">{selectedClient.invoices?.map((inv, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors"><div className="min-w-0 pr-2"><div className="text-white font-medium truncate">{inv.desc}</div><div className="text-zinc-600 text-xs">{inv.id} • {inv.date}</div></div><div className="flex items-center gap-3 flex-shrink-0"><div className="text-right"><div className="font-mono text-zinc-300">{inv.amount}</div><span className={`text-[10px] font-bold ${inv.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{inv.status}</span></div>{inv.status !== 'Paid' && (<button onClick={() => handleMarkPaid(i)} className="bg-green-500/20 hover:bg-green-500/40 text-green-500 p-1.5 rounded-full"><CheckCircle2 size={16} /></button>)}</div></div>))}</div><div className="pt-4 border-t border-zinc-800"><div className="flex gap-2 flex-col sm:flex-row"><div className="flex-1 space-y-2 min-w-0"><input type="text" placeholder="Description" value={newInvoiceData.desc} onChange={e => setNewInvoiceData({...newInvoiceData, desc: e.target.value})} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-base md:text-sm text-white focus:border-green-500 outline-none truncate"/><div className="flex gap-2"><input type="number" placeholder="$ Amount" value={newInvoiceData.amount} onChange={e => setNewInvoiceData({...newInvoiceData, amount: e.target.value})} className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-base md:text-sm text-white focus:border-green-500 outline-none min-w-0"/><Button variant="success" className="px-4 py-2" onClick={handleAddInvoice}><Send size={16}/></Button></div></div></div></div></div>
                 <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-6 flex flex-col h-full"><div className="flex items-center justify-between mb-6"><h3 className="font-bold flex items-center gap-2 text-blue-400"><FileText size={18}/> Contracts</h3></div><div className="flex-1 space-y-3 mb-6 max-h-48 overflow-y-auto pr-2 custom-scrollbar">{selectedClient.contracts?.map((doc, i) => (<div key={i} className="flex justify-between items-center text-sm p-3 bg-black/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors group"><div className="flex items-center gap-3 min-w-0"><div className="bg-blue-500/10 text-blue-500 p-2 rounded-lg flex-shrink-0"><FileText size={16}/></div><div className="min-w-0"><div className="text-white font-medium truncate max-w-[150px]">{doc.name}</div><div className="text-zinc-600 text-xs">{doc.date}</div></div></div><a href={doc.url} download={doc.name} className="text-zinc-500 hover:text-white"><Download size={16}/></a></div>))}</div><div className="pt-4 border-t border-zinc-800"><label className="flex items-center justify-center w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer transition-colors"><UploadCloud size={18} className="mr-2"/> {contractUploading ? "Saving..." : "Upload (Max 1MB)"}<input type="file" className="hidden" onChange={handleUploadContract} disabled={contractUploading} /></label></div>{selectedClient.clientUploads?.length > 0 && (<div className="mt-4 pt-4 border-t border-zinc-800"><h4 className="text-xs font-bold text-zinc-500 uppercase mb-2">Client Files</h4><div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">{selectedClient.clientUploads.map((doc, i) => (<div key={i} className="flex justify-between items-center text-xs p-2 bg-zinc-800/50 rounded border border-zinc-700"><span className="truncate text-zinc-300">{doc.name}</span><a href={doc.url} download={doc.name} className="text-blue-400 hover:text-blue-300"><Download size={14}/></a></div>))}</div></div>)}</div>
               </div>
 
@@ -1333,7 +1333,7 @@ function AdminClientsManager({ clients }) {
                           placeholder="Type a message to client..." 
                           value={adminMessageInput} 
                           onChange={(e) => setAdminMessageInput(e.target.value)} 
-                          className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white focus:border-blue-500 outline-none"
+                          className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:border-blue-500 outline-none"
                       />
                       <Button variant="primary" type="submit" className="px-4"><Send size={18}/></Button>
                   </form>
