@@ -1128,9 +1128,10 @@ function AdminGlobalSettingsView({ settings, onUpdateSettings }) {
 }
 
 function AdminClientsManager({ clients }) {
+  const actualClients = clients.filter(c => c.role !== 'admin');
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
-  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const selectedClient = actualClients.find(c => c.id === selectedClientId);
   const [newClientData, setNewClientData] = useState({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 });
   const [newInvoiceData, setNewInvoiceData] = useState({ desc: '', amount: '' });
   const [contractUploading, setContractUploading] = useState(false);
@@ -1238,7 +1239,7 @@ function AdminClientsManager({ clients }) {
       <div className="w-full lg:w-1/3 flex flex-col gap-4 h-[300px] lg:h-full flex-shrink-0">
         <Button variant="accent" className="w-full justify-center py-4 rounded-xl shadow-blue-900/30" onClick={() => { setIsAddingNew(true); setSelectedClientId(null); }}><Plus size={18} /> Add New Client</Button>
         <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-xl overflow-hidden overflow-y-auto custom-scrollbar">
-          {clients.map(client => (
+          {actualClients.map(client => (
             <div key={client.id} onClick={() => { setSelectedClientId(client.id); setIsAddingNew(false); }} className={`p-5 border-b border-zinc-800/80 cursor-pointer transition-all duration-200 group ${selectedClient?.id === client.id ? 'bg-blue-900/10 border-l-4 border-l-blue-500 pl-4' : 'hover:bg-zinc-800/40 border-l-4 border-l-transparent hover:border-l-zinc-700'}`}>
               <div className="flex justify-between items-start mb-1"><span className={`font-bold text-lg truncate ${selectedClient?.id === client.id ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>{client.name}</span><span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-full font-bold border ${client.status === 'Completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>{client.status || 'Active'}</span></div><p className="text-sm text-zinc-500 mb-3 truncate group-hover:text-zinc-400">{client.project}</p><div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div className={`h-full rounded-full ${client.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${client.progress}%` }}></div></div>
             </div>
@@ -1389,17 +1390,18 @@ function AdminUsersManager() {
 }
 
 function AdminFinancialsView({ clients }) {
+  const actualClients = clients.filter(c => c.role !== 'admin');
   const parseAmount = (amt) => {
       if (typeof amt === 'number') return amt;
       if (typeof amt === 'string') return parseFloat(amt.replace(/[^0-9.-]+/g, "")) || 0;
       return 0;
   };
-  const totalRevenue = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status === 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
-  const totalOutstanding = clients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status !== 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
+  const totalRevenue = actualClients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status === 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
+  const totalOutstanding = actualClients.reduce((sum, c) => sum + (c.invoices?.filter(i => i.status !== 'Paid').reduce((s, i) => s + parseAmount(i.amount), 0) || 0), 0);
   const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
-  const allTransactions = clients.flatMap(client => (client.invoices || []).map(inv => ({ ...inv, clientName: client.name })));
+  const allTransactions = actualClients.flatMap(client => (client.invoices || []).map(inv => ({ ...inv, clientName: client.name })));
   return (
-  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Financials</h1><p className="text-zinc-500">Revenue tracking based on active client deals.</p></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><Card><h3 className="text-zinc-400 text-sm mb-1">Total Revenue</h3><p className="text-3xl font-bold text-green-500">{formatCurrency(totalRevenue)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Outstanding</h3><p className="text-3xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Active Deals</h3><p className="text-3xl font-bold text-blue-500">{clients.length}</p></Card></div><h3 className="text-xl font-bold mb-6">All Transactions</h3><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto"><div className="min-w-[600px]"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Client</div><div>Date</div><div>Invoice ID</div><div className="text-right">Amount</div></div>{allTransactions.map((t, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="text-white font-medium truncate">{t.clientName || 'Unknown'}</div><div className="text-zinc-500">{t.date}</div><div className="text-zinc-500 font-mono text-xs pt-1">{t.id}</div><div className={`text-right font-mono ${t.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{t.amount}</div></div>))}{allTransactions.length === 0 && <div className="p-4 text-center text-zinc-500">No transactions recorded.</div>}</div></div></div>
+  <div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Financials</h1><p className="text-zinc-500">Revenue tracking based on active client deals.</p></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><Card><h3 className="text-zinc-400 text-sm mb-1">Total Revenue</h3><p className="text-3xl font-bold text-green-500">{formatCurrency(totalRevenue)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Outstanding</h3><p className="text-3xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</p></Card><Card><h3 className="text-zinc-400 text-sm mb-1">Active Clients</h3><p className="text-3xl font-bold text-blue-500">{actualClients.length}</p></Card></div><h3 className="text-xl font-bold mb-6">All Transactions</h3><div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto"><div className="min-w-[600px]"><div className="grid grid-cols-4 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div>Client</div><div>Date</div><div>Invoice ID</div><div className="text-right">Amount</div></div>{allTransactions.map((t, i) => (<div key={i} className="grid grid-cols-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20 transition-colors"><div className="text-white font-medium truncate">{t.clientName || 'Unknown'}</div><div className="text-zinc-500">{t.date}</div><div className="text-zinc-500 font-mono text-xs pt-1">{t.id}</div><div className={`text-right font-mono ${t.status === 'Paid' ? 'text-green-500' : 'text-yellow-500'}`}>{t.amount}</div></div>))}{allTransactions.length === 0 && <div className="p-4 text-center text-zinc-500">No transactions recorded.</div>}</div></div></div>
   );
 }
 
@@ -1497,7 +1499,8 @@ export default function App() {
   const [clients, setClients] = useState([]); 
   const [currentClientData, setCurrentClientData] = useState(null); 
   const [appLoading, setAppLoading] = useState(true); 
-  const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: "aapsantos07@gmail.com", maintenanceMode: false });
+  const MASTER_ADMIN_EMAIL = import.meta.env.VITE_MASTER_ADMIN_EMAIL?.toLowerCase() || '';
+  const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: MASTER_ADMIN_EMAIL, maintenanceMode: false });
   const isSigningUp = useRef(false);
 
   useEffect(() => {
@@ -1506,7 +1509,7 @@ export default function App() {
       clearTimeout(safetyTimer);
       if (isSigningUp.current) return;
       if (user) {
-        const isMaster = user.email.toLowerCase() === 'aapsantos07@gmail.com';
+        const isMaster = user.email.toLowerCase() === MASTER_ADMIN_EMAIL;
         try {
           const docRef = doc(db, "clients", user.uid);
           const docSnap = await getDoc(docRef);
@@ -1545,7 +1548,7 @@ export default function App() {
   const handleClientUpdate = async (updatedClient) => { try { await updateDoc(doc(db, 'clients', updatedClient.id), { name: updatedClient.name, notifications: updatedClient.notifications, project: updatedClient.project }); } catch(e) { console.error("Update failed", e); } };
   const handleClientDelete = async (id) => { if (confirm("Are you sure you want to delete your account? This cannot be undone.")) { try { await deleteDoc(doc(db, 'clients', id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); } } };
   const handleAuthSubmit = async (isSignUp, email, password, name) => {
-    const isMasterAdmin = email.toLowerCase() === 'aapsantos07@gmail.com';
+    const isMasterAdmin = email.toLowerCase() === MASTER_ADMIN_EMAIL;
     if (adminSettings.maintenanceMode && isSignUp && !isMasterAdmin) return { error: "New signups are disabled during maintenance." };
     try {
         let user; let uid;
