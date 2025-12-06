@@ -1497,7 +1497,8 @@ export default function App() {
   const [clients, setClients] = useState([]); 
   const [currentClientData, setCurrentClientData] = useState(null); 
   const [appLoading, setAppLoading] = useState(true); 
-  const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: "aapsantos07@gmail.com", maintenanceMode: false });
+  const MASTER_ADMIN_EMAIL = import.meta.env.VITE_MASTER_ADMIN_EMAIL?.toLowerCase() || '';
+  const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: MASTER_ADMIN_EMAIL, maintenanceMode: false });
   const isSigningUp = useRef(false);
 
   useEffect(() => {
@@ -1506,7 +1507,7 @@ export default function App() {
       clearTimeout(safetyTimer);
       if (isSigningUp.current) return;
       if (user) {
-        const isMaster = user.email.toLowerCase() === 'aapsantos07@gmail.com';
+        const isMaster = user.email.toLowerCase() === MASTER_ADMIN_EMAIL;
         try {
           const docRef = doc(db, "clients", user.uid);
           const docSnap = await getDoc(docRef);
@@ -1545,7 +1546,7 @@ export default function App() {
   const handleClientUpdate = async (updatedClient) => { try { await updateDoc(doc(db, 'clients', updatedClient.id), { name: updatedClient.name, notifications: updatedClient.notifications, project: updatedClient.project }); } catch(e) { console.error("Update failed", e); } };
   const handleClientDelete = async (id) => { if (confirm("Are you sure you want to delete your account? This cannot be undone.")) { try { await deleteDoc(doc(db, 'clients', id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); } } };
   const handleAuthSubmit = async (isSignUp, email, password, name) => {
-    const isMasterAdmin = email.toLowerCase() === 'aapsantos07@gmail.com';
+    const isMasterAdmin = email.toLowerCase() === MASTER_ADMIN_EMAIL;
     if (adminSettings.maintenanceMode && isSignUp && !isMasterAdmin) return { error: "New signups are disabled during maintenance." };
     try {
         let user; let uid;
