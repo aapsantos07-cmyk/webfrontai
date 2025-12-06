@@ -1128,9 +1128,10 @@ function AdminGlobalSettingsView({ settings, onUpdateSettings }) {
 }
 
 function AdminClientsManager({ clients }) {
+  const actualClients = clients.filter(c => c.role !== 'admin');
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
-  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const selectedClient = actualClients.find(c => c.id === selectedClientId);
   const [newClientData, setNewClientData] = useState({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 });
   const [newInvoiceData, setNewInvoiceData] = useState({ desc: '', amount: '' });
   const [contractUploading, setContractUploading] = useState(false);
@@ -1238,7 +1239,7 @@ function AdminClientsManager({ clients }) {
       <div className="w-full lg:w-1/3 flex flex-col gap-4 h-[300px] lg:h-full flex-shrink-0">
         <Button variant="accent" className="w-full justify-center py-4 rounded-xl shadow-blue-900/30" onClick={() => { setIsAddingNew(true); setSelectedClientId(null); }}><Plus size={18} /> Add New Client</Button>
         <div className="flex-1 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-xl overflow-hidden overflow-y-auto custom-scrollbar">
-          {clients.map(client => (
+          {actualClients.map(client => (
             <div key={client.id} onClick={() => { setSelectedClientId(client.id); setIsAddingNew(false); }} className={`p-5 border-b border-zinc-800/80 cursor-pointer transition-all duration-200 group ${selectedClient?.id === client.id ? 'bg-blue-900/10 border-l-4 border-l-blue-500 pl-4' : 'hover:bg-zinc-800/40 border-l-4 border-l-transparent hover:border-l-zinc-700'}`}>
               <div className="flex justify-between items-start mb-1"><span className={`font-bold text-lg truncate ${selectedClient?.id === client.id ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>{client.name}</span><span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-full font-bold border ${client.status === 'Completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>{client.status || 'Active'}</span></div><p className="text-sm text-zinc-500 mb-3 truncate group-hover:text-zinc-400">{client.project}</p><div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div className={`h-full rounded-full ${client.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${client.progress}%` }}></div></div>
             </div>
