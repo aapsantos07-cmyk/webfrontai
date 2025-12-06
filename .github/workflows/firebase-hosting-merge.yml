@@ -1,4 +1,4 @@
-name: Deploy to Firebase Hosting on merge
+name: Deploy to Firebase on merge
 on:
   push:
     branches:
@@ -24,10 +24,11 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
           VITE_MASTER_ADMIN_EMAIL: ${{ secrets.VITE_MASTER_ADMIN_EMAIL }}
-      - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Install Cloud Functions dependencies
+        run: cd functions && npm ci
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_WEBFRONTAI_42249 }}
-          channelId: live
-          projectId: webfrontai-42249
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_WEBFRONTAI_42249 }}
+      - name: Deploy to Firebase (Hosting + Functions)
+        run: npx firebase-tools deploy --project webfrontai-42249

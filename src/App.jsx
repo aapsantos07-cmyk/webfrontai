@@ -98,7 +98,18 @@ function AIChatDemo() {
       setMessages(prev => [...prev, { role: 'ai', text: responseText }]);
     } catch (error) {
       console.error("AI Error:", error);
-      setMessages(prev => [...prev, { role: 'ai', text: "I am currently undergoing maintenance. Please try again later." }]);
+
+      // Provide a more helpful error message based on the error type
+      let errorMessage = "I'm having trouble responding right now. Please try again in a moment.";
+
+      // Check for specific Firebase function errors
+      if (error?.code === 'functions/failed-precondition' || error?.code === 'functions/not-found') {
+        errorMessage = "I'm not fully configured yet. Please contact the administrator.";
+      } else if (error?.code === 'functions/unavailable' || error?.message?.includes('network')) {
+        errorMessage = "I'm having connection issues. Please check your internet and try again.";
+      }
+
+      setMessages(prev => [...prev, { role: 'ai', text: errorMessage }]);
     } finally {
       setIsTyping(false);
     }
