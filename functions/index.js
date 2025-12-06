@@ -22,8 +22,8 @@ exports.chatWithAI = onCall(async (request) => {
     }
 
     const settings = settingsDoc.data();
-    const apiKey = settings.config?.geminiKey;
-    const systemPrompt = settings.config?.systemPrompt || "You are WEBFRONT_AI, a helpful assistant for a digital agency. Answer questions about web development services, pricing, and timelines.";
+    const apiKey = settings.geminiKey;
+    const systemPrompt = settings.systemPrompt || "You are WEBFRONT_AI, a helpful assistant for a digital agency. Answer questions about web development services, pricing, and timelines.";
 
     if (!apiKey) {
       throw new HttpsError("failed-precondition", "API key not configured");
