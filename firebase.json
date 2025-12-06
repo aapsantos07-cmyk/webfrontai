@@ -1,4 +1,8 @@
 {
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs18"
+  },
   "hosting": {
     "public": "dist",
     "ignore": [
@@ -32,6 +36,7 @@
     "auth": {},
     "firestore": {},
     "hosting": {},
+    "functions": {},
     "ui": {}
   },
   "firestore": {
