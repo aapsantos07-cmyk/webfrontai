@@ -415,7 +415,19 @@ function LandingPage({ onLogin }) {
 function ClientDashboardView({ data }) {
   // Ensure we are working with the isolated client data passed from ClientPortal
   const invoices = data.invoices || [];
-  const activity = data.activity || [];
+  const allActivity = data.activity || [];
+
+  // Filter activity to only show project-related updates (hide admin actions)
+  const activity = allActivity.filter(item => {
+    const action = item.action?.toLowerCase() || '';
+    // Hide admin/internal actions
+    if (action.includes('admin')) return false;
+    if (action.includes('role changed')) return false;
+    if (action.includes('invoice')) return false;
+    if (action.includes('contract uploaded')) return false;
+    // Show project-related activity
+    return true;
+  });
 
   const totalOpenBalance = invoices.reduce((acc, inv) => {
     if (inv.status === 'Paid') return acc;
