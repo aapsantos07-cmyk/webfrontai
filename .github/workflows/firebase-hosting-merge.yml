@@ -26,9 +26,16 @@ jobs:
           VITE_MASTER_ADMIN_EMAIL: ${{ secrets.VITE_MASTER_ADMIN_EMAIL }}
       - name: Install Cloud Functions dependencies
         run: cd functions && npm ci
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_WEBFRONTAI_42249 }}
-      - name: Deploy to Firebase (Hosting + Functions)
-        run: npx firebase-tools deploy --only hosting,functions --project webfrontai-42249
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_WEBFRONTAI_42249 }}
+          channelId: live
+          projectId: webfrontai-42249
+      - name: Deploy Cloud Functions
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_WEBFRONTAI_42249 }}' > /tmp/sa.json
+          npx firebase-tools deploy --only functions --project webfrontai-42249
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa.json
