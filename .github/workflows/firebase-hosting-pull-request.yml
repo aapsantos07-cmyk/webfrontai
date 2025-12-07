@@ -29,4 +29,3 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_WEBFRONTAI_42249 }}
           projectId: webfrontai-42249
-          firebaseToolsArgs: '--force'
