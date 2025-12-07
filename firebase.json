@@ -1,4 +1,5 @@
 {
+  "extensions": {},
   "functions": {
     "source": "functions",
     "runtime": "nodejs20"

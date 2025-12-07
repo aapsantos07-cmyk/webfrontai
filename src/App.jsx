@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  MessageSquare, Code, Cpu, ArrowRight, Check, Menu, X, ChevronDown, Lock, 
-  LayoutDashboard, FileText, CreditCard, Settings, Send, User, Bot, Palette, 
-  Brain, Headphones, TrendingUp, LogIn, Download, Bell, Shield, Mail, Sparkles, 
-  Loader2, Users, BarChart3, Briefcase, Edit3, Plus, Save, Trash2, Search, 
-  DollarSign, Activity, UploadCloud, XCircle, CheckCircle2, LogOut, AlertTriangle, 
-  Power, ListTodo, FolderOpen, HelpCircle, BookOpen, Clock,
+import {
+  MessageSquare, Code, Cpu, ArrowRight, Check, Menu, X, ChevronDown, Lock,
+  LayoutDashboard, FileText, CreditCard, Settings, Send, User, Bot, Palette,
+  Brain, Headphones, TrendingUp, LogIn, Download, Bell, Shield, Mail, Sparkles,
+  Loader2, Users, BarChart3, Briefcase, Edit3, Plus, Save, Trash2, Search,
+  DollarSign, Activity, UploadCloud, XCircle, CheckCircle2, LogOut, AlertTriangle,
+  Power, ListTodo, FolderOpen, HelpCircle, BookOpen, Clock, CalendarDays, UserCheck,
   // Added Icons for Admin Panel
-  Database, FileJson, FileSpreadsheet, History, Sliders
+  Database, FileJson, FileSpreadsheet, History, Sliders, ClipboardList
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
@@ -883,7 +883,7 @@ function AdminDataAIView() {
 // [Assume these components are unchanged from your original upload]
 
 // [RE-INSERTING Unchanged Components for completeness so the file is runnable]
-function AdminDashboardView({ clients }) {
+function AdminDashboardView({ clients, onNavigateToTasks }) {
   // Helper to parse amounts safely
   const parseAmount = (amt) => {
       if (typeof amt === 'number') return amt;
@@ -924,9 +924,15 @@ function AdminDashboardView({ clients }) {
            <h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2"><Users size={14}/> Total Clients</h3>
            <p className="text-2xl font-bold text-white">{clients.length}</p>
         </Card>
-        <Card className="border-l-4 border-l-yellow-500">
+        <Card
+          className="border-l-4 border-l-yellow-500 cursor-pointer hover:bg-zinc-800/50 transition-colors group"
+          onClick={onNavigateToTasks}
+        >
            <h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2"><ListTodo size={14}/> Pending Tasks</h3>
-           <p className="text-2xl font-bold text-white">{pendingTasks}</p>
+           <p className="text-2xl font-bold text-white flex items-center gap-2">
+             {pendingTasks}
+             <ArrowRight size={16} className="text-zinc-600 group-hover:text-yellow-400 transition-colors" />
+           </p>
         </Card>
       </div>
 
@@ -1412,6 +1418,365 @@ function AdminUsersManager() {
   );
 }
 
+function AdminTasksView({ clients, onNavigateToTasks }) {
+  const actualClients = clients.filter(c => c.role !== 'admin');
+  const admins = clients.filter(c => c.role === 'admin');
+  const [selectedClientId, setSelectedClientId] = useState(null);
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [newTask, setNewTask] = useState({ title: '', assignedTo: '', dueDate: '', priority: 'medium' });
+  const [filter, setFilter] = useState('all'); // all, pending, completed
+
+  const selectedClient = actualClients.find(c => c.id === selectedClientId);
+
+  // Get all tasks across all clients for overview
+  const allTasks = actualClients.flatMap(c =>
+    (c.tasks || []).map((t, idx) => ({ ...t, clientId: c.id, clientName: c.name, projectName: c.project, taskIndex: idx }))
+  );
+
+  const filteredTasks = allTasks.filter(t => {
+    if (filter === 'pending') return !t.completed;
+    if (filter === 'completed') return t.completed;
+    return true;
+  });
+
+  const pendingCount = allTasks.filter(t => !t.completed).length;
+  const completedCount = allTasks.filter(t => t.completed).length;
+
+  const handleAddTask = async (e) => {
+    e.preventDefault();
+    if (!newTask.title.trim() || !selectedClientId) return;
+
+    const assignedAdmin = admins.find(a => a.id === newTask.assignedTo);
+    const task = {
+      id: `task-${Date.now()}`,
+      title: newTask.title,
+      assignedTo: newTask.assignedTo || null,
+      assignedToName: assignedAdmin?.name || 'Unassigned',
+      dueDate: newTask.dueDate || null,
+      priority: newTask.priority,
+      completed: false,
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await updateDoc(doc(db, "clients", selectedClientId), {
+        tasks: arrayUnion(task),
+        activity: arrayUnion({
+          action: `Task created: ${task.title}${assignedAdmin ? ` (assigned to ${assignedAdmin.name})` : ''}`,
+          date: new Date().toLocaleDateString(),
+          status: "Pending"
+        })
+      });
+      setNewTask({ title: '', assignedTo: '', dueDate: '', priority: 'medium' });
+      setIsAddingTask(false);
+    } catch (err) {
+      console.error("Error adding task:", err);
+      alert("Failed to add task: " + err.message);
+    }
+  };
+
+  const handleToggleComplete = async (clientId, taskIndex, currentTasks) => {
+    const updatedTasks = [...currentTasks];
+    updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], completed: !updatedTasks[taskIndex].completed };
+
+    try {
+      await updateDoc(doc(db, "clients", clientId), {
+        tasks: updatedTasks,
+        activity: arrayUnion({
+          action: `Task ${updatedTasks[taskIndex].completed ? 'completed' : 'reopened'}: ${updatedTasks[taskIndex].title}`,
+          date: new Date().toLocaleDateString(),
+          status: updatedTasks[taskIndex].completed ? "Completed" : "Pending"
+        })
+      });
+    } catch (err) {
+      console.error("Error updating task:", err);
+    }
+  };
+
+  const handleDeleteTask = async (clientId, taskIndex, currentTasks) => {
+    if (!confirm("Delete this task?")) return;
+    const taskToDelete = currentTasks[taskIndex];
+    const updatedTasks = currentTasks.filter((_, i) => i !== taskIndex);
+
+    try {
+      await updateDoc(doc(db, "clients", clientId), {
+        tasks: updatedTasks,
+        activity: arrayUnion({
+          action: `Task deleted: ${taskToDelete.title}`,
+          date: new Date().toLocaleDateString(),
+          status: "Completed"
+        })
+      });
+    } catch (err) {
+      console.error("Error deleting task:", err);
+    }
+  };
+
+  const handleUpdateAssignment = async (clientId, taskIndex, currentTasks, newAssigneeId) => {
+    const assignedAdmin = admins.find(a => a.id === newAssigneeId);
+    const updatedTasks = [...currentTasks];
+    updatedTasks[taskIndex] = {
+      ...updatedTasks[taskIndex],
+      assignedTo: newAssigneeId || null,
+      assignedToName: assignedAdmin?.name || 'Unassigned'
+    };
+
+    try {
+      await updateDoc(doc(db, "clients", clientId), {
+        tasks: updatedTasks,
+        activity: arrayUnion({
+          action: `Task reassigned: ${updatedTasks[taskIndex].title} to ${assignedAdmin?.name || 'Unassigned'}`,
+          date: new Date().toLocaleDateString(),
+          status: "Completed"
+        })
+      });
+    } catch (err) {
+      console.error("Error updating assignment:", err);
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'high': return 'text-red-400 bg-red-500/10 border-red-500/20';
+      case 'medium': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+      case 'low': return 'text-green-400 bg-green-500/10 border-green-500/20';
+      default: return 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20';
+    }
+  };
+
+  return (
+    <div className="animate-fade-in h-full flex flex-col">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">Project Tasks</h1>
+          <p className="text-zinc-500">Assign and manage tasks for each project. Only admins can be assigned.</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-yellow-400 font-bold">{pendingCount}</span>
+            <span className="text-zinc-500">Pending</span>
+            <span className="text-zinc-700">|</span>
+            <span className="text-green-400 font-bold">{completedCount}</span>
+            <span className="text-zinc-500">Completed</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+        {/* Project Selector Sidebar */}
+        <div className="w-full lg:w-1/3 flex flex-col gap-4 lg:h-full flex-shrink-0">
+          <div className="flex gap-2">
+            <Button variant={filter === 'all' ? 'primary' : 'secondary'} className="flex-1 py-2 text-xs" onClick={() => setFilter('all')}>All</Button>
+            <Button variant={filter === 'pending' ? 'primary' : 'secondary'} className="flex-1 py-2 text-xs" onClick={() => setFilter('pending')}>Pending</Button>
+            <Button variant={filter === 'completed' ? 'primary' : 'secondary'} className="flex-1 py-2 text-xs" onClick={() => setFilter('completed')}>Done</Button>
+          </div>
+          <div className="flex-1 bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden overflow-y-auto custom-scrollbar">
+            <div className="p-3 border-b border-zinc-800 bg-zinc-900/50">
+              <h3 className="text-sm font-bold text-zinc-400">SELECT PROJECT</h3>
+            </div>
+            {actualClients.map(client => {
+              const clientTasks = client.tasks || [];
+              const clientPending = clientTasks.filter(t => !t.completed).length;
+              return (
+                <div
+                  key={client.id}
+                  onClick={() => { setSelectedClientId(client.id); setIsAddingTask(false); }}
+                  className={`p-4 border-b border-zinc-800 cursor-pointer transition-all duration-200 group ${selectedClientId === client.id ? 'bg-blue-900/10 border-l-4 border-l-blue-500 pl-3' : 'hover:bg-zinc-800/40 border-l-4 border-l-transparent'}`}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span className={`font-bold truncate ${selectedClientId === client.id ? 'text-white' : 'text-zinc-300'}`}>{client.name}</span>
+                    {clientPending > 0 && (
+                      <span className="bg-yellow-500/20 text-yellow-400 text-[10px] px-2 py-0.5 rounded-full font-bold">{clientPending}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-500 truncate">{client.project}</p>
+                </div>
+              );
+            })}
+            {actualClients.length === 0 && (
+              <div className="p-8 text-center text-zinc-500 text-sm">No projects available</div>
+            )}
+          </div>
+        </div>
+
+        {/* Main Task Panel */}
+        <div className="flex-1 bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 overflow-y-auto custom-scrollbar">
+          {selectedClient ? (
+            <div className="animate-fade-in">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-6 border-b border-zinc-800">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">{selectedClient.name}</h2>
+                  <p className="text-zinc-500 text-sm">{selectedClient.project} • {selectedClient.phase}</p>
+                </div>
+                <Button variant="accent" onClick={() => setIsAddingTask(true)} className="gap-2">
+                  <Plus size={16} /> Add Task
+                </Button>
+              </div>
+
+              {/* Add Task Form */}
+              {isAddingTask && (
+                <form onSubmit={handleAddTask} className="bg-black/40 border border-zinc-700 rounded-xl p-6 mb-6 animate-fade-in">
+                  <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                    <ClipboardList size={18} className="text-blue-400" /> New Task
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="md:col-span-2">
+                      <label className="text-xs text-zinc-500 mb-1 block">Task Title *</label>
+                      <input
+                        type="text"
+                        required
+                        value={newTask.title}
+                        onChange={e => setNewTask({ ...newTask, title: e.target.value })}
+                        placeholder="e.g. Complete homepage wireframes"
+                        className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white focus:border-blue-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-500 mb-1 block flex items-center gap-1">
+                        <UserCheck size={12} /> Assign to Admin
+                      </label>
+                      <select
+                        value={newTask.assignedTo}
+                        onChange={e => setNewTask({ ...newTask, assignedTo: e.target.value })}
+                        className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white focus:border-blue-500 outline-none appearance-none"
+                      >
+                        <option value="">Unassigned</option>
+                        {admins.map(admin => (
+                          <option key={admin.id} value={admin.id}>{admin.name} ({admin.email})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-500 mb-1 block flex items-center gap-1">
+                        <CalendarDays size={12} /> Due Date
+                      </label>
+                      <input
+                        type="date"
+                        value={newTask.dueDate}
+                        onChange={e => setNewTask({ ...newTask, dueDate: e.target.value })}
+                        className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white focus:border-blue-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-500 mb-1 block">Priority</label>
+                      <select
+                        value={newTask.priority}
+                        onChange={e => setNewTask({ ...newTask, priority: e.target.value })}
+                        className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white focus:border-blue-500 outline-none appearance-none"
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button type="button" variant="secondary" onClick={() => setIsAddingTask(false)}>Cancel</Button>
+                    <Button type="submit" variant="success">Create Task</Button>
+                  </div>
+                </form>
+              )}
+
+              {/* Task List */}
+              <div className="space-y-3">
+                {(selectedClient.tasks || []).length === 0 ? (
+                  <div className="text-center py-12 text-zinc-500">
+                    <ListTodo size={48} className="mx-auto mb-4 opacity-30" />
+                    <p>No tasks for this project yet.</p>
+                    <p className="text-sm">Click "Add Task" to create one.</p>
+                  </div>
+                ) : (
+                  (selectedClient.tasks || [])
+                    .filter(t => {
+                      if (filter === 'pending') return !t.completed;
+                      if (filter === 'completed') return t.completed;
+                      return true;
+                    })
+                    .map((task, idx) => {
+                      // Find the original index for operations
+                      const originalIndex = (selectedClient.tasks || []).findIndex(t => t.id === task.id);
+                      return (
+                        <div
+                          key={task.id || idx}
+                          className={`bg-black/40 border rounded-xl p-4 transition-all ${task.completed ? 'border-zinc-800 opacity-60' : 'border-zinc-700 hover:border-zinc-600'}`}
+                        >
+                          <div className="flex items-start gap-4">
+                            {/* Checkbox */}
+                            <button
+                              onClick={() => handleToggleComplete(selectedClient.id, originalIndex, selectedClient.tasks)}
+                              className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${task.completed ? 'bg-green-500 border-green-500' : 'border-zinc-600 hover:border-green-500'}`}
+                            >
+                              {task.completed && <Check size={12} className="text-white" />}
+                            </button>
+
+                            {/* Task Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <span className={`font-medium ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>
+                                  {task.title}
+                                </span>
+                                <span className={`text-[10px] uppercase px-2 py-0.5 rounded border font-bold ${getPriorityColor(task.priority)}`}>
+                                  {task.priority || 'medium'}
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-500">
+                                {/* Assignee Dropdown */}
+                                <div className="flex items-center gap-1">
+                                  <UserCheck size={12} />
+                                  <select
+                                    value={task.assignedTo || ''}
+                                    onChange={e => handleUpdateAssignment(selectedClient.id, originalIndex, selectedClient.tasks, e.target.value)}
+                                    className="bg-transparent text-zinc-400 hover:text-white cursor-pointer outline-none text-xs"
+                                  >
+                                    <option value="">Unassigned</option>
+                                    {admins.map(admin => (
+                                      <option key={admin.id} value={admin.id}>{admin.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                {task.dueDate && (
+                                  <span className="flex items-center gap-1">
+                                    <CalendarDays size={12} />
+                                    {new Date(task.dueDate).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => handleDeleteTask(selectedClient.id, originalIndex, selectedClient.tasks)}
+                              className="text-zinc-600 hover:text-red-500 p-1"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-zinc-600 gap-4">
+              <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800">
+                <ClipboardList size={40} className="opacity-50" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-white mb-2">Select a Project</h3>
+                <p>Choose a project to view and manage its tasks.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminFinancialsView({ clients }) {
   const actualClients = clients.filter(c => c.role !== 'admin');
   const parseAmount = (amt) => {
@@ -1435,6 +1800,7 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'projects', label: 'Projects / Pipeline', icon: Briefcase },
+    { id: 'tasks', label: 'Project Tasks', icon: ClipboardList },
     { id: 'clients', label: 'Clients List', icon: Users },
     { id: 'financials', label: 'Financials', icon: CreditCard },
     { id: 'data', label: 'Data & AI Models', icon: Brain },
@@ -1475,8 +1841,9 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
-        {activeTab === 'dashboard' && <AdminDashboardView clients={clients} />}
+        {activeTab === 'dashboard' && <AdminDashboardView clients={clients} onNavigateToTasks={() => setActiveTab('tasks')} />}
         {activeTab === 'projects' && <AdminPipelineView clients={clients} />}
+        {activeTab === 'tasks' && <AdminTasksView clients={clients} />}
         {activeTab === 'clients' && <AdminClientsManager clients={clients} setClients={setClients} />}
         {activeTab === 'financials' && <AdminFinancialsView clients={clients} />}
         {activeTab === 'data' && <AdminDataAIView />}
