@@ -1721,14 +1721,14 @@ function AdminTasksView({ clients, onNavigateToTasks }) {
                                 </span>
                               </div>
 
-                              <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-500">
+                              <div className="flex flex-wrap items-center gap-4 text-xs">
                                 {/* Assignee Dropdown */}
                                 <div className="flex items-center gap-1">
-                                  <UserCheck size={12} />
+                                  <UserCheck size={12} className={task.assignedTo ? 'text-blue-400' : 'text-zinc-500'} />
                                   <select
                                     value={task.assignedTo || ''}
                                     onChange={e => handleUpdateAssignment(selectedClient.id, originalIndex, selectedClient.tasks, e.target.value)}
-                                    className="bg-transparent text-zinc-400 hover:text-white cursor-pointer outline-none text-xs"
+                                    className={`bg-transparent cursor-pointer outline-none text-xs font-medium ${task.assignedTo ? 'text-blue-400 hover:text-blue-300' : 'text-zinc-500 hover:text-white'}`}
                                   >
                                     <option value="">Unassigned</option>
                                     {admins.map(admin => (
@@ -1738,7 +1738,7 @@ function AdminTasksView({ clients, onNavigateToTasks }) {
                                 </div>
 
                                 {task.dueDate && (
-                                  <span className="flex items-center gap-1">
+                                  <span className="flex items-center gap-1 text-zinc-500">
                                     <CalendarDays size={12} />
                                     {new Date(task.dueDate).toLocaleDateString()}
                                   </span>
