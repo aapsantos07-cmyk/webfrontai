@@ -31,4 +31,4 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_WEBFRONTAI_42249 }}
       - name: Deploy to Firebase (Hosting + Functions)
-        run: npx firebase-tools deploy --only hosting,functions --project webfrontai-42249
+        run: npx firebase-tools deploy --only hosting,functions --project webfrontai-42249 --force
