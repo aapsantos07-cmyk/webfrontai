@@ -1413,8 +1413,7 @@ function AdminDashboardView({ clients, onNavigateToTasks }) {
                <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden"><div className="bg-green-500 h-full" style={{ width: `${Math.min(100, (totalRevenue / 50000) * 100)}%` }}></div></div>
              </div>
              <div>
-               <div className="flex justify-between text-sm mb-2"><span className="text-zinc-400">Client Capacity (20)</span><span className="text-white font-bold">{clients.length}/20</span></div>
-               <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden"><div className="bg-blue-500 h-full" style={{ width: `${(clients.length / 20) * 100}%` }}></div></div>
+               <div className="flex justify-between text-sm mb-2"><span className="text-zinc-400">Total Clients</span><span className="text-white font-bold">{clients.length}</span></div>
              </div>
           </div>
         </div>
