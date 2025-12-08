@@ -7,7 +7,7 @@ import {
   DollarSign, Activity, UploadCloud, XCircle, CheckCircle2, LogOut, AlertTriangle,
   Power, ListTodo, FolderOpen, HelpCircle, BookOpen, Clock, CalendarDays, UserCheck,
   // Added Icons for Admin Panel
-  Database, FileJson, FileSpreadsheet, History, Sliders, ClipboardList
+  Database, FileJson, FileSpreadsheet, History, Sliders, ClipboardList, Phone
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
@@ -478,6 +478,7 @@ function EarlyAccessGate({ onAdminLogin }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const LAUNCH_DATE = new Date('2026-01-02T00:00:00');
 
   const handleLogin = async (e) => {
@@ -580,11 +581,60 @@ function EarlyAccessGate({ onAdminLogin }) {
 
           <div className="mt-6 text-center text-sm text-zinc-500">
             <p>Interested in early access?</p>
-            <a href="mailto:contact@webfrontai.com" className="text-blue-400 hover:text-blue-300 font-medium">
+            <button
+              onClick={() => setShowContactModal(true)}
+              className="text-blue-400 hover:text-blue-300 font-medium underline"
+            >
               Contact us
-            </a>
+            </button>
           </div>
         </div>
+
+        {showContactModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowContactModal(false)}>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-md w-full shadow-2xl animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-white">Get in Touch</h3>
+                <button
+                  onClick={() => setShowContactModal(false)}
+                  className="text-zinc-400 hover:text-white transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <p className="text-zinc-400 mb-6">Choose how you'd like to reach us</p>
+
+              <div className="space-y-3">
+                <a
+                  href="tel:+19295157457"
+                  className="flex items-center gap-4 p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-xl transition-all group"
+                >
+                  <div className="bg-blue-600 p-3 rounded-lg group-hover:scale-110 transition-transform">
+                    <Phone size={24} className="text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-white font-semibold">Call Us</div>
+                    <div className="text-zinc-400 text-sm">+1 (929) 515-7457</div>
+                  </div>
+                </a>
+
+                <a
+                  href="mailto:andre@webfrontai.com"
+                  className="flex items-center gap-4 p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-xl transition-all group"
+                >
+                  <div className="bg-purple-600 p-3 rounded-lg group-hover:scale-110 transition-transform">
+                    <Mail size={24} className="text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-white font-semibold">Email Us</div>
+                    <div className="text-zinc-400 text-sm">andre@webfrontai.com</div>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="mt-8 text-center text-xs text-zinc-600">
           <p>© 2025 WebFront AI. Launching January 2026.</p>
