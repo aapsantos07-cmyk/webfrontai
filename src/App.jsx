@@ -653,9 +653,27 @@ function PhoneCallDemo({ isOpen, onClose }) {
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
   const timerRef = useRef(null);
+  const voicesLoadedRef = useRef(false);
+
+  // Load voices on mount
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        voicesLoadedRef.current = true;
+      }
+    };
+
+    // Load voices immediately and also listen for voiceschanged event
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
 
   useEffect(() => {
-    console.log("PhoneCallDemo isOpen:", isOpen);
     if (!isOpen) return;
 
     // Play ring tone and simulate dialing
@@ -669,13 +687,10 @@ function PhoneCallDemo({ isOpen, onClose }) {
         setCallDuration(prev => prev + 1);
       }, 1000);
 
-      // AI greeting
+      // AI greeting - speak() will automatically start listening when done
       const greeting = "Hello! Thank you for calling Valley Medical Center. This is a demo of our AI receptionist. How may I help you today?";
       setMessages([{ role: 'ai', text: greeting }]);
       speak(greeting);
-
-      // Start listening
-      startListening();
     }, 3000);
 
     return () => {
@@ -687,14 +702,35 @@ function PhoneCallDemo({ isOpen, onClose }) {
   }, [isOpen]);
 
   const speak = (text) => {
+    // Stop listening to prevent echo/feedback
+    stopListening();
+
     setIsSpeaking(true);
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
+
+    // Select a more natural voice (prefer female voices for medical receptionist)
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(voice =>
+      voice.name.includes('Samantha') || // macOS
+      voice.name.includes('Microsoft Zira') || // Windows
+      voice.name.includes('Google US English Female') || // Chrome
+      voice.name.includes('Female')
+    );
+    if (preferredVoice) utterance.voice = preferredVoice;
+
+    // Adjust for more natural sound
+    utterance.rate = 0.95; // Slightly slower for clarity
+    utterance.pitch = 1.1; // Slightly higher for friendlier tone
+    utterance.volume = 0.9;
+
     utterance.onend = () => {
       setIsSpeaking(false);
-      if (callState === 'connected') startListening();
+      // Automatically resume listening after speaking (for continuous conversation)
+      if (callState === 'connected') {
+        setTimeout(() => startListening(), 500); // Small delay to prevent echo
+      }
     };
+
     synthRef.current.speak(utterance);
   };
 
@@ -989,19 +1025,24 @@ function LandingPage({ onLogin }) {
 
             {/* AI Receptionist Projects */}
             <FadeIn delay={250}>
-              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col hover:border-purple-500 transition-all" onClick={() => { console.log("Medical Office AI clicked!"); setShowPhoneDemo(true); }}>
-                <div className="aspect-video bg-gradient-to-br from-cyan-900/30 to-blue-900/30 relative overflow-hidden mb-4">
-                  <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
-                  <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
-                </div>
-                <h3 className="text-xl font-bold mb-2">Medical Office AI</h3>
-                <p className="text-zinc-400 text-sm mb-4 flex-1">Appointment booking, patient inquiries, and insurance verification via phone and chat.</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">GPT-4</span>
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Twilio</span>
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Calendar API</span>
-                </div>
-              </Card>
+              <div
+                style={{ cursor: 'pointer' }}
+                onClick={() => setShowPhoneDemo(true)}
+              >
+                <Card className="group overflow-hidden h-full flex flex-col hover:border-purple-500 transition-all">
+                  <div className="aspect-video bg-gradient-to-br from-cyan-900/30 to-blue-900/30 relative overflow-hidden mb-4">
+                    <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
+                    <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Medical Office AI</h3>
+                  <p className="text-zinc-400 text-sm mb-4 flex-1">Appointment booking, patient inquiries, and insurance verification via phone and chat.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">GPT-4</span>
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Twilio</span>
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Calendar API</span>
+                  </div>
+                </Card>
+              </div>
             </FadeIn>
 
             <FadeIn delay={300}>
@@ -2502,7 +2543,6 @@ function AdminFinancialsView({ clients }) {
 function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showPhoneDemo, setShowPhoneDemo] = useState(false);
   
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -2541,13 +2581,7 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
             </div>
           ))}
         </nav>
-        <button
-          onClick={() => setShowPhoneDemo(true)}
-          className="flex items-center gap-2 px-4 py-3 rounded-lg bg-purple-900/20 text-purple-400 hover:bg-purple-900/30 border border-purple-900/50 transition-all duration-200 text-sm font-medium mb-4"
-        >
-          <Phone size={18} /> Try AI Demo
-        </button>
-        <button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors px-4 py-2 border-t border-zinc-800 pt-4">
+        <button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-4 px-4 py-2 border-t border-zinc-800 pt-4">
           Log Out <ArrowRight size={14} />
         </button>
       </div>
@@ -2565,8 +2599,6 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
         {activeTab === 'users' && <AdminUsersManager />}
         {activeTab === 'settings' && <AdminGlobalSettingsView settings={adminSettings} onUpdateSettings={setAdminSettings} />}
       </div>
-
-      <PhoneCallDemo isOpen={showPhoneDemo} onClose={() => setShowPhoneDemo(false)} />
     </div>
   );
 }
