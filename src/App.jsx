@@ -747,19 +747,21 @@ function LandingPage({ onLogin }) {
             </FadeIn>
 
             <FadeIn delay={150}>
-              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col">
-                <div className="aspect-video bg-gradient-to-br from-green-900/30 to-blue-900/30 relative overflow-hidden mb-4">
-                  <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">WEB</div>
-                  <div className="absolute bottom-0 right-0 bg-blue-600 text-white px-3 py-1 text-xs font-bold">Website</div>
-                </div>
-                <h3 className="text-xl font-bold mb-2">SaaS Dashboard</h3>
-                <p className="text-zinc-400 text-sm mb-4 flex-1">Modern analytics platform with data visualization, user management, and API integrations.</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Next.js</span>
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">TypeScript</span>
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Tailwind</span>
-                </div>
-              </Card>
+              <a href="https://saasdashboarddemo.vercel.app/" target="_blank" rel="noopener noreferrer" className="block h-full">
+                <Card className="group overflow-hidden cursor-pointer h-full flex flex-col hover:border-blue-500 transition-all">
+                  <div className="aspect-video bg-zinc-900 relative overflow-hidden mb-4">
+                    <img src="/saasdashboard.png" alt="SaaS Dashboard Demo" className="w-full h-full object-cover" />
+                    <div className="absolute bottom-0 right-0 bg-blue-600 text-white px-3 py-1 text-xs font-bold">Website</div>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Saas Dashboard Demo</h3>
+                  <p className="text-zinc-400 text-sm mb-4 flex-1">Modern analytics platform with data visualization, user management, and API integrations.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Next.js</span>
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">TypeScript</span>
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Tailwind</span>
+                  </div>
+                </Card>
+              </a>
             </FadeIn>
 
             <FadeIn delay={200}>
