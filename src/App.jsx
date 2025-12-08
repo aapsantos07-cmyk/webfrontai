@@ -644,9 +644,210 @@ function EarlyAccessGate({ onAdminLogin }) {
   );
 }
 
+function PhoneCallDemo({ isOpen, onClose }) {
+  const [callState, setCallState] = useState('dialing'); // dialing, connected, ended
+  const [messages, setMessages] = useState([]);
+  const [callDuration, setCallDuration] = useState(0);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const recognitionRef = useRef(null);
+  const synthRef = useRef(window.speechSynthesis);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Play ring tone and simulate dialing
+    setCallState('dialing');
+    const dialTimeout = setTimeout(async () => {
+      setCallState('connected');
+      setCallDuration(0);
+
+      // Start call timer
+      timerRef.current = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+
+      // AI greeting
+      const greeting = "Hello! Thank you for calling Valley Medical Center. This is a demo of our AI receptionist. How may I help you today?";
+      setMessages([{ role: 'ai', text: greeting }]);
+      speak(greeting);
+
+      // Start listening
+      startListening();
+    }, 3000);
+
+    return () => {
+      clearTimeout(dialTimeout);
+      if (timerRef.current) clearInterval(timerRef.current);
+      stopListening();
+      synthRef.current.cancel();
+    };
+  }, [isOpen]);
+
+  const speak = (text) => {
+    setIsSpeaking(true);
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      if (callState === 'connected') startListening();
+    };
+    synthRef.current.speak(utterance);
+  };
+
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      console.error('Speech recognition not supported');
+      return;
+    }
+
+    const recognition = new window.webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+
+    recognition.onresult = async (event) => {
+      const transcript = event.results[0][0].transcript;
+      setMessages(prev => [...prev, { role: 'user', text: transcript }]);
+
+      // Call AI
+      try {
+        const chatFunction = httpsCallable(functions, 'chatWithAI');
+        const systemPrompt = "You are an AI medical office receptionist for Valley Medical Center (a demo). You do NOT give medical advice or diagnoses. You only help with logistics: booking and confirming appointments, answering questions about office hours (Mon-Fri 8AM-6PM, Sat 9AM-2PM), services (general practice, pediatrics, dermatology), providers (Dr. Smith, Dr. Johnson, Dr. Lee), and accepted insurance (Blue Cross, Aetna, United Healthcare, Medicare). Always remind users this is a demo and no real appointments are being scheduled. Keep responses conversational and brief (2-3 sentences max).";
+
+        const result = await chatFunction({
+          message: `${systemPrompt}\n\nUser: ${transcript}`,
+          history: messages
+        });
+
+        const responseText = result.data.text;
+        setMessages(prev => [...prev, { role: 'ai', text: responseText }]);
+        speak(responseText);
+      } catch (error) {
+        console.error("AI Error:", error);
+        const errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
+        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+        speak(errorMsg);
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+  };
+
+  const hangUp = () => {
+    setCallState('ended');
+    stopListening();
+    synthRef.current.cancel();
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimeout(() => onClose(), 1000);
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={hangUp}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-2xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h2 className="text-3xl font-bold mb-2">Medical Office AI – Live Demo</h2>
+          <p className="text-zinc-400 text-sm">Simulated phone-style conversation, no real call placed.</p>
+        </div>
+
+        {/* Call Status */}
+        {callState === 'dialing' && (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse">
+              <Phone size={40} className="text-white" />
+            </div>
+            <p className="text-xl font-bold mb-2">Calling...</p>
+            <p className="text-zinc-400 text-sm">Valley Medical Center</p>
+          </div>
+        )}
+
+        {callState === 'connected' && (
+          <div>
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-green-400 font-bold">Connected</span>
+              </div>
+              <div className="text-zinc-400 text-sm font-mono">{formatTime(callDuration)}</div>
+            </div>
+
+            {/* Transcript */}
+            <div className="h-[300px] overflow-y-auto mb-6 space-y-4 custom-scrollbar">
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[75%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {isListening && (
+                <div className="flex justify-end">
+                  <div className="bg-blue-600/20 border border-blue-500 text-blue-400 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                    Listening...
+                  </div>
+                </div>
+              )}
+              {isSpeaking && (
+                <div className="flex justify-start">
+                  <div className="bg-zinc-800/50 border border-zinc-700 text-zinc-400 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    Speaking...
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Hang Up Button */}
+            <button
+              onClick={hangUp}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <Phone size={20} className="rotate-135" />
+              Hang Up
+            </button>
+          </div>
+        )}
+
+        {callState === 'ended' && (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 bg-zinc-800 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <Phone size={40} className="text-zinc-500" />
+            </div>
+            <p className="text-xl font-bold mb-2">Call Ended</p>
+            <p className="text-zinc-400 text-sm">Duration: {formatTime(callDuration)}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function LandingPage({ onLogin }) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false); 
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showPhoneDemo, setShowPhoneDemo] = useState(false);
   
   useEffect(() => { 
     const handleScroll = () => setScrolled(window.scrollY > 50); 
@@ -786,7 +987,7 @@ function LandingPage({ onLogin }) {
 
             {/* AI Receptionist Projects */}
             <FadeIn delay={250}>
-              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col">
+              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col hover:border-purple-500 transition-all" onClick={() => setShowPhoneDemo(true)}>
                 <div className="aspect-video bg-gradient-to-br from-cyan-900/30 to-blue-900/30 relative overflow-hidden mb-4">
                   <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
                   <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
@@ -875,6 +1076,9 @@ function LandingPage({ onLogin }) {
           <div className="flex gap-6 text-zinc-400"><a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">Twitter</a><a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">LinkedIn</a><a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">Instagram</a></div>
         </div>
       </footer>
+
+      {/* Phone Call Demo Modal */}
+      <PhoneCallDemo isOpen={showPhoneDemo} onClose={() => setShowPhoneDemo(false)} />
     </div>
   );
 }
