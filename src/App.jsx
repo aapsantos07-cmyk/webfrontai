@@ -417,6 +417,124 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
   );
 }
 
+function EarlyAccessGate({ onAdminLogin }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      const docSnap = await getDoc(doc(db, "clients", user.uid));
+
+      if (docSnap.exists() && docSnap.data().role === 'admin') {
+        onAdminLogin();
+      } else {
+        setError('Admin access only during early access period.');
+        await signOut(auth);
+      }
+    } catch (err) {
+      setError('Invalid credentials');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-white font-sans flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-black to-purple-900/20"></div>
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-blue-900/20 rounded-full blur-[120px] -z-10 animate-pulse"></div>
+
+      <div className="w-full max-w-lg z-10 animate-fade-in-up">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-2xl mb-6 shadow-[0_0_40px_rgba(37,99,235,0.4)]">
+            <Lock size={32} />
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter mb-4 bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
+            Early Access
+          </h1>
+          <p className="text-zinc-400 text-lg mb-2">WebFront AI is launching soon</p>
+          <div className="inline-block px-4 py-2 bg-blue-900/30 text-blue-400 rounded-full text-sm font-bold border border-blue-500/30 mb-6">
+            <CalendarDays size={14} className="inline mr-2" />
+            Public Launch: January 2, 2026
+          </div>
+        </div>
+
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
+          <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 p-3 rounded-lg mb-6 text-sm flex items-center gap-2">
+            <Shield size={16} /> Admin Access Only
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            {error && (
+              <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded-lg border border-red-500/20">
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2 font-medium">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                placeholder="admin@webfrontai.com"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2 font-medium">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" /> Verifying...
+                </>
+              ) : (
+                <>
+                  Access Dashboard <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-zinc-500">
+            <p>Interested in early access?</p>
+            <a href="mailto:contact@webfrontai.com" className="text-blue-400 hover:text-blue-300 font-medium">
+              Contact us
+            </a>
+          </div>
+        </div>
+
+        <div className="mt-8 text-center text-xs text-zinc-600">
+          <p>© 2025 WebFront AI. Launching January 2026.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LandingPage({ onLogin }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false); 
   const [scrolled, setScrolled] = useState(false);
@@ -2161,6 +2279,11 @@ export default function App() {
   const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: MASTER_ADMIN_EMAIL, maintenanceMode: false });
   const isSigningUp = useRef(false);
   const [tempUserForReset, setTempUserForReset] = useState(null);
+  const [earlyAccessApproved, setEarlyAccessApproved] = useState(false);
+
+  // Check if we're before January 2, 2026
+  const LAUNCH_DATE = new Date('2026-01-02T00:00:00');
+  const isBeforeLaunch = new Date() < LAUNCH_DATE;
 
   useEffect(() => {
     const safetyTimer = setTimeout(() => { if (appLoading) { console.warn("Firebase auth timed out - forcing app load."); setAppLoading(false); } }, 3000);
@@ -2251,6 +2374,15 @@ export default function App() {
       setView('portal');
     }
   };
+
+  const handleEarlyAccessLogin = () => {
+    setEarlyAccessApproved(true);
+  };
+
+  // Show early access gate if before launch date and not approved
+  if (isBeforeLaunch && !earlyAccessApproved) {
+    return <EarlyAccessGate onAdminLogin={handleEarlyAccessLogin} />;
+  }
 
   return (
     <>
