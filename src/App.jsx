@@ -11,16 +11,17 @@ import {
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
-  onAuthStateChanged 
+  onAuthStateChanged,
+  updatePassword
 } from 'firebase/auth';
 
-import { 
-  doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs, addDoc, deleteDoc, arrayUnion, arrayRemove
+import {
+  doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs, deleteDoc, arrayUnion, arrayRemove
 } from 'firebase/firestore';
 
 import { httpsCallable } from 'firebase/functions'; // ADDED
@@ -222,6 +223,116 @@ function ProjectOnboardingModal({ isOpen, onSubmit }) {
             {loading ? <><Loader2 className="animate-spin mr-2"/> Setting up...</> : <>Launch Project <ArrowRight size={20}/></>}
           </Button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function PasswordResetScreen({ user, userData, onResetComplete }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Update password in Firebase Auth
+      await updatePassword(user, newPassword);
+
+      // Remove requiresPasswordReset flag from Firestore
+      await updateDoc(doc(db, "clients", user.uid), {
+        requiresPasswordReset: false,
+        activity: arrayUnion({
+          action: "Password reset completed",
+          date: new Date().toLocaleDateString(),
+          status: "Completed"
+        })
+      });
+
+      onResetComplete();
+    } catch (err) {
+      console.error("Password reset error:", err);
+      setError(err.message || "Failed to reset password. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-white font-sans flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-blue-900/20 rounded-full blur-[100px] -z-10 animate-pulse"></div>
+      <div className="w-full max-w-md animate-fade-in-up">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-yellow-600 text-black rounded-xl mb-4 shadow-[0_0_20px_rgba(234,179,8,0.3)]">
+            <Lock size={24} />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tighter">Reset Your Password</h1>
+          <p className="text-zinc-500 mt-2">Welcome, {userData?.name}! Please set a new password for your account.</p>
+        </div>
+
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
+          <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 p-3 rounded-lg mb-6 text-sm flex items-center gap-2">
+            <AlertTriangle size={16} /> For security, you must set a new password before accessing your dashboard.
+          </div>
+
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            {error && <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded-lg border border-red-500/20">{error}</div>}
+
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2 font-medium">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                placeholder="Enter new password (min 6 characters)"
+                required
+                minLength={6}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2 font-medium">Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                placeholder="Confirm new password"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin mr-1"/> Updating Password...
+                </>
+              ) : (
+                <>
+                  Reset Password <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -1291,18 +1402,60 @@ function AdminClientsManager({ clients }) {
     }
   }, [selectedClient?.messages, selectedClientId]);
 
-  const handleCreateClient = async (e) => { 
-      e.preventDefault(); 
-      const clientData = { 
-          ...newClientData, role: 'client', milestone: "Project Start", dueDate: "TBD", status: "Active", 
-          activity: [{ action: "Created by Admin", date: new Date().toLocaleDateString(), status: "Completed" }], 
-          contracts: [], invoices: [], clientUploads: [], notifications: { email: true, push: false } 
-      }; 
-      try { 
-          await addDoc(collection(db, 'clients'), clientData); 
-          setIsAddingNew(false); 
-          setNewClientData({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 }); 
-      } catch (err) { alert(err.message); } 
+  const handleCreateClient = async (e) => {
+      e.preventDefault();
+
+      // Generate temporary password
+      const tempPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10).toUpperCase();
+
+      try {
+          // Create Firebase Auth user with temp password
+          const { user } = await createUserWithEmailAndPassword(auth, newClientData.email, tempPassword);
+
+          // Create Firestore document
+          const clientData = {
+              id: user.uid,
+              ...newClientData,
+              role: 'client',
+              milestone: "Project Start",
+              dueDate: "TBD",
+              status: "Active",
+              requiresPasswordReset: true, // Flag for first-time login
+              activity: [{ action: "Account created by Admin", date: new Date().toLocaleDateString(), status: "Completed" }],
+              contracts: [],
+              invoices: [],
+              tasks: [],
+              clientUploads: [],
+              notifications: { email: true, push: false },
+              messages: []
+          };
+
+          await setDoc(doc(db, 'clients', user.uid), clientData);
+
+          // Send invitation email via Cloud Function
+          const sendInvite = httpsCallable(functions, 'sendClientInvitation');
+          const result = await sendInvite({
+              email: newClientData.email,
+              name: newClientData.name,
+              tempPassword: tempPassword
+          });
+
+          if (result.data.testMode) {
+              alert(`Client created!\n\nEmail not configured. Share these credentials:\n\nEmail: ${newClientData.email}\nPassword: ${tempPassword}\n\nThey'll be prompted to reset on first login.`);
+          } else {
+              alert("Client created and invitation email sent!");
+          }
+
+          setIsAddingNew(false);
+          setNewClientData({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 });
+      } catch (err) {
+          console.error("Client creation error:", err);
+          if (err.code === 'auth/email-already-in-use') {
+              alert("This email is already registered.");
+          } else {
+              alert("Error: " + err.message);
+          }
+      }
   };
 
   const handleDeleteClient = async (id) => { 
@@ -1999,14 +2152,15 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
 
 // --- APP CONTROLLER ---
 export default function App() {
-  const [view, setView] = useState('landing'); 
-  const [userRole, setUserRole] = useState('client'); 
-  const [clients, setClients] = useState([]); 
-  const [currentClientData, setCurrentClientData] = useState(null); 
-  const [appLoading, setAppLoading] = useState(true); 
+  const [view, setView] = useState('landing');
+  const [userRole, setUserRole] = useState('client');
+  const [clients, setClients] = useState([]);
+  const [currentClientData, setCurrentClientData] = useState(null);
+  const [appLoading, setAppLoading] = useState(true);
   const MASTER_ADMIN_EMAIL = import.meta.env.VITE_MASTER_ADMIN_EMAIL?.toLowerCase() || '';
   const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: MASTER_ADMIN_EMAIL, maintenanceMode: false });
   const isSigningUp = useRef(false);
+  const [tempUserForReset, setTempUserForReset] = useState(null);
 
   useEffect(() => {
     const safetyTimer = setTimeout(() => { if (appLoading) { console.warn("Firebase auth timed out - forcing app load."); setAppLoading(false); } }, 3000);
@@ -2023,7 +2177,16 @@ export default function App() {
             const role = isMaster ? 'admin' : (data.role || 'client');
             setUserRole(role);
             setCurrentClientData({ id: user.uid, ...data });
-            if (role === 'admin') { setView('admin'); } else { setView('portal'); }
+
+            // Check if password reset required
+            if (data.requiresPasswordReset && !isMaster) {
+              setTempUserForReset(user);
+              setView('reset-password');
+            } else if (role === 'admin') {
+              setView('admin');
+            } else {
+              setView('portal');
+            }
           } else { setView('landing'); }
         } catch (err) { 
             console.error("Error fetching user data on auth change:", err); 
@@ -2080,10 +2243,20 @@ export default function App() {
 
   if (appLoading) { return (<div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-white w-10 h-10" /></div>); }
 
+  const handlePasswordResetComplete = () => {
+    // After password reset, redirect to appropriate dashboard
+    if (userRole === 'admin') {
+      setView('admin');
+    } else {
+      setView('portal');
+    }
+  };
+
   return (
     <>
       {view === 'landing' && <LandingPage onLogin={() => setView('auth')} />}
       {view === 'auth' && <AuthScreen onAuthSubmit={handleAuthSubmit} onBack={() => setView('landing')} maintenanceMode={adminSettings.maintenanceMode} />}
+      {view === 'reset-password' && tempUserForReset && <PasswordResetScreen user={tempUserForReset} userData={currentClientData} onResetComplete={handlePasswordResetComplete} />}
       {view === 'portal' && currentClientData && <ClientPortal onLogout={() => signOut(auth)} clientData={currentClientData} onUpdateClient={handleClientUpdate} onDeleteAccount={handleClientDelete} />}
       {view === 'admin' && <AdminPortal onLogout={() => signOut(auth)} clients={clients} setClients={setClients} adminSettings={adminSettings} setAdminSettings={setAdminSettings} />}
     </>
