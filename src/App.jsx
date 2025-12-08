@@ -355,7 +355,7 @@ function LandingPage({ onLogin }) {
           </FadeIn>
           <FadeIn delay={400} className="flex flex-col sm:flex-row justify-center gap-4 items-center px-4">
             <Button variant="primary" onClick={() => onLogin()} className="w-full sm:w-auto py-4">Start Project</Button>
-            <Button variant="secondary" onClick={() => scrollTo('services')} className="w-full sm:w-auto py-4">View Portfolio</Button>
+            <Button variant="secondary" onClick={() => scrollTo('portfolio')} className="w-full sm:w-auto py-4">View Portfolio</Button>
           </FadeIn>
         </div>
       </section>
@@ -379,6 +379,121 @@ function LandingPage({ onLogin }) {
               <Card className="group cursor-pointer h-full"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-lg"><MessageSquare size={24} /></div><h3 className="text-2xl font-bold mb-4">AI Receptionists</h3><p className="text-zinc-400 leading-relaxed mb-6">Intelligent agents that handle customer support, booking, and inquiries 24/7. Train them on your data and let them run your front desk.</p><ul className="space-y-2 text-zinc-500"><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Natural Language Processing</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Calendar Integration</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Voice & Chat Support</li></ul></Card>
             </FadeIn>
           </div>
+        </div>
+      </section>
+      <section id="portfolio" className="py-16 md:py-24 bg-black border-t border-zinc-900">
+        <div className="container mx-auto px-6">
+          <FadeIn className="mb-12 md:mb-16 text-center">
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">OUR PORTFOLIO</h2>
+            <div className="w-20 h-1 bg-blue-600 mx-auto mb-4"></div>
+            <p className="text-zinc-400 max-w-2xl mx-auto">Explore our latest projects showcasing custom web development and AI-powered solutions.</p>
+          </FadeIn>
+
+          {/* Portfolio Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Website Projects */}
+            <FadeIn delay={100}>
+              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col">
+                <div className="aspect-video bg-gradient-to-br from-blue-900/30 to-purple-900/30 relative overflow-hidden mb-4">
+                  <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">WEB</div>
+                  <div className="absolute bottom-0 right-0 bg-blue-600 text-white px-3 py-1 text-xs font-bold">Website</div>
+                </div>
+                <h3 className="text-xl font-bold mb-2">E-Commerce Platform</h3>
+                <p className="text-zinc-400 text-sm mb-4 flex-1">Full-stack React application with payment integration, real-time inventory, and admin dashboard.</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">React</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Stripe</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Firebase</span>
+                </div>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={150}>
+              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col">
+                <div className="aspect-video bg-gradient-to-br from-green-900/30 to-blue-900/30 relative overflow-hidden mb-4">
+                  <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">WEB</div>
+                  <div className="absolute bottom-0 right-0 bg-blue-600 text-white px-3 py-1 text-xs font-bold">Website</div>
+                </div>
+                <h3 className="text-xl font-bold mb-2">SaaS Dashboard</h3>
+                <p className="text-zinc-400 text-sm mb-4 flex-1">Modern analytics platform with data visualization, user management, and API integrations.</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Next.js</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">TypeScript</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Tailwind</span>
+                </div>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={200}>
+              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col">
+                <div className="aspect-video bg-gradient-to-br from-purple-900/30 to-pink-900/30 relative overflow-hidden mb-4">
+                  <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">WEB</div>
+                  <div className="absolute bottom-0 right-0 bg-blue-600 text-white px-3 py-1 text-xs font-bold">Website</div>
+                </div>
+                <h3 className="text-xl font-bold mb-2">Portfolio Website</h3>
+                <p className="text-zinc-400 text-sm mb-4 flex-1">High-performance creative portfolio with smooth animations and optimized media loading.</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">React</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Framer Motion</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Vite</span>
+                </div>
+              </Card>
+            </FadeIn>
+
+            {/* AI Receptionist Projects */}
+            <FadeIn delay={250}>
+              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col">
+                <div className="aspect-video bg-gradient-to-br from-cyan-900/30 to-blue-900/30 relative overflow-hidden mb-4">
+                  <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
+                  <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
+                </div>
+                <h3 className="text-xl font-bold mb-2">Medical Office AI</h3>
+                <p className="text-zinc-400 text-sm mb-4 flex-1">Appointment booking, patient inquiries, and insurance verification via phone and chat.</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">GPT-4</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Twilio</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Calendar API</span>
+                </div>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={300}>
+              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col">
+                <div className="aspect-video bg-gradient-to-br from-orange-900/30 to-red-900/30 relative overflow-hidden mb-4">
+                  <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
+                  <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
+                </div>
+                <h3 className="text-xl font-bold mb-2">Restaurant Chatbot</h3>
+                <p className="text-zinc-400 text-sm mb-4 flex-1">24/7 reservation system, menu recommendations, and delivery order processing.</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Gemini</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Voice AI</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">CRM</span>
+                </div>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={350}>
+              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col">
+                <div className="aspect-video bg-gradient-to-br from-indigo-900/30 to-purple-900/30 relative overflow-hidden mb-4">
+                  <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
+                  <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
+                </div>
+                <h3 className="text-xl font-bold mb-2">E-Commerce Support</h3>
+                <p className="text-zinc-400 text-sm mb-4 flex-1">Product recommendations, order tracking, and return processing automation.</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Claude</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Shopify API</span>
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Analytics</span>
+                </div>
+              </Card>
+            </FadeIn>
+          </div>
+
+          <FadeIn delay={400} className="text-center mt-12">
+            <p className="text-zinc-500 mb-6">Want to see your project here?</p>
+            <Button variant="primary" onClick={() => onLogin()}>Start Your Project</Button>
+          </FadeIn>
         </div>
       </section>
       <section id="demo" className="py-16 md:py-24 relative overflow-hidden bg-black">
