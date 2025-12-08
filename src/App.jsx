@@ -417,11 +417,68 @@ function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
   );
 }
 
+function CountdownTimer({ targetDate }) {
+  const [timeLeft, setTimeLeft] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0
+  });
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const difference = targetDate - new Date();
+
+      if (difference > 0) {
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60)
+        });
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, [targetDate]);
+
+  const TimeUnit = ({ value, label }) => (
+    <div className="flex flex-col items-center">
+      <div className="relative group">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300"></div>
+        <div className="relative bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 rounded-2xl p-4 sm:p-6 min-w-[70px] sm:min-w-[90px] shadow-2xl group-hover:scale-105 transition-transform duration-300">
+          <div className="text-3xl sm:text-5xl font-bold bg-gradient-to-b from-white via-blue-100 to-blue-300 bg-clip-text text-transparent tabular-nums animate-pulse">
+            {String(value).padStart(2, '0')}
+          </div>
+        </div>
+      </div>
+      <div className="text-xs sm:text-sm text-zinc-500 font-medium uppercase tracking-wider mt-3">
+        {label}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex justify-center gap-3 sm:gap-6 mb-10">
+      <TimeUnit value={timeLeft.days} label="Days" />
+      <div className="flex items-center text-3xl sm:text-5xl font-bold text-blue-500 animate-pulse -mt-4">:</div>
+      <TimeUnit value={timeLeft.hours} label="Hours" />
+      <div className="flex items-center text-3xl sm:text-5xl font-bold text-blue-500 animate-pulse -mt-4">:</div>
+      <TimeUnit value={timeLeft.minutes} label="Minutes" />
+      <div className="flex items-center text-3xl sm:text-5xl font-bold text-blue-500 animate-pulse -mt-4">:</div>
+      <TimeUnit value={timeLeft.seconds} label="Seconds" />
+    </div>
+  );
+}
+
 function EarlyAccessGate({ onAdminLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const LAUNCH_DATE = new Date('2026-01-02T00:00:00');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -465,6 +522,8 @@ function EarlyAccessGate({ onAdminLogin }) {
             Public Launch: January 2, 2026
           </div>
         </div>
+
+        <CountdownTimer targetDate={LAUNCH_DATE} />
 
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
           <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 p-3 rounded-lg mb-6 text-sm flex items-center gap-2">
