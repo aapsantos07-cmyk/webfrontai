@@ -655,6 +655,7 @@ function PhoneCallDemo({ isOpen, onClose }) {
   const timerRef = useRef(null);
 
   useEffect(() => {
+    console.log("PhoneCallDemo isOpen:", isOpen);
     if (!isOpen) return;
 
     // Play ring tone and simulate dialing
@@ -715,14 +716,15 @@ function PhoneCallDemo({ isOpen, onClose }) {
       const transcript = event.results[0][0].transcript;
       setMessages(prev => [...prev, { role: 'user', text: transcript }]);
 
-      // Call AI
+      // Call AI with medical receptionist prompt
       try {
         const chatFunction = httpsCallable(functions, 'chatWithAI');
-        const systemPrompt = "You are an AI medical office receptionist for Valley Medical Center (a demo). You do NOT give medical advice or diagnoses. You only help with logistics: booking and confirming appointments, answering questions about office hours (Mon-Fri 8AM-6PM, Sat 9AM-2PM), services (general practice, pediatrics, dermatology), providers (Dr. Smith, Dr. Johnson, Dr. Lee), and accepted insurance (Blue Cross, Aetna, United Healthcare, Medicare). Always remind users this is a demo and no real appointments are being scheduled. Keep responses conversational and brief (2-3 sentences max).";
+        const medicalPrompt = "You are an AI medical office receptionist for Valley Medical Center (a demo). You do NOT give medical advice or diagnoses. You only help with logistics: booking and confirming appointments, answering questions about office hours (Mon-Fri 8AM-6PM, Sat 9AM-2PM), services (general practice, pediatrics, dermatology), providers (Dr. Smith, Dr. Johnson, Dr. Lee), and accepted insurance (Blue Cross, Aetna, United Healthcare, Medicare). Always remind users this is a demo and no real appointments are being scheduled. Keep responses conversational and brief (2-3 sentences max).";
 
         const result = await chatFunction({
-          message: `${systemPrompt}\n\nUser: ${transcript}`,
-          history: messages
+          message: transcript,
+          history: messages,
+          customSystemPrompt: medicalPrompt
         });
 
         const responseText = result.data.text;
@@ -987,7 +989,7 @@ function LandingPage({ onLogin }) {
 
             {/* AI Receptionist Projects */}
             <FadeIn delay={250}>
-              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col hover:border-purple-500 transition-all" onClick={() => setShowPhoneDemo(true)}>
+              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col hover:border-purple-500 transition-all" onClick={() => { console.log("Medical Office AI clicked!"); setShowPhoneDemo(true); }}>
                 <div className="aspect-video bg-gradient-to-br from-cyan-900/30 to-blue-900/30 relative overflow-hidden mb-4">
                   <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
                   <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
@@ -2498,8 +2500,9 @@ function AdminFinancialsView({ clients }) {
 }
 
 function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
-  const [activeTab, setActiveTab] = useState('dashboard'); 
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showPhoneDemo, setShowPhoneDemo] = useState(false);
   
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -2538,7 +2541,13 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
             </div>
           ))}
         </nav>
-        <button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-4 px-4 py-2 border-t border-zinc-800 pt-4">
+        <button
+          onClick={() => setShowPhoneDemo(true)}
+          className="flex items-center gap-2 px-4 py-3 rounded-lg bg-purple-900/20 text-purple-400 hover:bg-purple-900/30 border border-purple-900/50 transition-all duration-200 text-sm font-medium mb-4"
+        >
+          <Phone size={18} /> Try AI Demo
+        </button>
+        <button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors px-4 py-2 border-t border-zinc-800 pt-4">
           Log Out <ArrowRight size={14} />
         </button>
       </div>
@@ -2556,6 +2565,8 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
         {activeTab === 'users' && <AdminUsersManager />}
         {activeTab === 'settings' && <AdminGlobalSettingsView settings={adminSettings} onUpdateSettings={setAdminSettings} />}
       </div>
+
+      <PhoneCallDemo isOpen={showPhoneDemo} onClose={() => setShowPhoneDemo(false)} />
     </div>
   );
 }

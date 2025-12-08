@@ -10,7 +10,7 @@ const db = getFirestore();
 const auth = getAuth();
 
 exports.chatWithAI = onCall(async (request) => {
-  const { message, history } = request.data;
+  const { message, history, customSystemPrompt } = request.data;
 
   if (!message || typeof message !== "string") {
     throw new HttpsError("invalid-argument", "Message is required");
@@ -26,7 +26,9 @@ exports.chatWithAI = onCall(async (request) => {
 
     const settings = settingsDoc.data();
     const apiKey = settings.geminiKey;
-    const systemPrompt = settings.systemPrompt || "You are WEBFRONT_AI, a helpful assistant for a digital agency. Answer questions about web development services, pricing, and timelines.";
+
+    // Use custom prompt if provided, otherwise use default from Firestore
+    const systemPrompt = customSystemPrompt || settings.systemPrompt || "You are WEBFRONT_AI, a helpful assistant for a digital agency. Answer questions about web development services, pricing, and timelines.";
 
     if (!apiKey) {
       throw new HttpsError("failed-precondition", "API key not configured");
