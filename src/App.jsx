@@ -7,7 +7,7 @@ import {
   DollarSign, Activity, UploadCloud, XCircle, CheckCircle2, LogOut, AlertTriangle,
   Power, ListTodo, FolderOpen, HelpCircle, BookOpen, Clock, CalendarDays, UserCheck,
   // Added Icons for Admin Panel
-  Database, FileJson, FileSpreadsheet, History, Sliders, ClipboardList, Phone
+  Database, FileJson, FileSpreadsheet, History, Sliders, ClipboardList, Phone, Server
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
@@ -654,6 +654,12 @@ function PhoneCallDemo({ isOpen, onClose }) {
   const synthRef = useRef(window.speechSynthesis);
   const timerRef = useRef(null);
   const voicesLoadedRef = useRef(false);
+  const messagesRef = useRef(messages);
+
+  // Keep messagesRef in sync with messages state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Load voices on mount
   useEffect(() => {
@@ -688,7 +694,7 @@ function PhoneCallDemo({ isOpen, onClose }) {
       }, 1000);
 
       // AI greeting - speak() will automatically start listening when done
-      const greeting = "Hello! Thank you for calling Valley Medical Center. This is a demo of our AI receptionist. How may I help you today?";
+      const greeting = "Hello! Thank you for calling Valley Medical Center. Just so you know, this is a demo - no real appointments will be scheduled. How may I help you today?";
       setMessages([{ role: 'ai', text: greeting }]);
       speak(greeting);
     }, 3000);
@@ -705,39 +711,62 @@ function PhoneCallDemo({ isOpen, onClose }) {
     // Stop listening to prevent echo/feedback
     stopListening();
 
-    setIsSpeaking(true);
-    const utterance = new SpeechSynthesisUtterance(text);
+    // Cancel any ongoing speech and wait a bit before starting new speech
+    synthRef.current.cancel();
 
-    // Select a more natural voice (prefer female voices for medical receptionist)
-    const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(voice =>
-      voice.name.includes('Samantha') || // macOS
-      voice.name.includes('Microsoft Zira') || // Windows
-      voice.name.includes('Google US English Female') || // Chrome
-      voice.name.includes('Female')
-    );
-    if (preferredVoice) utterance.voice = preferredVoice;
+    // Small delay to ensure cancel completes
+    setTimeout(() => {
+      setIsSpeaking(true);
+      const utterance = new SpeechSynthesisUtterance(text);
 
-    // Adjust for more natural sound
-    utterance.rate = 0.95; // Slightly slower for clarity
-    utterance.pitch = 1.1; // Slightly higher for friendlier tone
-    utterance.volume = 0.9;
+      // Select a more natural voice (prefer female voices for medical receptionist)
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(voice =>
+        voice.name.includes('Samantha') || // macOS
+        voice.name.includes('Microsoft Zira') || // Windows
+        voice.name.includes('Google US English Female') || // Chrome
+        voice.name.includes('Female')
+      );
+      if (preferredVoice) utterance.voice = preferredVoice;
 
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      // Automatically resume listening after speaking (for continuous conversation)
-      if (callState === 'connected') {
-        setTimeout(() => startListening(), 500); // Small delay to prevent echo
-      }
-    };
+      // Adjust for more natural sound
+      utterance.rate = 0.95; // Slightly slower for clarity
+      utterance.pitch = 1.1; // Slightly higher for friendlier tone
+      utterance.volume = 0.9;
 
-    synthRef.current.speak(utterance);
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        // Automatically resume listening after speaking (for continuous conversation)
+        setTimeout(() => {
+          startListening();
+        }, 800); // Increased delay to ensure speech is fully stopped
+      };
+
+      utterance.onerror = (error) => {
+        console.error('Speech synthesis error:', error);
+        setIsSpeaking(false);
+        // Try to restart listening even if speech fails
+        setTimeout(() => startListening(), 1000);
+      };
+
+      synthRef.current.speak(utterance);
+    }, 100); // Small delay after cancel
   };
 
   const startListening = () => {
     if (!('webkitSpeechRecognition' in window)) {
       console.error('Speech recognition not supported');
+      alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
       return;
+    }
+
+    // Stop any existing recognition first
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore errors from stopping
+      }
     }
 
     const recognition = new window.webkitSpeechRecognition();
@@ -745,37 +774,79 @@ function PhoneCallDemo({ isOpen, onClose }) {
     recognition.interimResults = false;
     recognition.lang = 'en-US';
 
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+
+      // Don't restart if it was manually aborted
+      if (event.error !== 'aborted' && event.error !== 'no-speech') {
+        // For other errors, try to restart after a delay
+        setTimeout(() => {
+          if (callState === 'connected' && !isSpeaking) {
+            startListening();
+          }
+        }, 1000);
+      }
+    };
 
     recognition.onresult = async (event) => {
       const transcript = event.results[0][0].transcript;
-      setMessages(prev => [...prev, { role: 'user', text: transcript }]);
+
+      // Get current conversation history (use ref for latest value)
+      const currentMessages = messagesRef.current;
+
+      // Add user message to UI immediately
+      const updatedMessages = [...currentMessages, { role: 'user', text: transcript }];
+      setMessages(updatedMessages);
 
       // Call AI with medical receptionist prompt
       try {
         const chatFunction = httpsCallable(functions, 'chatWithAI');
-        const medicalPrompt = "You are an AI medical office receptionist for Valley Medical Center (a demo). You do NOT give medical advice or diagnoses. You only help with logistics: booking and confirming appointments, answering questions about office hours (Mon-Fri 8AM-6PM, Sat 9AM-2PM), services (general practice, pediatrics, dermatology), providers (Dr. Smith, Dr. Johnson, Dr. Lee), and accepted insurance (Blue Cross, Aetna, United Healthcare, Medicare). Always remind users this is a demo and no real appointments are being scheduled. Keep responses conversational and brief (2-3 sentences max).";
+        const medicalPrompt = "You are a professional medical office receptionist for Valley Medical Center. You help patients book appointments by gathering necessary information step-by-step. When booking an appointment, ask for: 1) Patient's full name, 2) Phone number, 3) Reason for visit, 4) Preferred date and time, 5) Insurance provider. You also answer questions about office hours (Mon-Fri 8AM-6PM, Sat 9AM-2PM), available services (general practice, pediatrics, dermatology), providers (Dr. Smith, Dr. Johnson, Dr. Lee), and accepted insurance (Blue Cross, Aetna, United Healthcare, Medicare). You do NOT give medical advice or diagnoses. Be friendly, professional, and conversational. Keep responses brief (2-3 sentences). Ask one question at a time to guide the conversation naturally.";
+
+        // CRITICAL: Pass only PREVIOUS messages as history, not including current message
+        // The current message is sent separately via the 'message' parameter
+        console.log('📤 Sending to AI - Previous history:', currentMessages);
+        console.log('📤 Current message:', transcript);
 
         const result = await chatFunction({
           message: transcript,
-          history: messages,
+          history: currentMessages, // Only previous messages, NOT including current one
           customSystemPrompt: medicalPrompt
         });
 
         const responseText = result.data.text;
-        setMessages(prev => [...prev, { role: 'ai', text: responseText }]);
+        console.log('📥 AI Response:', responseText);
+
+        // Add AI response to conversation history
+        const updatedWithResponse = [...updatedMessages, { role: 'ai', text: responseText }];
+        setMessages(updatedWithResponse);
         speak(responseText);
       } catch (error) {
         console.error("AI Error:", error);
         const errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
-        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+        const errorMessages = [...updatedMessages, { role: 'ai', text: errorMsg }];
+        setMessages(errorMessages);
         speak(errorMsg);
       }
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
+
+    try {
+      recognition.start();
+    } catch (error) {
+      console.error('Error starting recognition:', error);
+      setIsListening(false);
+    }
   };
 
   const stopListening = () => {
@@ -857,7 +928,17 @@ function PhoneCallDemo({ isOpen, onClose }) {
               )}
             </div>
 
-            {/* Hang Up Button */}
+            {/* Action Buttons */}
+            <div className="flex gap-3 mb-3">
+              <button
+                onClick={startListening}
+                disabled={isListening || isSpeaking}
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+              >
+                {isListening ? '🎤 Listening...' : '🎤 Tap to Speak'}
+              </button>
+            </div>
+
             <button
               onClick={hangUp}
               className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -1106,8 +1187,8 @@ function LandingPage({ onLogin }) {
         <div className="container mx-auto px-6">
           <FadeIn className="mb-16 text-center"><h2 className="text-3xl md:text-4xl font-bold mb-4">TRANSPARENT PRICING</h2><p className="text-zinc-400">Invest in your digital infrastructure.</p></FadeIn>
           <div className="grid md:grid-cols-3 gap-8">
-            {[{ title: 'Starter', price: '$2,500', sub: 'One-time', features: ['Custom Landing Page', 'Mobile Responsive', 'Basic SEO', '1 Week Support'] }, { title: 'Growth', price: '$4,500', sub: 'One-time', features: ['Multi-page Website', 'CMS Integration', 'Advanced Animations', 'AI Chatbot Setup'] }, { title: 'Agency', price: '$8,000+', sub: 'Custom Quote', features: ['Full Web App', 'User Authentication', 'Payment Integration', 'Custom AI Training'] }].map((tier, index) => (
-              <FadeIn key={index} delay={index * 150}><Card className={`relative flex flex-col h-full transform transition-all duration-300 hover:-translate-y-2 ${index === 1 ? 'border-blue-600/50 bg-zinc-900/80 shadow-[0_0_30px_rgba(37,99,235,0.15)]' : 'bg-transparent'}`}>{index === 1 && (<div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-1 text-xs font-bold rounded-full shadow-lg">MOST POPULAR</div>)}<h3 className="text-xl font-bold mb-2">{tier.title}</h3><div className="flex items-baseline gap-1 mb-6"><span className="text-4xl font-bold">{tier.price}</span><span className="text-zinc-500 text-sm">{tier.sub}</span></div><div className="space-y-4 mb-8 flex-1">{tier.features.map((f, i) => (<div key={i} className="flex items-center gap-3 text-sm text-zinc-300"><Check size={14} className="text-blue-500 flex-shrink-0" /> {f}</div>))}</div><Button variant={index === 1 ? 'accent' : 'secondary'} className="w-full" onClick={() => onLogin()}>Get Started</Button></Card></FadeIn>
+            {[{ title: 'Starter', price: '$900', sub: 'One-time', features: ['Custom Landing Page', 'Mobile Responsive', 'Basic SEO', '1 Week Support'], hosting: '$50/mo' }, { title: 'Growth', price: '$3,000', sub: 'One-time', features: ['Multi-page Website', 'CMS Integration', 'Advanced Animations', 'AI Chatbot Setup'], hosting: '$90/mo' }, { title: 'Agency', price: '$5,000+', sub: 'Custom Quote', features: ['Full Web App', 'User Authentication', 'Payment Integration', 'Custom AI Training'], hosting: '$150+/mo' }].map((tier, index) => (
+              <FadeIn key={index} delay={index * 150}><Card className={`relative flex flex-col h-full transform transition-all duration-300 hover:-translate-y-2 ${index === 1 ? 'border-blue-600/50 bg-zinc-900/80 shadow-[0_0_30px_rgba(37,99,235,0.15)]' : 'bg-transparent'}`}>{index === 1 && (<div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-1 text-xs font-bold rounded-full shadow-lg">MOST POPULAR</div>)}<h3 className="text-xl font-bold mb-2">{tier.title}</h3><div className="flex items-baseline gap-1 mb-6"><span className="text-4xl font-bold">{tier.price}</span><span className="text-zinc-500 text-sm">{tier.sub}</span></div><div className="space-y-4 mb-6 flex-1">{tier.features.map((f, i) => (<div key={i} className="flex items-center gap-3 text-sm text-zinc-300"><Check size={14} className="text-blue-500 flex-shrink-0" /> {f}</div>))}</div><div className="pt-4 mb-6 border-t border-zinc-800/50"><div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-lg p-3"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><Server size={16} className="text-purple-400" /><span className="text-xs font-semibold text-purple-300">Optional Hosting</span></div><span className="text-sm font-bold text-white">{tier.hosting}</span></div></div></div><Button variant={index === 1 ? 'accent' : 'secondary'} className="w-full" onClick={() => onLogin()}>Get Started</Button></Card></FadeIn>
             ))}
           </div>
         </div>
@@ -1277,7 +1358,7 @@ function ClientKnowledgeBaseView() {
         {
             title: "Pricing & Packages",
             items: [
-                { q: "How much does a website cost?", a: "We offer three tiers:\n• Starter – $2,500: Custom landing page, Mobile responsive, Basic SEO, 1 week support\n• Growth – $4,500: Multi-page website, CMS, animations, AI setup\n• Agency – $8,000+ : Full custom web app with payments, authentication, and AI training" },
+                { q: "How much does a website cost?", a: "We offer three tiers:\n• Starter – $900: Custom landing page, Mobile responsive, Basic SEO, 1 week support\n• Growth – $3,000: Multi-page website, CMS, animations, AI setup\n• Agency – $5,000+ : Full custom web app with payments, authentication, and AI training" },
                 { q: "Do you offer monthly plans?", a: "Yes. Maintenance, updates, hosting, and AI support can be added as a recurring plan if needed." },
                 { q: "Is pricing transparent?", a: "Always. You will see a full breakdown, contract, and project scope before work begins. No hidden fees." }
             ]
