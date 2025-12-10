@@ -1193,6 +1193,105 @@ function LandingPage({ onLogin }) {
           </div>
         </div>
       </section>
+
+      {/* AI Receptionist Pricing Section */}
+      <section className="py-16 md:py-24 bg-black border-t border-zinc-900">
+        <div className="container mx-auto px-6">
+          <FadeIn className="mb-16 text-center">
+            <div className="inline-block px-3 py-1 bg-purple-900/30 text-purple-400 rounded-full text-xs font-bold tracking-widest mb-6 border border-purple-900/50">AI RECEPTIONIST</div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">VOICE AI PRICING</h2>
+            <p className="text-zinc-400">24/7 intelligent phone support for your business.</p>
+          </FadeIn>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                title: 'Basic',
+                setupFee: '$199',
+                monthly: '$85/mo',
+                description: 'Perfect for simple inquiries and low volume',
+                features: [
+                  'Answers general FAQ',
+                  'Business info (hours, address)',
+                  'Takes simple messages',
+                  'Up to 200 min/month'
+                ]
+              },
+              {
+                title: 'Standard',
+                setupFee: '$600',
+                monthly: '$250/mo',
+                description: 'Ideal for growing businesses with moderate needs',
+                features: [
+                  'Everything in Basic',
+                  'Appointment booking',
+                  'Lead capture & routing',
+                  'CRM/email/webhook integration',
+                  '300-800 min/month'
+                ]
+              },
+              {
+                title: 'Premium',
+                setupFee: '$1,500',
+                monthly: '$500/mo',
+                description: 'Enterprise solution for high-volume operations',
+                features: [
+                  'Everything in Standard',
+                  'Multi-step workflows',
+                  'Custom voice training',
+                  'Follow-up sequences',
+                  'Voicemail-to-email/transcript',
+                  'Advanced call routing',
+                  '1,000+ min/month'
+                ]
+              }
+            ].map((tier, index) => (
+              <FadeIn key={index} delay={index * 150}>
+                <Card className={`relative flex flex-col h-full transform transition-all duration-300 hover:-translate-y-2 ${index === 1 ? 'border-purple-600/50 bg-zinc-900/80 shadow-[0_0_30px_rgba(168,85,247,0.15)]' : 'bg-zinc-950/50'}`}>
+                  {index === 1 && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-4 py-1 text-xs font-bold rounded-full shadow-lg">MOST POPULAR</div>
+                  )}
+
+                  <h3 className="text-xl font-bold mb-2">{tier.title}</h3>
+
+                  {/* Setup Fee */}
+                  <div className="mb-4 pb-4 border-b border-zinc-800/50">
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="text-3xl font-bold">{tier.setupFee}</span>
+                      <span className="text-zinc-500 text-sm">setup</span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold text-purple-400">{tier.monthly}</span>
+                      <span className="text-zinc-500 text-sm">ongoing</span>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-sm text-zinc-400 mb-6 leading-relaxed">{tier.description}</p>
+
+                  {/* Features */}
+                  <div className="space-y-3 mb-8 flex-1">
+                    {tier.features.map((f, i) => (
+                      <div key={i} className="flex items-start gap-3 text-sm text-zinc-300">
+                        <Headphones size={14} className="text-purple-500 flex-shrink-0 mt-0.5" />
+                        <span>{f}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    variant={index === 1 ? 'accent' : 'secondary'}
+                    className="w-full"
+                    onClick={() => onLogin()}
+                  >
+                    Get Started
+                  </Button>
+                </Card>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <footer className="py-12 border-t border-zinc-900 text-center md:text-left bg-black">
         <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="text-xl font-bold tracking-tighter flex items-center gap-2"><Cpu size={18}/> WEBFRONT AI</div>
