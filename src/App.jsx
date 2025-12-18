@@ -963,10 +963,330 @@ function PhoneCallDemo({ isOpen, onClose }) {
   );
 }
 
+function RestaurantCallDemo({ isOpen, onClose }) {
+  const [callState, setCallState] = useState('dialing'); // dialing, connected, ended
+  const [messages, setMessages] = useState([]);
+  const [callDuration, setCallDuration] = useState(0);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const recognitionRef = useRef(null);
+  const synthRef = useRef(window.speechSynthesis);
+  const timerRef = useRef(null);
+  const voicesLoadedRef = useRef(false);
+  const messagesRef = useRef(messages);
+
+  // Keep messagesRef in sync with messages state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  // Load voices on mount
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        voicesLoadedRef.current = true;
+      }
+    };
+
+    // Load voices immediately and also listen for voiceschanged event
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Play ring tone and simulate dialing
+    setCallState('dialing');
+    const dialTimeout = setTimeout(async () => {
+      setCallState('connected');
+      setCallDuration(0);
+
+      // Start call timer
+      timerRef.current = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+
+      // AI greeting - speak() will automatically start listening when done
+      const greeting = "Hello! Thank you for calling Bella Vista Restaurant. Just so you know, this is a demo - no real reservations will be made. How may I help you today?";
+      setMessages([{ role: 'ai', text: greeting }]);
+      speak(greeting);
+    }, 3000);
+
+    return () => {
+      clearTimeout(dialTimeout);
+      if (timerRef.current) clearInterval(timerRef.current);
+      stopListening();
+      synthRef.current.cancel();
+    };
+  }, [isOpen]);
+
+  const speak = (text) => {
+    // Stop listening to prevent echo/feedback
+    stopListening();
+
+    // Cancel any ongoing speech and wait a bit before starting new speech
+    synthRef.current.cancel();
+
+    // Small delay to ensure cancel completes
+    setTimeout(() => {
+      setIsSpeaking(true);
+      const utterance = new SpeechSynthesisUtterance(text);
+
+      // Select a more natural voice (prefer female voices for friendly restaurant host)
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(voice =>
+        voice.name.includes('Samantha') || // macOS
+        voice.name.includes('Microsoft Zira') || // Windows
+        voice.name.includes('Google US English Female') || // Chrome
+        voice.name.includes('Female')
+      );
+      if (preferredVoice) utterance.voice = preferredVoice;
+
+      // Adjust for more natural sound
+      utterance.rate = 0.95; // Slightly slower for clarity
+      utterance.pitch = 1.1; // Slightly higher for friendlier tone
+      utterance.volume = 0.9;
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        // Automatically resume listening after speaking (for continuous conversation)
+        setTimeout(() => {
+          startListening();
+        }, 800); // Increased delay to ensure speech is fully stopped
+      };
+
+      utterance.onerror = (error) => {
+        console.error('Speech synthesis error:', error);
+        setIsSpeaking(false);
+        // Try to restart listening even if speech fails
+        setTimeout(() => startListening(), 1000);
+      };
+
+      synthRef.current.speak(utterance);
+    }, 100); // Small delay after cancel
+  };
+
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      console.error('Speech recognition not supported');
+      alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    // Stop any existing recognition first
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore errors from stopping
+      }
+    }
+
+    const recognition = new window.webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+
+      // Don't restart if it was manually aborted
+      if (event.error !== 'aborted' && event.error !== 'no-speech') {
+        // For other errors, try to restart after a delay
+        setTimeout(() => {
+          if (callState === 'connected' && !isSpeaking) {
+            startListening();
+          }
+        }, 1000);
+      }
+    };
+
+    recognition.onresult = async (event) => {
+      const transcript = event.results[0][0].transcript;
+
+      // Get current conversation history (use ref for latest value)
+      const currentMessages = messagesRef.current;
+
+      // Add user message to UI immediately
+      const updatedMessages = [...currentMessages, { role: 'user', text: transcript }];
+      setMessages(updatedMessages);
+
+      // Call AI with restaurant host prompt
+      try {
+        const chatFunction = httpsCallable(functions, 'chatWithAI');
+        const restaurantPrompt = "You are a professional restaurant host for Bella Vista Restaurant. You help customers with: 1) Reservations - ask for name, party size, date, time, and special requests (dietary restrictions, occasions), 2) Menu recommendations - we serve Italian cuisine including fresh pasta, wood-fired pizzas, seafood, steaks, and house-made desserts. Popular dishes include Lobster Ravioli, Margherita Pizza, Osso Buco, and Tiramisu, 3) Delivery orders - take orders, confirm items, collect delivery address and phone number, provide estimated delivery time (30-45 minutes). We're open Tuesday-Sunday 11AM-10PM, closed Mondays. We accept reservations for parties of 2-12 people. Delivery available within 5 miles. Be warm, welcoming, and conversational. Keep responses brief (2-3 sentences). Ask one question at a time to guide the conversation naturally.";
+
+        // CRITICAL: Pass only PREVIOUS messages as history, not including current message
+        // The current message is sent separately via the 'message' parameter
+        console.log('📤 Sending to AI - Previous history:', currentMessages);
+        console.log('📤 Current message:', transcript);
+
+        const result = await chatFunction({
+          message: transcript,
+          history: currentMessages, // Only previous messages, NOT including current one
+          customSystemPrompt: restaurantPrompt
+        });
+
+        const responseText = result.data.text;
+        console.log('📥 AI Response:', responseText);
+
+        // Add AI response to conversation history
+        const updatedWithResponse = [...updatedMessages, { role: 'ai', text: responseText }];
+        setMessages(updatedWithResponse);
+        speak(responseText);
+      } catch (error) {
+        console.error("AI Error:", error);
+        const errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
+        const errorMessages = [...updatedMessages, { role: 'ai', text: errorMsg }];
+        setMessages(errorMessages);
+        speak(errorMsg);
+      }
+    };
+
+    recognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+    } catch (error) {
+      console.error('Error starting recognition:', error);
+      setIsListening(false);
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+  };
+
+  const hangUp = () => {
+    setCallState('ended');
+    stopListening();
+    synthRef.current.cancel();
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimeout(() => onClose(), 1000);
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={hangUp}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-2xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h2 className="text-3xl font-bold mb-2">Restaurant AI – Live Demo</h2>
+          <p className="text-zinc-400 text-sm">Simulated phone-style conversation, no real reservations will be made.</p>
+        </div>
+
+        {/* Call Status */}
+        {callState === 'dialing' && (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 bg-orange-600 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse">
+              <Phone size={40} className="text-white" />
+            </div>
+            <p className="text-xl font-bold mb-2">Calling...</p>
+            <p className="text-zinc-400 text-sm">Bella Vista Restaurant</p>
+          </div>
+        )}
+
+        {callState === 'connected' && (
+          <div>
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-green-400 font-bold">Connected</span>
+              </div>
+              <div className="text-zinc-400 text-sm font-mono">{formatTime(callDuration)}</div>
+            </div>
+
+            {/* Transcript */}
+            <div className="h-[300px] overflow-y-auto mb-6 space-y-4 custom-scrollbar">
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[75%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-orange-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {isListening && (
+                <div className="flex justify-end">
+                  <div className="bg-orange-600/20 border border-orange-500 text-orange-400 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+                    Listening...
+                  </div>
+                </div>
+              )}
+              {isSpeaking && (
+                <div className="flex justify-start">
+                  <div className="bg-zinc-800/50 border border-zinc-700 text-zinc-400 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    Speaking...
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 mb-3">
+              <button
+                onClick={startListening}
+                disabled={isListening || isSpeaking}
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+              >
+                {isListening ? '🎤 Listening...' : '🎤 Tap to Speak'}
+              </button>
+            </div>
+
+            <button
+              onClick={hangUp}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <Phone size={20} className="rotate-135" />
+              Hang Up
+            </button>
+          </div>
+        )}
+
+        {callState === 'ended' && (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 bg-zinc-800 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <Phone size={40} className="text-zinc-500" />
+            </div>
+            <p className="text-xl font-bold mb-2">Call Ended</p>
+            <p className="text-zinc-400 text-sm">Duration: {formatTime(callDuration)}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function LandingPage({ onLogin }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showPhoneDemo, setShowPhoneDemo] = useState(false);
+  const [showRestaurantDemo, setShowRestaurantDemo] = useState(false);
   
   useEffect(() => { 
     const handleScroll = () => setScrolled(window.scrollY > 50); 
@@ -1127,19 +1447,24 @@ function LandingPage({ onLogin }) {
             </FadeIn>
 
             <FadeIn delay={300}>
-              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col">
-                <div className="aspect-video bg-gradient-to-br from-orange-900/30 to-red-900/30 relative overflow-hidden mb-4">
-                  <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
-                  <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
-                </div>
-                <h3 className="text-xl font-bold mb-2">Restaurant Chatbot</h3>
-                <p className="text-zinc-400 text-sm mb-4 flex-1">24/7 reservation system, menu recommendations, and delivery order processing.</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Gemini</span>
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Voice AI</span>
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">CRM</span>
-                </div>
-              </Card>
+              <div
+                style={{ cursor: 'pointer' }}
+                onClick={() => setShowRestaurantDemo(true)}
+              >
+                <Card className="group overflow-hidden h-full flex flex-col hover:border-purple-500 transition-all">
+                  <div className="aspect-video bg-gradient-to-br from-orange-900/30 to-red-900/30 relative overflow-hidden mb-4">
+                    <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
+                    <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Restaurant Chatbot</h3>
+                  <p className="text-zinc-400 text-sm mb-4 flex-1">24/7 reservation system, menu recommendations, and delivery order processing.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Gemini</span>
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Voice AI</span>
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">CRM</span>
+                  </div>
+                </Card>
+              </div>
             </FadeIn>
 
             <FadeIn delay={350}>
@@ -1302,6 +1627,9 @@ function LandingPage({ onLogin }) {
 
       {/* Phone Call Demo Modal */}
       <PhoneCallDemo isOpen={showPhoneDemo} onClose={() => setShowPhoneDemo(false)} />
+
+      {/* Restaurant Call Demo Modal */}
+      <RestaurantCallDemo isOpen={showRestaurantDemo} onClose={() => setShowRestaurantDemo(false)} />
     </div>
   );
 }
