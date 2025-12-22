@@ -899,46 +899,46 @@ function PhoneCallDemo({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={hangUp}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-2xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="text-center mb-6">
-          <h2 className="text-3xl font-bold mb-2">Medical Office AI – Live Demo</h2>
-          <p className="text-zinc-400 text-sm">Simulated phone-style conversation, no real call placed.</p>
+        <div className="text-center mb-4 sm:mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2">Medical Office AI – Live Demo</h2>
+          <p className="text-zinc-400 text-xs sm:text-sm">Simulated phone-style conversation, no real call placed.</p>
         </div>
 
         {/* Call Status */}
         {callState === 'dialing' && (
-          <div className="text-center py-12">
-            <div className="w-20 h-20 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse">
-              <Phone size={40} className="text-white" />
+          <div className="text-center py-8 sm:py-12">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse">
+              <Phone size={32} className="sm:w-10 sm:h-10 text-white" />
             </div>
-            <p className="text-xl font-bold mb-2">Calling...</p>
-            <p className="text-zinc-400 text-sm">Valley Medical Center</p>
+            <p className="text-lg sm:text-xl font-bold mb-2">Calling...</p>
+            <p className="text-zinc-400 text-xs sm:text-sm">Valley Medical Center</p>
           </div>
         )}
 
         {callState === 'connected' && (
           <div>
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 font-bold">Connected</span>
+            <div className="flex items-center justify-between mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-zinc-800">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-green-400 font-bold text-sm sm:text-base">Connected</span>
               </div>
-              <div className="text-zinc-400 text-sm font-mono">{formatTime(callDuration)}</div>
+              <div className="text-zinc-400 text-xs sm:text-sm font-mono">{formatTime(callDuration)}</div>
             </div>
 
             {/* Transcript */}
-            <div className="h-[300px] overflow-y-auto mb-6 space-y-4 custom-scrollbar">
+            <div className="h-[250px] sm:h-[300px] overflow-y-auto mb-4 sm:mb-6 space-y-3 sm:space-y-4 custom-scrollbar">
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>
+                  <div className={`max-w-[85%] sm:max-w-[75%] p-2 sm:p-3 rounded-lg text-sm sm:text-base ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>
                     {msg.text}
                   </div>
                 </div>
               ))}
               {isListening && (
                 <div className="flex justify-end">
-                  <div className="bg-blue-600/20 border border-blue-500 text-blue-400 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                  <div className="bg-blue-600/20 border border-blue-500 text-blue-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
                     <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                     Listening...
                   </div>
@@ -946,7 +946,7 @@ function PhoneCallDemo({ isOpen, onClose }) {
               )}
               {isSpeaking && (
                 <div className="flex justify-start">
-                  <div className="bg-zinc-800/50 border border-zinc-700 text-zinc-400 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                  <div className="bg-zinc-800/50 border border-zinc-700 text-zinc-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin" />
                     Speaking...
                   </div>
@@ -959,7 +959,7 @@ function PhoneCallDemo({ isOpen, onClose }) {
               <button
                 onClick={startListening}
                 disabled={isListening || isSpeaking}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2 sm:py-3 rounded-lg transition-colors text-xs sm:text-sm flex items-center justify-center gap-2"
               >
                 {isListening ? '🎤 Listening...' : '🎤 Tap to Speak'}
               </button>
@@ -967,21 +967,21 @@ function PhoneCallDemo({ isOpen, onClose }) {
 
             <button
               onClick={hangUp}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
-              <Phone size={20} className="rotate-135" />
+              <Phone size={18} className="sm:w-5 sm:h-5 rotate-135" />
               Hang Up
             </button>
           </div>
         )}
 
         {callState === 'ended' && (
-          <div className="text-center py-12">
-            <div className="w-20 h-20 bg-zinc-800 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Phone size={40} className="text-zinc-500" />
+          <div className="text-center py-8 sm:py-12">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-zinc-800 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <Phone size={32} className="sm:w-10 sm:h-10 text-zinc-500" />
             </div>
-            <p className="text-xl font-bold mb-2">Call Ended</p>
-            <p className="text-zinc-400 text-sm">Duration: {formatTime(callDuration)}</p>
+            <p className="text-lg sm:text-xl font-bold mb-2">Call Ended</p>
+            <p className="text-zinc-400 text-xs sm:text-sm">Duration: {formatTime(callDuration)}</p>
           </div>
         )}
       </div>
@@ -1264,46 +1264,46 @@ function RestaurantCallDemo({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={hangUp}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-2xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="text-center mb-6">
-          <h2 className="text-3xl font-bold mb-2">Restaurant AI – Live Demo</h2>
-          <p className="text-zinc-400 text-sm">Simulated phone-style conversation, no real reservations will be made.</p>
+        <div className="text-center mb-4 sm:mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2">Restaurant AI – Live Demo</h2>
+          <p className="text-zinc-400 text-xs sm:text-sm">Simulated phone-style conversation, no real reservations will be made.</p>
         </div>
 
         {/* Call Status */}
         {callState === 'dialing' && (
-          <div className="text-center py-12">
-            <div className="w-20 h-20 bg-orange-600 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse">
-              <Phone size={40} className="text-white" />
+          <div className="text-center py-8 sm:py-12">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-orange-600 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse">
+              <Phone size={32} className="sm:w-10 sm:h-10 text-white" />
             </div>
-            <p className="text-xl font-bold mb-2">Calling...</p>
-            <p className="text-zinc-400 text-sm">Bella Vista Restaurant</p>
+            <p className="text-lg sm:text-xl font-bold mb-2">Calling...</p>
+            <p className="text-zinc-400 text-xs sm:text-sm">Bella Vista Restaurant</p>
           </div>
         )}
 
         {callState === 'connected' && (
           <div>
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 font-bold">Connected</span>
+            <div className="flex items-center justify-between mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-zinc-800">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-green-400 font-bold text-sm sm:text-base">Connected</span>
               </div>
-              <div className="text-zinc-400 text-sm font-mono">{formatTime(callDuration)}</div>
+              <div className="text-zinc-400 text-xs sm:text-sm font-mono">{formatTime(callDuration)}</div>
             </div>
 
             {/* Transcript */}
-            <div className="h-[300px] overflow-y-auto mb-6 space-y-4 custom-scrollbar">
+            <div className="h-[250px] sm:h-[300px] overflow-y-auto mb-4 sm:mb-6 space-y-3 sm:space-y-4 custom-scrollbar">
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-orange-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>
+                  <div className={`max-w-[85%] sm:max-w-[75%] p-2 sm:p-3 rounded-lg text-sm sm:text-base ${msg.role === 'user' ? 'bg-orange-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>
                     {msg.text}
                   </div>
                 </div>
               ))}
               {isListening && (
                 <div className="flex justify-end">
-                  <div className="bg-orange-600/20 border border-orange-500 text-orange-400 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                  <div className="bg-orange-600/20 border border-orange-500 text-orange-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
                     <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
                     Listening...
                   </div>
@@ -1311,7 +1311,7 @@ function RestaurantCallDemo({ isOpen, onClose }) {
               )}
               {isSpeaking && (
                 <div className="flex justify-start">
-                  <div className="bg-zinc-800/50 border border-zinc-700 text-zinc-400 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                  <div className="bg-zinc-800/50 border border-zinc-700 text-zinc-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin" />
                     Speaking...
                   </div>
@@ -1324,7 +1324,7 @@ function RestaurantCallDemo({ isOpen, onClose }) {
               <button
                 onClick={startListening}
                 disabled={isListening || isSpeaking}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2 sm:py-3 rounded-lg transition-colors text-xs sm:text-sm flex items-center justify-center gap-2"
               >
                 {isListening ? '🎤 Listening...' : '🎤 Tap to Speak'}
               </button>
@@ -1332,21 +1332,386 @@ function RestaurantCallDemo({ isOpen, onClose }) {
 
             <button
               onClick={hangUp}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
-              <Phone size={20} className="rotate-135" />
+              <Phone size={18} className="sm:w-5 sm:h-5 rotate-135" />
               Hang Up
             </button>
           </div>
         )}
 
         {callState === 'ended' && (
-          <div className="text-center py-12">
-            <div className="w-20 h-20 bg-zinc-800 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Phone size={40} className="text-zinc-500" />
+          <div className="text-center py-8 sm:py-12">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-zinc-800 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <Phone size={32} className="sm:w-10 sm:h-10 text-zinc-500" />
             </div>
-            <p className="text-xl font-bold mb-2">Call Ended</p>
-            <p className="text-zinc-400 text-sm">Duration: {formatTime(callDuration)}</p>
+            <p className="text-lg sm:text-xl font-bold mb-2">Call Ended</p>
+            <p className="text-zinc-400 text-xs sm:text-sm">Duration: {formatTime(callDuration)}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EcommerceCallDemo({ isOpen, onClose }) {
+  const [callState, setCallState] = useState('dialing'); // dialing, connected, ended
+  const [messages, setMessages] = useState([]);
+  const [callDuration, setCallDuration] = useState(0);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const recognitionRef = useRef(null);
+  const synthRef = useRef(window.speechSynthesis);
+  const timerRef = useRef(null);
+  const voicesLoadedRef = useRef(false);
+  const messagesRef = useRef(messages);
+
+  // Keep messagesRef in sync with messages state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  // Load voices on mount
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        voicesLoadedRef.current = true;
+      }
+    };
+
+    // Load voices immediately and also listen for voiceschanged event
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Play ring tone and simulate dialing
+    setCallState('dialing');
+    const dialTimeout = setTimeout(async () => {
+      setCallState('connected');
+      setCallDuration(0);
+
+      // Start call timer
+      timerRef.current = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+
+      // AI greeting - speak() will automatically start listening when done
+      const greeting = "Hello! Thank you for calling TechStyle Online Support. This is a demo - no real orders or returns will be processed. How can I help you today?";
+      setMessages([{ role: 'ai', text: greeting }]);
+      speak(greeting);
+    }, 3000);
+
+    return () => {
+      clearTimeout(dialTimeout);
+      if (timerRef.current) clearInterval(timerRef.current);
+      stopListening();
+      synthRef.current.cancel();
+    };
+  }, [isOpen]);
+
+  const speak = (text) => {
+    // Stop listening to prevent echo/feedback
+    stopListening();
+
+    // Cancel any ongoing speech and wait a bit before starting new speech
+    synthRef.current.cancel();
+
+    // Small delay to ensure cancel completes
+    setTimeout(() => {
+      setIsSpeaking(true);
+      const utterance = new SpeechSynthesisUtterance(text);
+
+      // Select a more natural voice (prefer female voices for friendly support agent)
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(voice =>
+        voice.name.includes('Samantha') || // macOS
+        voice.name.includes('Microsoft Zira') || // Windows
+        voice.name.includes('Google US English Female') || // Chrome
+        voice.name.includes('Female')
+      );
+      if (preferredVoice) utterance.voice = preferredVoice;
+
+      // Adjust for more natural sound
+      utterance.rate = 0.95; // Slightly slower for clarity
+      utterance.pitch = 1.1; // Slightly higher for friendlier tone
+      utterance.volume = 0.9;
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        // Automatically resume listening after speaking (for continuous conversation)
+        setTimeout(() => {
+          startListening();
+        }, 800); // Increased delay to ensure speech is fully stopped
+      };
+
+      utterance.onerror = (error) => {
+        console.error('Speech synthesis error:', error);
+        setIsSpeaking(false);
+        // Try to restart listening even if speech fails
+        setTimeout(() => startListening(), 1000);
+      };
+
+      synthRef.current.speak(utterance);
+    }, 100); // Small delay after cancel
+  };
+
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      console.error('Speech recognition not supported');
+      const errorMsg = "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari for the best experience.";
+      setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+      speak(errorMsg);
+      return;
+    }
+
+    // Stop any existing recognition first
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore errors from stopping
+      }
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+
+      // Handle specific error cases with user-friendly messages
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        const errorMsg = "Microphone access was denied. Please allow microphone access in your browser settings and try again.";
+        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+        speak(errorMsg);
+        return;
+      }
+
+      if (event.error === 'network') {
+        const errorMsg = "Network error occurred. Please check your internet connection and try again.";
+        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+        speak(errorMsg);
+        return;
+      }
+
+      // Don't restart if it was manually aborted or no speech detected
+      if (event.error !== 'aborted' && event.error !== 'no-speech') {
+        // For other errors, try to restart after a delay
+        setTimeout(() => {
+          if (callState === 'connected' && !isSpeaking) {
+            startListening();
+          }
+        }, 1000);
+      } else if (event.error === 'no-speech') {
+        // Automatically restart listening if no speech was detected
+        setTimeout(() => {
+          if (callState === 'connected' && !isSpeaking) {
+            startListening();
+          }
+        }, 500);
+      }
+    };
+
+    recognition.onresult = async (event) => {
+      const transcript = event.results[0][0].transcript;
+
+      // Get current conversation history (use ref for latest value)
+      const currentMessages = messagesRef.current;
+
+      // Add user message to UI immediately
+      const updatedMessages = [...currentMessages, { role: 'user', text: transcript }];
+      setMessages(updatedMessages);
+
+      // Call AI with e-commerce support prompt
+      try {
+        const chatFunction = httpsCallable(functions, 'chatWithAI');
+        const ecommercePrompt = "You are a helpful e-commerce customer support agent for TechStyle, an online fashion and electronics retailer. You assist customers with: 1) Product recommendations - we sell clothing, electronics, home goods, and accessories. Ask about their needs, budget, and preferences to suggest products, 2) Order tracking - ask for order number, provide estimated delivery dates (typically 3-5 business days), handle delivery issues, 3) Returns and exchanges - our return policy is 30 days, free returns, ask for order number and reason for return, provide return labels, process exchanges, 4) Account issues - password resets, order history, saved items, 5) Promotions - we have a 15% off sale for new customers, free shipping over $50, loyalty rewards program. Be friendly, efficient, and solution-oriented. Keep responses brief (2-3 sentences). Ask clarifying questions one at a time. Always offer to help with anything else before ending the conversation.";
+
+        // CRITICAL: Pass only PREVIOUS messages as history, not including current message
+        // The current message is sent separately via the 'message' parameter
+        console.log('📤 Sending to AI - Previous history:', currentMessages);
+        console.log('📤 Current message:', transcript);
+
+        const result = await chatFunction({
+          message: transcript,
+          history: currentMessages, // Only previous messages, NOT including current one
+          customSystemPrompt: ecommercePrompt
+        });
+
+        const responseText = result.data.text;
+        console.log('📥 AI Response:', responseText);
+
+        // Add AI response to conversation history
+        const updatedWithResponse = [...updatedMessages, { role: 'ai', text: responseText }];
+        setMessages(updatedWithResponse);
+        speak(responseText);
+      } catch (error) {
+        console.error("AI Error:", error);
+        let errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
+
+        // Provide more specific error messages
+        if (error.code === 'functions/not-found') {
+          errorMsg = "The AI service is not available. Please contact support.";
+        } else if (error.code === 'functions/unauthenticated') {
+          errorMsg = "Authentication error. Please refresh the page and try again.";
+        } else if (error.message && error.message.includes('network')) {
+          errorMsg = "Network error. Please check your internet connection and try again.";
+        }
+
+        const errorMessages = [...updatedMessages, { role: 'ai', text: errorMsg }];
+        setMessages(errorMessages);
+        speak(errorMsg);
+      }
+    };
+
+    recognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+    } catch (error) {
+      console.error('Error starting recognition:', error);
+      setIsListening(false);
+
+      // Notify user if recognition fails to start
+      const errorMsg = "Unable to start voice recognition. Please check your microphone and try again.";
+      setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+      speak(errorMsg);
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore errors from stopping
+        console.log('Error stopping recognition:', e);
+      }
+    }
+  };
+
+  const hangUp = () => {
+    setCallState('ended');
+    stopListening();
+    synthRef.current.cancel();
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimeout(() => onClose(), 1000);
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={hangUp}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="text-center mb-4 sm:mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2">E-Commerce AI – Live Demo</h2>
+          <p className="text-zinc-400 text-xs sm:text-sm">Simulated phone-style conversation, no real orders or returns will be processed.</p>
+        </div>
+
+        {/* Call Status */}
+        {callState === 'dialing' && (
+          <div className="text-center py-8 sm:py-12">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-indigo-600 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse">
+              <Phone size={32} className="sm:w-10 sm:h-10 text-white" />
+            </div>
+            <p className="text-lg sm:text-xl font-bold mb-2">Calling...</p>
+            <p className="text-zinc-400 text-xs sm:text-sm">TechStyle Support</p>
+          </div>
+        )}
+
+        {callState === 'connected' && (
+          <div>
+            <div className="flex items-center justify-between mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-zinc-800">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-green-400 font-bold text-sm sm:text-base">Connected</span>
+              </div>
+              <div className="text-zinc-400 text-xs sm:text-sm font-mono">{formatTime(callDuration)}</div>
+            </div>
+
+            {/* Transcript */}
+            <div className="h-[250px] sm:h-[300px] overflow-y-auto mb-4 sm:mb-6 space-y-3 sm:space-y-4 custom-scrollbar">
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] sm:max-w-[75%] p-2 sm:p-3 rounded-lg text-sm sm:text-base ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {isListening && (
+                <div className="flex justify-end">
+                  <div className="bg-indigo-600/20 border border-indigo-500 text-indigo-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
+                    Listening...
+                  </div>
+                </div>
+              )}
+              {isSpeaking && (
+                <div className="flex justify-start">
+                  <div className="bg-zinc-800/50 border border-zinc-700 text-zinc-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    Speaking...
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 mb-3">
+              <button
+                onClick={startListening}
+                disabled={isListening || isSpeaking}
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2 sm:py-3 rounded-lg transition-colors text-xs sm:text-sm flex items-center justify-center gap-2"
+              >
+                {isListening ? '🎤 Listening...' : '🎤 Tap to Speak'}
+              </button>
+            </div>
+
+            <button
+              onClick={hangUp}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+            >
+              <Phone size={18} className="sm:w-5 sm:h-5 rotate-135" />
+              Hang Up
+            </button>
+          </div>
+        )}
+
+        {callState === 'ended' && (
+          <div className="text-center py-8 sm:py-12">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-zinc-800 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <Phone size={32} className="sm:w-10 sm:h-10 text-zinc-500" />
+            </div>
+            <p className="text-lg sm:text-xl font-bold mb-2">Call Ended</p>
+            <p className="text-zinc-400 text-xs sm:text-sm">Duration: {formatTime(callDuration)}</p>
           </div>
         )}
       </div>
@@ -1359,6 +1724,7 @@ function LandingPage({ onLogin }) {
   const [scrolled, setScrolled] = useState(false);
   const [showPhoneDemo, setShowPhoneDemo] = useState(false);
   const [showRestaurantDemo, setShowRestaurantDemo] = useState(false);
+  const [showEcommerceDemo, setShowEcommerceDemo] = useState(false);
   
   useEffect(() => { 
     const handleScroll = () => setScrolled(window.scrollY > 50); 
@@ -1540,19 +1906,24 @@ function LandingPage({ onLogin }) {
             </FadeIn>
 
             <FadeIn delay={350}>
-              <Card className="group overflow-hidden cursor-pointer h-full flex flex-col">
-                <div className="aspect-video bg-gradient-to-br from-indigo-900/30 to-purple-900/30 relative overflow-hidden mb-4">
-                  <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
-                  <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
-                </div>
-                <h3 className="text-xl font-bold mb-2">E-Commerce Support</h3>
-                <p className="text-zinc-400 text-sm mb-4 flex-1">Product recommendations, order tracking, and return processing automation.</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Claude</span>
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Shopify API</span>
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Analytics</span>
-                </div>
-              </Card>
+              <div
+                style={{ cursor: 'pointer' }}
+                onClick={() => setShowEcommerceDemo(true)}
+              >
+                <Card className="group overflow-hidden h-full flex flex-col hover:border-purple-500 transition-all">
+                  <div className="aspect-video bg-gradient-to-br from-indigo-900/30 to-purple-900/30 relative overflow-hidden mb-4">
+                    <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
+                    <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">E-Commerce Support</h3>
+                  <p className="text-zinc-400 text-sm mb-4 flex-1">Product recommendations, order tracking, and return processing automation.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Claude</span>
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Shopify API</span>
+                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Analytics</span>
+                  </div>
+                </Card>
+              </div>
             </FadeIn>
           </div>
 
@@ -1702,6 +2073,9 @@ function LandingPage({ onLogin }) {
 
       {/* Restaurant Call Demo Modal */}
       <RestaurantCallDemo isOpen={showRestaurantDemo} onClose={() => setShowRestaurantDemo(false)} />
+
+      {/* E-Commerce Call Demo Modal */}
+      <EcommerceCallDemo isOpen={showEcommerceDemo} onClose={() => setShowEcommerceDemo(false)} />
     </div>
   );
 }
