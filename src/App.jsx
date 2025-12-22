@@ -754,9 +754,11 @@ function PhoneCallDemo({ isOpen, onClose }) {
   };
 
   const startListening = () => {
-    if (!('webkitSpeechRecognition' in window)) {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       console.error('Speech recognition not supported');
-      alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      const errorMsg = "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari for the best experience.";
+      setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+      speak(errorMsg);
       return;
     }
 
@@ -769,10 +771,12 @@ function PhoneCallDemo({ isOpen, onClose }) {
       }
     }
 
-    const recognition = new window.webkitSpeechRecognition();
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -786,7 +790,22 @@ function PhoneCallDemo({ isOpen, onClose }) {
       console.error('Speech recognition error:', event.error);
       setIsListening(false);
 
-      // Don't restart if it was manually aborted
+      // Handle specific error cases with user-friendly messages
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        const errorMsg = "Microphone access was denied. Please allow microphone access in your browser settings and try again.";
+        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+        speak(errorMsg);
+        return;
+      }
+
+      if (event.error === 'network') {
+        const errorMsg = "Network error occurred. Please check your internet connection and try again.";
+        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+        speak(errorMsg);
+        return;
+      }
+
+      // Don't restart if it was manually aborted or no speech detected
       if (event.error !== 'aborted' && event.error !== 'no-speech') {
         // For other errors, try to restart after a delay
         setTimeout(() => {
@@ -794,6 +813,13 @@ function PhoneCallDemo({ isOpen, onClose }) {
             startListening();
           }
         }, 1000);
+      } else if (event.error === 'no-speech') {
+        // Automatically restart listening if no speech was detected
+        setTimeout(() => {
+          if (callState === 'connected' && !isSpeaking) {
+            startListening();
+          }
+        }, 500);
       }
     };
 
@@ -1073,9 +1099,11 @@ function RestaurantCallDemo({ isOpen, onClose }) {
   };
 
   const startListening = () => {
-    if (!('webkitSpeechRecognition' in window)) {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       console.error('Speech recognition not supported');
-      alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      const errorMsg = "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari for the best experience.";
+      setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+      speak(errorMsg);
       return;
     }
 
@@ -1088,10 +1116,12 @@ function RestaurantCallDemo({ isOpen, onClose }) {
       }
     }
 
-    const recognition = new window.webkitSpeechRecognition();
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -1105,7 +1135,22 @@ function RestaurantCallDemo({ isOpen, onClose }) {
       console.error('Speech recognition error:', event.error);
       setIsListening(false);
 
-      // Don't restart if it was manually aborted
+      // Handle specific error cases with user-friendly messages
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        const errorMsg = "Microphone access was denied. Please allow microphone access in your browser settings and try again.";
+        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+        speak(errorMsg);
+        return;
+      }
+
+      if (event.error === 'network') {
+        const errorMsg = "Network error occurred. Please check your internet connection and try again.";
+        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+        speak(errorMsg);
+        return;
+      }
+
+      // Don't restart if it was manually aborted or no speech detected
       if (event.error !== 'aborted' && event.error !== 'no-speech') {
         // For other errors, try to restart after a delay
         setTimeout(() => {
@@ -1113,6 +1158,13 @@ function RestaurantCallDemo({ isOpen, onClose }) {
             startListening();
           }
         }, 1000);
+      } else if (event.error === 'no-speech') {
+        // Automatically restart listening if no speech was detected
+        setTimeout(() => {
+          if (callState === 'connected' && !isSpeaking) {
+            startListening();
+          }
+        }, 500);
       }
     };
 
@@ -1151,7 +1203,17 @@ function RestaurantCallDemo({ isOpen, onClose }) {
         speak(responseText);
       } catch (error) {
         console.error("AI Error:", error);
-        const errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
+        let errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
+
+        // Provide more specific error messages
+        if (error.code === 'functions/not-found') {
+          errorMsg = "The AI service is not available. Please contact support.";
+        } else if (error.code === 'functions/unauthenticated') {
+          errorMsg = "Authentication error. Please refresh the page and try again.";
+        } else if (error.message && error.message.includes('network')) {
+          errorMsg = "Network error. Please check your internet connection and try again.";
+        }
+
         const errorMessages = [...updatedMessages, { role: 'ai', text: errorMsg }];
         setMessages(errorMessages);
         speak(errorMsg);
@@ -1165,12 +1227,22 @@ function RestaurantCallDemo({ isOpen, onClose }) {
     } catch (error) {
       console.error('Error starting recognition:', error);
       setIsListening(false);
+
+      // Notify user if recognition fails to start
+      const errorMsg = "Unable to start voice recognition. Please check your microphone and try again.";
+      setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
+      speak(errorMsg);
     }
   };
 
   const stopListening = () => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore errors from stopping
+        console.log('Error stopping recognition:', e);
+      }
     }
   };
 
