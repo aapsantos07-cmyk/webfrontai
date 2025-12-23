@@ -38,6 +38,95 @@ const isIOS = () => {
          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
 
+// Secure password generation using cryptographically secure random values
+const generateSecurePassword = (length = 16) => {
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
+  const randomValues = new Uint8Array(length);
+  crypto.getRandomValues(randomValues);
+
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += charset[randomValues[i] % charset.length];
+  }
+
+  // Ensure password meets complexity requirements
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  const hasSpecial = /[!@#$%^&*()_+\-=]/.test(password);
+
+  if (!hasUpper) password = password.slice(0, -1) + 'A';
+  if (!hasLower) password = password.slice(0, -2) + 'a' + password.slice(-1);
+  if (!hasNumber) password = password.slice(0, -3) + '1' + password.slice(-2);
+  if (!hasSpecial) password = password.slice(0, -4) + '!' + password.slice(-3);
+
+  return password;
+};
+
+// Allowed file types for upload (SECURITY: Whitelist only safe file types)
+const ALLOWED_FILE_TYPES = {
+  'application/pdf': ['.pdf'],
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png'],
+  'image/gif': ['.gif'],
+  'image/webp': ['.webp'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+  'text/plain': ['.txt']
+};
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit
+
+// Secure file validation function
+const validateFile = (file) => {
+  // 1. Check file size
+  if (file.size > MAX_FILE_SIZE) {
+    return {
+      valid: false,
+      error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`
+    };
+  }
+
+  // 2. Check MIME type
+  if (!ALLOWED_FILE_TYPES[file.type]) {
+    const allowedTypes = Object.keys(ALLOWED_FILE_TYPES).map(type => type.split('/')[1]).join(', ');
+    return {
+      valid: false,
+      error: `File type "${file.type}" not allowed. Allowed types: ${allowedTypes}`
+    };
+  }
+
+  // 3. Check file extension matches MIME type
+  const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+  if (!ALLOWED_FILE_TYPES[file.type].includes(fileExt)) {
+    return {
+      valid: false,
+      error: `File extension "${fileExt}" doesn't match file type "${file.type}". Possible file manipulation detected.`
+    };
+  }
+
+  // 4. Check for double extensions (e.g., file.pdf.exe)
+  const nameParts = file.name.split('.');
+  if (nameParts.length > 2) {
+    return {
+      valid: false,
+      error: 'Multiple file extensions detected. Please rename the file.'
+    };
+  }
+
+  return { valid: true };
+};
+
+// Sanitize filename to prevent path traversal and other attacks
+const sanitizeFilename = (filename) => {
+  return filename
+    .replace(/[^a-zA-Z0-9._-]/g, '_') // Remove special characters
+    .replace(/\.{2,}/g, '_') // Remove multiple dots (..)
+    .replace(/^\.+/, '') // Remove leading dots
+    .substring(0, 255); // Limit length
+};
+
 const convertToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -51,6 +140,19 @@ const safeParseAmount = (amount) => {
   if (typeof amount === 'number') return amount;
   if (typeof amount === 'string') return parseFloat(amount.replace(/[^0-9.-]+/g, "")) || 0;
   return 0;
+};
+
+// Conditional logging - only log in development
+const isDevelopment = import.meta.env.MODE === 'development';
+const secureLog = (...args) => {
+  if (isDevelopment) {
+    secureLog(...args);
+  }
+};
+const secureError = (...args) => {
+  if (isDevelopment) {
+    secureError(...args);
+  }
 };
 
 // --- UPDATED AI CHAT COMPONENT (SECURE) ---
@@ -103,7 +205,7 @@ function AIChatDemo() {
 
       setMessages(prev => [...prev, { role: 'ai', text: responseText }]);
     } catch (error) {
-      console.error("AI Error:", error);
+      secureError("AI Error:", error);
 
       // Provide a more helpful error message based on the error type
       let errorMessage = "I'm having trouble responding right now. Please try again in a moment.";
@@ -270,7 +372,7 @@ function PasswordResetScreen({ user, userData, onResetComplete }) {
 
       onResetComplete();
     } catch (err) {
-      console.error("Password reset error:", err);
+      secureError("Password reset error:", err);
       setError(err.message || "Failed to reset password. Please try again.");
       setIsLoading(false);
     }
@@ -747,7 +849,7 @@ function PhoneCallDemo({ isOpen, onClose }) {
       };
 
       utterance.onerror = (error) => {
-        console.error('Speech synthesis error:', error);
+        secureError('Speech synthesis error:', error);
         setIsSpeaking(false);
         // Try to restart listening even if speech fails
         setTimeout(() => startListening(), 1000);
@@ -768,7 +870,7 @@ function PhoneCallDemo({ isOpen, onClose }) {
 
   const startListening = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      console.error('Speech recognition not supported');
+      secureError('Speech recognition not supported');
       const errorMsg = "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari for the best experience.";
       setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
       speak(errorMsg);
@@ -800,7 +902,7 @@ function PhoneCallDemo({ isOpen, onClose }) {
     };
 
     recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
+      secureError('Speech recognition error:', event.error);
       setIsListening(false);
 
       // Handle specific error cases with user-friendly messages
@@ -853,8 +955,8 @@ function PhoneCallDemo({ isOpen, onClose }) {
 
         // CRITICAL: Pass only PREVIOUS messages as history, not including current message
         // The current message is sent separately via the 'message' parameter
-        console.log('📤 Sending to AI - Previous history:', currentMessages);
-        console.log('📤 Current message:', transcript);
+        secureLog('📤 Sending to AI - Previous history:', currentMessages);
+        secureLog('📤 Current message:', transcript);
 
         const result = await chatFunction({
           message: transcript,
@@ -863,14 +965,14 @@ function PhoneCallDemo({ isOpen, onClose }) {
         });
 
         const responseText = result.data.text;
-        console.log('📥 AI Response:', responseText);
+        secureLog('📥 AI Response:', responseText);
 
         // Add AI response to conversation history
         const updatedWithResponse = [...updatedMessages, { role: 'ai', text: responseText }];
         setMessages(updatedWithResponse);
         speak(responseText);
       } catch (error) {
-        console.error("AI Error:", error);
+        secureError("AI Error:", error);
         const errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
         const errorMessages = [...updatedMessages, { role: 'ai', text: errorMsg }];
         setMessages(errorMessages);
@@ -883,7 +985,7 @@ function PhoneCallDemo({ isOpen, onClose }) {
     try {
       recognition.start();
     } catch (error) {
-      console.error('Error starting recognition:', error);
+      secureError('Error starting recognition:', error);
       setIsListening(false);
     }
   };
@@ -1100,7 +1202,7 @@ function RestaurantCallDemo({ isOpen, onClose }) {
       };
 
       utterance.onerror = (error) => {
-        console.error('Speech synthesis error:', error);
+        secureError('Speech synthesis error:', error);
         setIsSpeaking(false);
         // Try to restart listening even if speech fails
         setTimeout(() => startListening(), 1000);
@@ -1121,7 +1223,7 @@ function RestaurantCallDemo({ isOpen, onClose }) {
 
   const startListening = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      console.error('Speech recognition not supported');
+      secureError('Speech recognition not supported');
       const errorMsg = "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari for the best experience.";
       setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
       speak(errorMsg);
@@ -1153,7 +1255,7 @@ function RestaurantCallDemo({ isOpen, onClose }) {
     };
 
     recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
+      secureError('Speech recognition error:', event.error);
       setIsListening(false);
 
       // Handle specific error cases with user-friendly messages
@@ -1206,8 +1308,8 @@ function RestaurantCallDemo({ isOpen, onClose }) {
 
         // CRITICAL: Pass only PREVIOUS messages as history, not including current message
         // The current message is sent separately via the 'message' parameter
-        console.log('📤 Sending to AI - Previous history:', currentMessages);
-        console.log('📤 Current message:', transcript);
+        secureLog('📤 Sending to AI - Previous history:', currentMessages);
+        secureLog('📤 Current message:', transcript);
 
         const result = await chatFunction({
           message: transcript,
@@ -1216,14 +1318,14 @@ function RestaurantCallDemo({ isOpen, onClose }) {
         });
 
         const responseText = result.data.text;
-        console.log('📥 AI Response:', responseText);
+        secureLog('📥 AI Response:', responseText);
 
         // Add AI response to conversation history
         const updatedWithResponse = [...updatedMessages, { role: 'ai', text: responseText }];
         setMessages(updatedWithResponse);
         speak(responseText);
       } catch (error) {
-        console.error("AI Error:", error);
+        secureError("AI Error:", error);
         let errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
 
         // Provide more specific error messages
@@ -1246,7 +1348,7 @@ function RestaurantCallDemo({ isOpen, onClose }) {
     try {
       recognition.start();
     } catch (error) {
-      console.error('Error starting recognition:', error);
+      secureError('Error starting recognition:', error);
       setIsListening(false);
 
       // Notify user if recognition fails to start
@@ -1262,7 +1364,7 @@ function RestaurantCallDemo({ isOpen, onClose }) {
         recognitionRef.current.stop();
       } catch (e) {
         // Ignore errors from stopping
-        console.log('Error stopping recognition:', e);
+        secureLog('Error stopping recognition:', e);
       }
     }
   };
@@ -1473,7 +1575,7 @@ function EcommerceCallDemo({ isOpen, onClose }) {
       };
 
       utterance.onerror = (error) => {
-        console.error('Speech synthesis error:', error);
+        secureError('Speech synthesis error:', error);
         setIsSpeaking(false);
         // Try to restart listening even if speech fails
         setTimeout(() => startListening(), 1000);
@@ -1494,7 +1596,7 @@ function EcommerceCallDemo({ isOpen, onClose }) {
 
   const startListening = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      console.error('Speech recognition not supported');
+      secureError('Speech recognition not supported');
       const errorMsg = "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari for the best experience.";
       setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
       speak(errorMsg);
@@ -1526,7 +1628,7 @@ function EcommerceCallDemo({ isOpen, onClose }) {
     };
 
     recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
+      secureError('Speech recognition error:', event.error);
       setIsListening(false);
 
       // Handle specific error cases with user-friendly messages
@@ -1579,8 +1681,8 @@ function EcommerceCallDemo({ isOpen, onClose }) {
 
         // CRITICAL: Pass only PREVIOUS messages as history, not including current message
         // The current message is sent separately via the 'message' parameter
-        console.log('📤 Sending to AI - Previous history:', currentMessages);
-        console.log('📤 Current message:', transcript);
+        secureLog('📤 Sending to AI - Previous history:', currentMessages);
+        secureLog('📤 Current message:', transcript);
 
         const result = await chatFunction({
           message: transcript,
@@ -1589,14 +1691,14 @@ function EcommerceCallDemo({ isOpen, onClose }) {
         });
 
         const responseText = result.data.text;
-        console.log('📥 AI Response:', responseText);
+        secureLog('📥 AI Response:', responseText);
 
         // Add AI response to conversation history
         const updatedWithResponse = [...updatedMessages, { role: 'ai', text: responseText }];
         setMessages(updatedWithResponse);
         speak(responseText);
       } catch (error) {
-        console.error("AI Error:", error);
+        secureError("AI Error:", error);
         let errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
 
         // Provide more specific error messages
@@ -1619,7 +1721,7 @@ function EcommerceCallDemo({ isOpen, onClose }) {
     try {
       recognition.start();
     } catch (error) {
-      console.error('Error starting recognition:', error);
+      secureError('Error starting recognition:', error);
       setIsListening(false);
 
       // Notify user if recognition fails to start
@@ -1635,7 +1737,7 @@ function EcommerceCallDemo({ isOpen, onClose }) {
         recognitionRef.current.stop();
       } catch (e) {
         // Ignore errors from stopping
-        console.log('Error stopping recognition:', e);
+        secureLog('Error stopping recognition:', e);
       }
     }
   };
@@ -2182,19 +2284,49 @@ function ClientProjectsView({ data }) {
 function ClientDocumentsView({ data }) {
   const [uploading, setUploading] = useState(false);
   const handleClientUpload = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    if (file.size > 1048576) { alert("File too large for free storage (Max 1MB)."); return; }
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // SECURITY: Validate file before uploading
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      alert(`Upload blocked: ${validation.error}`);
+      e.target.value = ''; // Clear file input
+      return;
+    }
+
+    // SECURITY: Sanitize filename
+    const sanitizedName = sanitizeFilename(file.name);
+
     setUploading(true);
     try {
       const base64 = await convertToBase64(file);
-      const newDoc = { name: file.name, url: base64, date: new Date().toLocaleDateString(), size: (file.size / 1024).toFixed(2) + " KB" };
+      const newDoc = {
+        name: sanitizedName, // Use sanitized filename
+        originalName: file.name, // Keep original for reference
+        url: base64,
+        date: new Date().toLocaleDateString(),
+        size: (file.size / 1024).toFixed(2) + " KB",
+        type: file.type // Store MIME type for validation
+      };
+
       // Update with activity log
-      await updateDoc(doc(db, "clients", data.id), { 
+      await updateDoc(doc(db, "clients", data.id), {
         clientUploads: arrayUnion(newDoc),
-        activity: arrayUnion({ action: `Client uploaded: ${file.name}`, date: new Date().toLocaleDateString(), status: "Completed" })
+        activity: arrayUnion({
+          action: `Client uploaded: ${sanitizedName}`,
+          date: new Date().toLocaleDateString(),
+          status: "Completed"
+        })
       });
+
       alert("File uploaded successfully!");
-    } catch (error) { alert("Upload failed: " + error.message); } finally { setUploading(false); }
+      e.target.value = ''; // Clear file input
+    } catch (error) {
+      alert("Upload failed: " + error.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -2211,7 +2343,7 @@ function ClientDocumentsView({ data }) {
 function ClientMessagesView({ data }) {
     const [messageInput, setMessageInput] = useState("");
     const messages = data.messages || [{ sender: 'admin', text: 'Welcome to your portal! Let us know if you have questions.', time: 'System • Just now' }];
-    const handleSendMessage = async (e) => { e.preventDefault(); if (!messageInput.trim()) return; try { await updateDoc(doc(db, "clients", data.id), { messages: arrayUnion({ sender: 'client', text: messageInput, time: new Date().toLocaleString() }) }); setMessageInput(""); } catch (err) { console.error("Message failed", err); } };
+    const handleSendMessage = async (e) => { e.preventDefault(); if (!messageInput.trim()) return; try { await updateDoc(doc(db, "clients", data.id), { messages: arrayUnion({ sender: 'client', text: messageInput, time: new Date().toLocaleString() }) }); setMessageInput(""); } catch (err) { secureError("Message failed", err); } };
     return (
         <div className="animate-fade-in h-full flex flex-col"><div className="mb-4"><h1 className="text-3xl font-bold mb-1">Messages</h1><p className="text-zinc-500">Direct line to your project manager.</p></div><div className="flex-1 bg-zinc-900/30 border border-zinc-800 rounded-2xl flex flex-col overflow-hidden h-[500px]"><div className="flex-1 p-6 overflow-y-auto space-y-4 custom-scrollbar">{messages.map((msg, i) => (<div key={i} className={`flex ${msg.sender === 'client' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[80%] p-4 rounded-2xl ${msg.sender === 'client' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}><p className="text-sm">{msg.text}</p><p className={`text-[10px] mt-2 ${msg.sender === 'client' ? 'text-blue-200' : 'text-zinc-500'}`}>{msg.time}</p></div></div>))}</div><form onSubmit={handleSendMessage} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2"><input className="flex-1 bg-black border border-zinc-700 rounded-xl px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500" placeholder="Type your message..." value={messageInput} onChange={(e) => setMessageInput(e.target.value)}/><button type="submit" disabled={!messageInput.trim()} className="bg-white text-black p-3 rounded-xl hover:bg-gray-200 disabled:opacity-50"><Send size={20}/></button></form></div></div>
     );
@@ -2366,10 +2498,9 @@ function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
 }
 
 function AdminDataAIView() {
-    // State now initializes with a placeholder for geminiKey
+    // SECURITY: API keys are now managed via Cloud Secret Manager
     const [config, setConfig] = useState({
-        activeModel: 'gemini', 
-        geminiKey: '', // Added field for the key
+        activeModel: 'gemini',
         systemPrompt: "You are WEBFRONT_AI, a helpful assistant for digital agencies. Always be concise and professional.",
         knowledgeSources: []
     });
@@ -2383,15 +2514,15 @@ function AdminDataAIView() {
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    setConfig(prev => ({ 
-                        ...prev, 
-                        ...data,
-                        // Optional: If you want to mask the key on load so it isn't fully visible
-                        // geminiKey: data.geminiKey ? '••••••••••••••••' : '' 
+                    // SECURITY: Exclude legacy geminiKey field (now in Cloud Secrets)
+                    const { geminiKey, ...safeData } = data;
+                    setConfig(prev => ({
+                        ...prev,
+                        ...safeData
                     }));
                 }
             } catch (error) {
-                console.error("Error fetching AI settings:", error);
+                secureError("Error fetching AI settings:", error);
             } finally {
                 setLoading(false);
             }
@@ -2405,7 +2536,7 @@ function AdminDataAIView() {
             await setDoc(doc(db, "admin", "ai_settings"), config, { merge: true });
             alert("AI Configuration Saved Successfully!");
         } catch (error) {
-            console.error("Error saving settings:", error);
+            secureError("Error saving settings:", error);
             alert("Failed to save settings: " + error.message);
         } finally {
             setSaving(false);
@@ -2473,24 +2604,20 @@ function AdminDataAIView() {
                             </select>
                         </div>
 
-                        {/* --- ADDED: Gemini API Key Input --- */}
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-2">Gemini API Key</label>
-                            <div className="relative">
-                                <input 
-                                    type="password" 
-                                    value={config.geminiKey || ''}
-                                    onChange={(e) => setConfig({...config, geminiKey: e.target.value})}
-                                    className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:border-purple-500 outline-none transition-colors"
-                                    placeholder="AIzaSy..."
-                                />
-                                <Lock size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                        {/* --- SECURITY NOTICE: API Keys now managed via Cloud Secrets --- */}
+                        <div className="bg-green-900/10 border border-green-900/30 rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                                <Lock size={18} className="text-green-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-bold text-green-400 mb-1">Secure API Key Storage</h4>
+                                    <p className="text-xs text-zinc-400">
+                                        API keys are now managed via Firebase Cloud Secret Manager for enhanced security.
+                                        Contact your system administrator to update the <code className="bg-black/40 px-1 py-0.5 rounded text-green-400">GEMINI_API_KEY</code> secret.
+                                    </p>
+                                </div>
                             </div>
-                            <p className="text-xs text-zinc-500 mt-2">
-                                stored securely in Firestore (admin only).
-                            </p>
                         </div>
-                        {/* ----------------------------------- */}
+                        {/* ---------------------------------------------------------------- */}
 
                         <div>
                             <label className="block text-sm font-medium text-zinc-400 mb-2">System Prompt (Global)</label>
@@ -2674,7 +2801,7 @@ function AdminPipelineView({ clients }) {
             activity: arrayUnion({ action: `Phase advanced to ${newPhase}`, date: new Date().toLocaleDateString(), status: "Completed" })
         });
     } catch (e) {
-        console.error("Error updating phase:", e);
+        secureError("Error updating phase:", e);
     }
   };
 
@@ -2867,8 +2994,8 @@ function AdminClientsManager({ clients }) {
   const handleCreateClient = async (e) => {
       e.preventDefault();
 
-      // Generate temporary password
-      const tempPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10).toUpperCase();
+      // Generate secure temporary password using crypto.getRandomValues()
+      const tempPassword = generateSecurePassword(16);
 
       try {
           // Create Firebase Auth user with temp password
@@ -2911,7 +3038,7 @@ function AdminClientsManager({ clients }) {
           setIsAddingNew(false);
           setNewClientData({ name: '', email: '', project: '', phase: 'Discovery', progress: 0 });
       } catch (err) {
-          console.error("Client creation error:", err);
+          secureError("Client creation error:", err);
           if (err.code === 'auth/email-already-in-use') {
               alert("This email is already registered.");
           } else {
@@ -2937,7 +3064,7 @@ function AdminClientsManager({ clients }) {
               ...updates,
               activity: arrayUnion({ action: `Updated ${field} to ${value}`, date: new Date().toLocaleDateString(), status: "Completed" })
           }); 
-      } catch (err) { console.error(err); } 
+      } catch (err) { secureError(err); } 
   };
 
   const handleAddInvoice = async () => { 
@@ -2959,21 +3086,46 @@ function AdminClientsManager({ clients }) {
               invoices: updated,
               activity: arrayUnion({ action: `Invoice paid: ${updated[i].desc}`, date: new Date().toLocaleDateString(), status: "Completed" })
           }); 
-      } catch(e) { console.error(e); } 
+      } catch(e) { secureError(e); } 
   };
 
-  const handleUploadContract = async (e) => { 
-      const file = e.target.files[0]; if(!file) return; 
-      if (file.size > 1048576) { alert("File too large for free storage (Max 1MB)."); return; } 
-      setContractUploading(true); 
-      try { 
-          const base64 = await convertToBase64(file); 
-          const contract = { name: file.name, url: base64, date: new Date().toLocaleDateString(), size: (file.size/1024).toFixed(2)+" KB" }; 
-          await updateDoc(doc(db, "clients", selectedClient.id), { 
+  const handleUploadContract = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // SECURITY: Validate file before uploading
+      const validation = validateFile(file);
+      if (!validation.valid) {
+        alert(`Upload blocked: ${validation.error}`);
+        e.target.value = ''; // Clear file input
+        return;
+      }
+
+      // SECURITY: Sanitize filename to prevent path traversal and XSS
+      const sanitizedName = sanitizeFilename(file.name);
+
+      if (file.size > 1048576) {
+        alert("File too large for free storage (Max 1MB).");
+        e.target.value = '';
+        return;
+      }
+
+      setContractUploading(true);
+      try {
+          const base64 = await convertToBase64(file);
+          const contract = {
+            name: sanitizedName,
+            originalName: file.name,
+            url: base64,
+            date: new Date().toLocaleDateString(),
+            size: (file.size/1024).toFixed(2)+" KB",
+            type: file.type // Store MIME type for audit trail
+          };
+          await updateDoc(doc(db, "clients", selectedClient.id), {
               contracts: arrayUnion(contract),
-              activity: arrayUnion({ action: `Contract uploaded: ${file.name}`, date: new Date().toLocaleDateString(), status: "Completed" })
-          }); 
-      } catch(err) { alert("Upload failed: " + err.message); } finally { setContractUploading(false); } 
+              activity: arrayUnion({ action: `Contract uploaded: ${sanitizedName}`, date: new Date().toLocaleDateString(), status: "Completed" })
+          });
+      } catch(err) { alert("Upload failed: " + err.message); } finally { setContractUploading(false); }
   };
 
   // --- Admin Send Message Handler ---
@@ -2987,7 +3139,7 @@ function AdminClientsManager({ clients }) {
         });
         setAdminMessageInput("");
     } catch (err) {
-        console.error("Message failed", err);
+        secureError("Message failed", err);
         alert("Failed to send message.");
     }
   };
@@ -3200,7 +3352,7 @@ function AdminTasksView({ clients, onNavigateToTasks }) {
       setNewTask({ title: '', assignedTo: '', dueDate: '', priority: 'medium' });
       setIsAddingTask(false);
     } catch (err) {
-      console.error("Error adding task:", err);
+      secureError("Error adding task:", err);
       alert("Failed to add task: " + err.message);
     }
   };
@@ -3219,7 +3371,7 @@ function AdminTasksView({ clients, onNavigateToTasks }) {
         })
       });
     } catch (err) {
-      console.error("Error updating task:", err);
+      secureError("Error updating task:", err);
     }
   };
 
@@ -3238,7 +3390,7 @@ function AdminTasksView({ clients, onNavigateToTasks }) {
         })
       });
     } catch (err) {
-      console.error("Error deleting task:", err);
+      secureError("Error deleting task:", err);
     }
   };
 
@@ -3261,7 +3413,7 @@ function AdminTasksView({ clients, onNavigateToTasks }) {
         })
       });
     } catch (err) {
-      console.error("Error updating assignment:", err);
+      secureError("Error updating assignment:", err);
     }
   };
 
@@ -3656,7 +3808,7 @@ export default function App() {
             }
           } else { setView('landing'); }
         } catch (err) { 
-            console.error("Error fetching user data on auth change:", err); 
+            secureError("Error fetching user data on auth change:", err); 
             if (err.message && err.message.includes("INTERNAL ASSERTION FAILED")) { alert("Session Error: Please clear your browser cache and refresh."); setView('landing'); }
         }
       } else { setView('landing'); setCurrentClientData(null); }
@@ -3671,16 +3823,16 @@ export default function App() {
     let unsubscribe;
     if (userRole === 'admin') {
        const q = collection(db, "clients");
-       unsubscribe = onSnapshot(q, (snapshot) => { setClients(snapshot.docs.map(d => ({id: d.id, ...d.data()}))); }, (err) => console.log("Admin listen error", err));
+       unsubscribe = onSnapshot(q, (snapshot) => { setClients(snapshot.docs.map(d => ({id: d.id, ...d.data()}))); }, (err) => secureLog("Admin listen error", err));
     } else if (userRole === 'client' && currentClientData?.id) {
        const docRef = doc(db, "clients", currentClientData.id);
-       unsubscribe = onSnapshot(docRef, (docSnap) => { if (docSnap.exists()) { setCurrentClientData({ id: docSnap.id, ...docSnap.data() }); } }, (err) => console.log("Client listen error", err));
+       unsubscribe = onSnapshot(docRef, (docSnap) => { if (docSnap.exists()) { setCurrentClientData({ id: docSnap.id, ...docSnap.data() }); } }, (err) => secureLog("Client listen error", err));
     }
     return () => { if (unsubscribe) unsubscribe(); };
   }, [userRole, currentClientData?.id, appLoading]);
 
   const handleLogin = (role, clientData) => { setUserRole(role); if (role === 'admin') { setView('admin'); } else { setCurrentClientData(clientData); setView('portal'); } };
-  const handleClientUpdate = async (updatedClient) => { try { await updateDoc(doc(db, 'clients', updatedClient.id), { name: updatedClient.name, notifications: updatedClient.notifications, project: updatedClient.project }); } catch(e) { console.error("Update failed", e); } };
+  const handleClientUpdate = async (updatedClient) => { try { await updateDoc(doc(db, 'clients', updatedClient.id), { name: updatedClient.name, notifications: updatedClient.notifications, project: updatedClient.project }); } catch(e) { secureError("Update failed", e); } };
   const handleClientDelete = async (id) => { if (confirm("Are you sure you want to delete your account? This cannot be undone.")) { try { await deleteDoc(doc(db, 'clients', id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); } } };
   const handleAuthSubmit = async (isSignUp, email, password, name) => {
     const isMasterAdmin = email.toLowerCase() === MASTER_ADMIN_EMAIL;
@@ -3701,7 +3853,7 @@ export default function App() {
         }
         return { error: null };
     } catch (firebaseError) {
-        isSigningUp.current = false; console.error("Auth Error:", firebaseError);
+        isSigningUp.current = false; secureError("Auth Error:", firebaseError);
         if (firebaseError.code === 'auth/email-already-in-use') return { error: "Email already in use." };
         if (firebaseError.code === 'auth/invalid-credential') return { error: "Invalid email or password." };
         return { error: firebaseError.message };

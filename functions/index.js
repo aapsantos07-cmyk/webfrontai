@@ -1,4 +1,5 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
@@ -9,30 +10,31 @@ initializeApp();
 const db = getFirestore();
 const auth = getAuth();
 
-exports.chatWithAI = onCall(async (request) => {
-  const { message, history, customSystemPrompt } = request.data;
+// SECURITY: Store API key in Cloud Secret Manager instead of Firestore
+const geminiApiKey = defineSecret("GEMINI_API_KEY");
 
-  if (!message || typeof message !== "string") {
-    throw new HttpsError("invalid-argument", "Message is required");
-  }
+exports.chatWithAI = onCall(
+  { secrets: [geminiApiKey] },
+  async (request) => {
+    const { message, history, customSystemPrompt } = request.data;
 
-  try {
-    // Fetch AI settings from Firestore
-    const settingsDoc = await db.collection("admin").doc("ai_settings").get();
-
-    if (!settingsDoc.exists) {
-      throw new HttpsError("not-found", "AI settings not configured");
+    if (!message || typeof message !== "string") {
+      throw new HttpsError("invalid-argument", "Message is required");
     }
 
-    const settings = settingsDoc.data();
-    const apiKey = settings.geminiKey;
+    try {
+      // SECURITY: Get API key from Cloud Secret Manager
+      const apiKey = geminiApiKey.value();
 
-    // Use custom prompt if provided, otherwise use default from Firestore
-    const systemPrompt = customSystemPrompt || settings.systemPrompt || "You are WEBFRONT_AI, a helpful assistant for a digital agency. Answer questions about web development services, pricing, and timelines.";
+      if (!apiKey) {
+        throw new HttpsError("failed-precondition", "API key not configured in Cloud Secrets");
+      }
 
-    if (!apiKey) {
-      throw new HttpsError("failed-precondition", "API key not configured");
-    }
+      // Fetch system prompt from Firestore (non-sensitive configuration)
+      const settingsDoc = await db.collection("admin").doc("ai_settings").get();
+      const systemPrompt = customSystemPrompt ||
+                          (settingsDoc.exists ? settingsDoc.data().systemPrompt : null) ||
+                          "You are WEBFRONT_AI, a helpful assistant for a digital agency. Answer questions about web development services, pricing, and timelines.";
 
     // Initialize Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -61,30 +63,133 @@ exports.chatWithAI = onCall(async (request) => {
     const result = await chat.sendMessage(message);
     const responseText = result.response.text();
 
-    return { text: responseText };
-  } catch (error) {
-    console.error("Chat error:", error);
+      return { text: responseText };
+    } catch (error) {
+      console.error("Chat error:", error);
 
-    if (error instanceof HttpsError) {
-      throw error;
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError("internal", "Failed to generate response");
     }
-
-    throw new HttpsError("internal", "Failed to generate response");
   }
-});
+);
 
-exports.sendClientInvitation = onCall(async (request) => {
-  const { email, name, tempPassword } = request.data;
-
-  // Verify caller is admin
+// SECURITY: Helper function to verify admin role server-side
+async function verifyAdminRole(request) {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be authenticated");
   }
 
   const callerDoc = await db.collection("clients").doc(request.auth.uid).get();
   if (!callerDoc.exists || callerDoc.data().role !== 'admin') {
-    throw new HttpsError("permission-denied", "Only admins can send invitations");
+    throw new HttpsError("permission-denied", "Admin privileges required");
   }
+
+  return callerDoc.data();
+}
+
+// SECURITY: Verify admin before updating AI settings
+exports.updateAISettings = onCall(async (request) => {
+  await verifyAdminRole(request);
+
+  const { activeModel, systemPrompt, knowledgeSources } = request.data;
+
+  if (!activeModel && !systemPrompt && !knowledgeSources) {
+    throw new HttpsError("invalid-argument", "At least one setting required");
+  }
+
+  try {
+    const settingsRef = db.collection("admin").doc("ai_settings");
+    const updateData = {};
+
+    if (activeModel) updateData.activeModel = activeModel;
+    if (systemPrompt) updateData.systemPrompt = systemPrompt;
+    if (knowledgeSources) updateData.knowledgeSources = knowledgeSources;
+
+    await settingsRef.set(updateData, { merge: true });
+
+    return { success: true, message: "AI settings updated successfully" };
+  } catch (error) {
+    console.error("Update AI settings error:", error);
+    throw new HttpsError("internal", "Failed to update settings");
+  }
+});
+
+// SECURITY: Verify admin before updating client data
+exports.updateClientData = onCall(async (request) => {
+  await verifyAdminRole(request);
+
+  const { clientId, updates } = request.data;
+
+  if (!clientId || !updates) {
+    throw new HttpsError("invalid-argument", "Client ID and updates required");
+  }
+
+  // Prevent role escalation - admins cannot change user roles via this function
+  if (updates.role) {
+    throw new HttpsError("permission-denied", "Cannot modify user roles");
+  }
+
+  try {
+    const clientRef = db.collection("clients").doc(clientId);
+    const clientDoc = await clientRef.get();
+
+    if (!clientDoc.exists) {
+      throw new HttpsError("not-found", "Client not found");
+    }
+
+    await clientRef.update(updates);
+
+    return { success: true, message: "Client updated successfully" };
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    console.error("Update client error:", error);
+    throw new HttpsError("internal", "Failed to update client");
+  }
+});
+
+// SECURITY: Verify admin before deleting clients
+exports.deleteClient = onCall(async (request) => {
+  await verifyAdminRole(request);
+
+  const { clientId } = request.data;
+
+  if (!clientId) {
+    throw new HttpsError("invalid-argument", "Client ID required");
+  }
+
+  try {
+    // Verify target is not an admin
+    const clientDoc = await db.collection("clients").doc(clientId).get();
+    if (!clientDoc.exists) {
+      throw new HttpsError("not-found", "Client not found");
+    }
+
+    if (clientDoc.data().role === 'admin') {
+      throw new HttpsError("permission-denied", "Cannot delete admin accounts via this function");
+    }
+
+    // Delete Firestore document
+    await db.collection("clients").doc(clientId).delete();
+
+    // Delete Firebase Auth user
+    await auth.deleteUser(clientId);
+
+    return { success: true, message: "Client deleted successfully" };
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    console.error("Delete client error:", error);
+    throw new HttpsError("internal", "Failed to delete client");
+  }
+});
+
+exports.sendClientInvitation = onCall(async (request) => {
+  const { email, name, tempPassword } = request.data;
+
+  // SECURITY: Verify admin role server-side
+  await verifyAdminRole(request);
 
   if (!email || !name || !tempPassword) {
     throw new HttpsError("invalid-argument", "Email, name, and temporary password required");
