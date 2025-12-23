@@ -33,6 +33,11 @@ import { auth, db, storage, functions } from './firebase';
 // SECURITY: Removed API keys from frontend. They are no longer safe here.
 
 // --- HELPER FUNCTIONS ---
+const isIOS = () => {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+};
+
 const convertToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -711,18 +716,17 @@ function PhoneCallDemo({ isOpen, onClose }) {
     // Stop listening to prevent echo/feedback
     stopListening();
 
-    // Cancel any ongoing speech and wait a bit before starting new speech
+    // Cancel any ongoing speech
     synthRef.current.cancel();
 
-    // Small delay to ensure cancel completes
-    setTimeout(() => {
+    const speakNow = () => {
       setIsSpeaking(true);
       const utterance = new SpeechSynthesisUtterance(text);
 
       // Select a more natural voice (prefer female voices for medical receptionist)
       const voices = window.speechSynthesis.getVoices();
       const preferredVoice = voices.find(voice =>
-        voice.name.includes('Samantha') || // macOS
+        voice.name.includes('Samantha') || // macOS/iOS
         voice.name.includes('Microsoft Zira') || // Windows
         voice.name.includes('Google US English Female') || // Chrome
         voice.name.includes('Female')
@@ -732,7 +736,7 @@ function PhoneCallDemo({ isOpen, onClose }) {
       // Adjust for more natural sound
       utterance.rate = 0.95; // Slightly slower for clarity
       utterance.pitch = 1.1; // Slightly higher for friendlier tone
-      utterance.volume = 0.9;
+      utterance.volume = 1; // Max volume for iOS compatibility
 
       utterance.onend = () => {
         setIsSpeaking(false);
@@ -750,7 +754,16 @@ function PhoneCallDemo({ isOpen, onClose }) {
       };
 
       synthRef.current.speak(utterance);
-    }, 100); // Small delay after cancel
+    };
+
+    // iOS requires speech to be triggered synchronously from user interaction
+    // So we can't use setTimeout on iOS
+    if (isIOS()) {
+      speakNow();
+    } else {
+      // Small delay for other browsers to ensure cancel completes
+      setTimeout(speakNow, 100);
+    }
   };
 
   const startListening = () => {
@@ -1056,18 +1069,17 @@ function RestaurantCallDemo({ isOpen, onClose }) {
     // Stop listening to prevent echo/feedback
     stopListening();
 
-    // Cancel any ongoing speech and wait a bit before starting new speech
+    // Cancel any ongoing speech
     synthRef.current.cancel();
 
-    // Small delay to ensure cancel completes
-    setTimeout(() => {
+    const speakNow = () => {
       setIsSpeaking(true);
       const utterance = new SpeechSynthesisUtterance(text);
 
       // Select a more natural voice (prefer female voices for friendly restaurant host)
       const voices = window.speechSynthesis.getVoices();
       const preferredVoice = voices.find(voice =>
-        voice.name.includes('Samantha') || // macOS
+        voice.name.includes('Samantha') || // macOS/iOS
         voice.name.includes('Microsoft Zira') || // Windows
         voice.name.includes('Google US English Female') || // Chrome
         voice.name.includes('Female')
@@ -1077,7 +1089,7 @@ function RestaurantCallDemo({ isOpen, onClose }) {
       // Adjust for more natural sound
       utterance.rate = 0.95; // Slightly slower for clarity
       utterance.pitch = 1.1; // Slightly higher for friendlier tone
-      utterance.volume = 0.9;
+      utterance.volume = 1; // Max volume for iOS compatibility
 
       utterance.onend = () => {
         setIsSpeaking(false);
@@ -1095,7 +1107,16 @@ function RestaurantCallDemo({ isOpen, onClose }) {
       };
 
       synthRef.current.speak(utterance);
-    }, 100); // Small delay after cancel
+    };
+
+    // iOS requires speech to be triggered synchronously from user interaction
+    // So we can't use setTimeout on iOS
+    if (isIOS()) {
+      speakNow();
+    } else {
+      // Small delay for other browsers to ensure cancel completes
+      setTimeout(speakNow, 100);
+    }
   };
 
   const startListening = () => {
@@ -1421,18 +1442,17 @@ function EcommerceCallDemo({ isOpen, onClose }) {
     // Stop listening to prevent echo/feedback
     stopListening();
 
-    // Cancel any ongoing speech and wait a bit before starting new speech
+    // Cancel any ongoing speech
     synthRef.current.cancel();
 
-    // Small delay to ensure cancel completes
-    setTimeout(() => {
+    const speakNow = () => {
       setIsSpeaking(true);
       const utterance = new SpeechSynthesisUtterance(text);
 
       // Select a more natural voice (prefer female voices for friendly support agent)
       const voices = window.speechSynthesis.getVoices();
       const preferredVoice = voices.find(voice =>
-        voice.name.includes('Samantha') || // macOS
+        voice.name.includes('Samantha') || // macOS/iOS
         voice.name.includes('Microsoft Zira') || // Windows
         voice.name.includes('Google US English Female') || // Chrome
         voice.name.includes('Female')
@@ -1442,7 +1462,7 @@ function EcommerceCallDemo({ isOpen, onClose }) {
       // Adjust for more natural sound
       utterance.rate = 0.95; // Slightly slower for clarity
       utterance.pitch = 1.1; // Slightly higher for friendlier tone
-      utterance.volume = 0.9;
+      utterance.volume = 1; // Max volume for iOS compatibility
 
       utterance.onend = () => {
         setIsSpeaking(false);
@@ -1460,7 +1480,16 @@ function EcommerceCallDemo({ isOpen, onClose }) {
       };
 
       synthRef.current.speak(utterance);
-    }, 100); // Small delay after cancel
+    };
+
+    // iOS requires speech to be triggered synchronously from user interaction
+    // So we can't use setTimeout on iOS
+    if (isIOS()) {
+      speakNow();
+    } else {
+      // Small delay for other browsers to ensure cancel completes
+      setTimeout(speakNow, 100);
+    }
   };
 
   const startListening = () => {
