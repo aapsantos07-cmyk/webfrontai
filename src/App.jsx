@@ -32,44 +32,24 @@ import {
   doc, setDoc, getDoc, updateDoc, onSnapshot, collection, getDocs, deleteDoc, arrayUnion, arrayRemove
 } from 'firebase/firestore';
 
-import { httpsCallable } from 'firebase/functions'; // ADDED
+import { httpsCallable } from 'firebase/functions';
 
 // --- LOCAL FIREBASE CONFIG ---
-import { auth, db, storage, functions } from './firebase'; 
+import { auth, db, storage, functions } from './firebase';
+
+// --- REACT ROUTER IMPORTS ---
+import { AppRoutes } from './routes/AppRoutes';
+import { useAuth } from './context/AuthContext';
+import { useNavigate, useLocation, useOutletContext } from 'react-router-dom';
+
+// --- UTILS ---
+import { secureError, secureLog } from './utils/security';
 // --------------------------------
 
 // SECURITY: Removed API keys from frontend. They are no longer safe here.
 
 // --- HELPER FUNCTIONS ---
-const isIOS = () => {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-};
-
-// Secure password generation using cryptographically secure random values
-const generateSecurePassword = (length = 16) => {
-  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
-  const randomValues = new Uint8Array(length);
-  crypto.getRandomValues(randomValues);
-
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += charset[randomValues[i] % charset.length];
-  }
-
-  // Ensure password meets complexity requirements
-  const hasUpper = /[A-Z]/.test(password);
-  const hasLower = /[a-z]/.test(password);
-  const hasNumber = /\d/.test(password);
-  const hasSpecial = /[!@#$%^&*()_+\-=]/.test(password);
-
-  if (!hasUpper) password = password.slice(0, -1) + 'A';
-  if (!hasLower) password = password.slice(0, -2) + 'a' + password.slice(-1);
-  if (!hasNumber) password = password.slice(0, -3) + '1' + password.slice(-2);
-  if (!hasSpecial) password = password.slice(0, -4) + '!' + password.slice(-3);
-
-  return password;
-};
+// (isIOS, generateSecurePassword, secureLog, secureError now imported from utils/security.js)
 
 // Allowed file types for upload (SECURITY: Whitelist only safe file types)
 const ALLOWED_FILE_TYPES = {
@@ -148,19 +128,6 @@ const safeParseAmount = (amount) => {
   if (typeof amount === 'number') return amount;
   if (typeof amount === 'string') return parseFloat(amount.replace(/[^0-9.-]+/g, "")) || 0;
   return 0;
-};
-
-// Conditional logging - only log in development
-const isDevelopment = import.meta.env.MODE === 'development';
-const secureLog = (...args) => {
-  if (isDevelopment) {
-    secureLog(...args);
-  }
-};
-const secureError = (...args) => {
-  if (isDevelopment) {
-    secureError(...args);
-  }
 };
 
 // --- UPDATED AI CHAT COMPONENT (SECURE) ---
@@ -343,421 +310,6 @@ function ProjectOnboardingModal({ isOpen, onSubmit }) {
   );
 }
 
-function PasswordResetScreen({ user, userData, onResetComplete }) {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long.');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Update password in Firebase Auth
-      await updatePassword(user, newPassword);
-
-      // Remove requiresPasswordReset flag from Firestore
-      await updateDoc(doc(db, "clients", user.uid), {
-        requiresPasswordReset: false,
-        activity: arrayUnion({
-          action: "Password reset completed",
-          date: new Date().toLocaleDateString(),
-          status: "Completed"
-        })
-      });
-
-      onResetComplete();
-    } catch (err) {
-      secureError("Password reset error:", err);
-      setError(err.message || "Failed to reset password. Please try again.");
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-black text-white font-sans flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-blue-900/20 rounded-full blur-[100px] -z-10 animate-pulse"></div>
-      <div className="w-full max-w-md animate-fade-in-up">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-yellow-600 text-black rounded-xl mb-4 shadow-[0_0_20px_rgba(234,179,8,0.3)]">
-            <Lock size={24} />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tighter">Reset Your Password</h1>
-          <p className="text-zinc-500 mt-2">Welcome, {userData?.name}! Please set a new password for your account.</p>
-        </div>
-
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
-          <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 p-3 rounded-lg mb-6 text-sm flex items-center gap-2">
-            <AlertTriangle size={16} /> For security, you must set a new password before accessing your dashboard.
-          </div>
-
-          <form onSubmit={handleResetPassword} className="space-y-4">
-            {error && <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded-lg border border-red-500/20">{error}</div>}
-
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2 font-medium">New Password</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                placeholder="Enter new password (min 6 characters)"
-                required
-                minLength={6}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2 font-medium">Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                placeholder="Confirm new password"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin mr-1"/> Updating Password...
-                </>
-              ) : (
-                <>
-                  Reset Password <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AuthScreen({ onAuthSubmit, onBack, maintenanceMode }) {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true); setError('');
-    const { error: submitError } = await onAuthSubmit(isSignUp, email, password, name);
-    setIsLoading(false);
-    if (submitError) setError(submitError);
-  };
-
-  const handlePasswordReset = async (e) => {
-    e.preventDefault();
-    if (!email) { setError("Please enter your email address first."); return; }
-    setIsLoading(true); setError(''); setSuccessMessage('');
-    try {
-      await sendPasswordResetEmail(auth, email);
-      setSuccessMessage("Password reset email sent! Check your inbox.");
-      setIsLoading(false);
-    } catch (err) {
-      setIsLoading(false);
-      setError(err.code === 'auth/user-not-found' ? "No account found." : "Failed to send email.");
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-black text-white font-sans flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-blue-900/20 rounded-full blur-[100px] -z-10 animate-pulse"></div>
-      <div className="w-full max-w-md animate-fade-in-up">
-        <div className="text-center mb-8">
-           <div className="inline-flex items-center justify-center w-12 h-12 bg-white text-black rounded-xl mb-4 shadow-[0_0_20px_rgba(255,255,255,0.3)]"><Cpu size={24} /></div>
-           <h1 className="text-2xl font-bold tracking-tighter">{isForgotPassword ? 'Reset Password' : (isSignUp ? 'Create Account' : 'Welcome Back')}</h1>
-           <p className="text-zinc-500 mt-2">{isForgotPassword ? 'Enter your email to receive a reset link' : (isSignUp ? 'Join WebFront AI today' : 'Sign in to your WebFront Dashboard')}</p>
-        </div>
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl transition-all duration-300 hover:border-zinc-700">
-          {maintenanceMode && !isSignUp && !isForgotPassword && (<div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 p-3 rounded-lg mb-4 text-sm flex items-center gap-2"><AlertTriangle size={16} /> Maintenance Mode Active</div>)}
-          <form onSubmit={isForgotPassword ? handlePasswordReset : handleSubmit} className="space-y-4">
-            {error && <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded-lg border border-red-500/20">{error}</div>}
-            {successMessage && <div className="bg-green-500/10 text-green-500 text-sm p-3 rounded-lg border border-green-500/20">{successMessage}</div>}
-            {isSignUp && !isForgotPassword && (
-              <div className="animate-fade-in">
-                <label className="block text-sm text-zinc-400 mb-2 font-medium">Full Name / Company</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="e.g. Acme Corp" required={isSignUp} />
-              </div>
-            )}
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2 font-medium">Email Address</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="name@company.com" required />
-            </div>
-            {!isForgotPassword && (
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm text-zinc-400 font-medium">Password</label>
-                  {!isSignUp && (<button type="button" onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMessage(''); }} className="text-xs text-blue-400 hover:text-blue-300">Forgot Password?</button>)}
-                </div>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required />
-              </div>
-            )}
-            <button type="submit" disabled={isLoading} className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
-              {isLoading ? <><Loader2 size={16} className="animate-spin mr-1"/> Processing...</> : (isForgotPassword ? 'Send Reset Link' : <><span className="mr-1">{isSignUp ? 'Create Account' : 'Sign In'}</span> <ArrowRight size={16} /></>)}
-            </button>
-          </form>
-          <div className="mt-6 text-center text-sm text-zinc-500">
-            {isForgotPassword ? (<button onClick={() => { setIsForgotPassword(false); setError(''); setSuccessMessage(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Back to Sign In</button>) : isSignUp ? (<p>Already have an account? <button onClick={() => { setIsSignUp(false); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Log In</button></p>) : (<div className="flex flex-col gap-2"><p>Don't have an account? <button onClick={() => { setIsSignUp(true); setError(''); }} className="text-blue-400 hover:text-blue-300 font-medium ml-1">Sign Up</button></p></div>)}
-          </div>
-        </div>
-        <button onClick={onBack} className="w-full mt-8 text-zinc-500 text-sm hover:text-white transition-colors flex items-center justify-center gap-2">← Return to website</button>
-      </div>
-    </div>
-  );
-}
-
-function CountdownTimer({ targetDate }) {
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0
-  });
-
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const difference = targetDate - new Date();
-
-      if (difference > 0) {
-        setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60)
-        });
-      }
-    };
-
-    calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 1000);
-    return () => clearInterval(timer);
-  }, [targetDate]);
-
-  const TimeUnit = ({ value, label }) => (
-    <div className="flex flex-col items-center">
-      <div className="relative group">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300"></div>
-        <div className="relative bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 rounded-2xl p-4 sm:p-6 min-w-[70px] sm:min-w-[90px] shadow-2xl group-hover:scale-105 transition-transform duration-300">
-          <div className="text-3xl sm:text-5xl font-bold bg-gradient-to-b from-white via-blue-100 to-blue-300 bg-clip-text text-transparent tabular-nums animate-pulse">
-            {String(value).padStart(2, '0')}
-          </div>
-        </div>
-      </div>
-      <div className="text-xs sm:text-sm text-zinc-500 font-medium uppercase tracking-wider mt-3">
-        {label}
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="flex justify-center gap-3 sm:gap-6 mb-10">
-      <TimeUnit value={timeLeft.days} label="Days" />
-      <div className="flex items-center text-3xl sm:text-5xl font-bold text-blue-500 animate-pulse -mt-4">:</div>
-      <TimeUnit value={timeLeft.hours} label="Hours" />
-      <div className="flex items-center text-3xl sm:text-5xl font-bold text-blue-500 animate-pulse -mt-4">:</div>
-      <TimeUnit value={timeLeft.minutes} label="Minutes" />
-      <div className="flex items-center text-3xl sm:text-5xl font-bold text-blue-500 animate-pulse -mt-4">:</div>
-      <TimeUnit value={timeLeft.seconds} label="Seconds" />
-    </div>
-  );
-}
-
-function EarlyAccessGate({ onAdminLogin }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
-  const LAUNCH_DATE = new Date('2026-01-02T00:00:00');
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      const docSnap = await getDoc(doc(db, "clients", user.uid));
-
-      if (docSnap.exists() && docSnap.data().role === 'admin') {
-        onAdminLogin();
-      } else {
-        setError('Admin access only during early access period.');
-        await signOut(auth);
-      }
-    } catch (err) {
-      setError('Invalid credentials');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-black text-white font-sans flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-black to-purple-900/20"></div>
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-blue-900/20 rounded-full blur-[120px] -z-10 animate-pulse"></div>
-
-      <div className="w-full max-w-lg z-10 animate-fade-in-up">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-2xl mb-6 shadow-[0_0_40px_rgba(37,99,235,0.4)]">
-            <Lock size={32} />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter mb-4 bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
-            Early Access
-          </h1>
-          <p className="text-zinc-400 text-lg mb-2">WebFront AI is launching soon</p>
-          <div className="inline-block px-4 py-2 bg-blue-900/30 text-blue-400 rounded-full text-sm font-bold border border-blue-500/30 mb-6">
-            <CalendarDays size={14} className="inline mr-2" />
-            Public Launch: January 2, 2026
-          </div>
-        </div>
-
-        <CountdownTimer targetDate={LAUNCH_DATE} />
-
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
-          <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 p-3 rounded-lg mb-6 text-sm flex items-center gap-2">
-            <Shield size={16} /> Admin Access Only
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            {error && (
-              <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded-lg border border-red-500/20">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2 font-medium">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                placeholder="admin@webfrontai.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2 font-medium">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-base md:text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" /> Verifying...
-                </>
-              ) : (
-                <>
-                  Access Dashboard <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center text-sm text-zinc-500">
-            <p>Interested in early access?</p>
-            <button
-              onClick={() => setShowContactModal(true)}
-              className="text-blue-400 hover:text-blue-300 font-medium underline"
-            >
-              Contact us
-            </button>
-          </div>
-        </div>
-
-        {showContactModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowContactModal(false)}>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-md w-full shadow-2xl animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-white">Get in Touch</h3>
-                <button
-                  onClick={() => setShowContactModal(false)}
-                  className="text-zinc-400 hover:text-white transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              <p className="text-zinc-400 mb-6">Choose how you'd like to reach us</p>
-
-              <div className="space-y-3">
-                <a
-                  href="tel:+19295157457"
-                  className="flex items-center gap-4 p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-xl transition-all group"
-                >
-                  <div className="bg-blue-600 p-3 rounded-lg group-hover:scale-110 transition-transform">
-                    <Phone size={24} className="text-white" />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-white font-semibold">Call Us</div>
-                    <div className="text-zinc-400 text-sm">+1 (929) 515-7457</div>
-                  </div>
-                </a>
-
-                <a
-                  href="mailto:andre@webfrontai.com"
-                  className="flex items-center gap-4 p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-xl transition-all group"
-                >
-                  <div className="bg-purple-600 p-3 rounded-lg group-hover:scale-110 transition-transform">
-                    <Mail size={24} className="text-white" />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-white font-semibold">Email Us</div>
-                    <div className="text-zinc-400 text-sm">andre@webfrontai.com</div>
-                  </div>
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-8 text-center text-xs text-zinc-600">
-          <p>© 2025 WebFront AI. Launching January 2026.</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function PhoneCallDemo({ isOpen, onClose }) {
   const [callState, setCallState] = useState('dialing'); // dialing, connected, ended
@@ -2222,10 +1774,11 @@ function LandingPage({ onLogin }) {
 // ... Client Views (Dashboard, Projects, etc) - No changes required here ...
 // [Assume ClientDashboardView, ClientProjectsView, ClientDocumentsView, ClientMessagesView, ClientInvoicesView, ClientKnowledgeBaseView, SettingsView exist as before]
 
-function ClientDashboardView({ data }) {
+function ClientDashboardView() {
+  const { clientData: data } = useOutletContext();
   // Ensure we are working with the isolated client data passed from ClientPortal
-  const invoices = data.invoices || [];
-  const allActivity = data.activity || [];
+  const invoices = data?.invoices || [];
+  const allActivity = data?.activity || [];
 
   // Filter activity to only show project-related updates (hide admin actions)
   const activity = allActivity.filter(item => {
@@ -2268,10 +1821,11 @@ function ClientDashboardView({ data }) {
   );
 }
 
-function ClientProjectsView({ data }) {
+function ClientProjectsView() {
+    const { clientData: data } = useOutletContext();
     return (
         <div className="animate-fade-in space-y-8">
-            <div className="mb-4"><h1 className="text-3xl font-bold mb-1">Active Project</h1><p className="text-zinc-500">{data.project || 'No Active Project'}</p></div>
+            <div className="mb-4"><h1 className="text-3xl font-bold mb-1">Active Project</h1><p className="text-zinc-500">{data?.project || 'No Active Project'}</p></div>
             <Card className="p-8">
                 <div className="flex justify-between items-end mb-6">
                     <div><div className="text-sm text-blue-400 font-bold uppercase tracking-widest mb-1">Current Phase</div><h2 className="text-4xl font-bold text-white">{data.phase || 'Discovery'}</h2></div>
@@ -2289,7 +1843,8 @@ function ClientProjectsView({ data }) {
     );
 }
 
-function ClientDocumentsView({ data }) {
+function ClientDocumentsView() {
+  const { clientData: data } = useOutletContext();
   const [uploading, setUploading] = useState(false);
   const handleClientUpload = async (e) => {
     const file = e.target.files[0];
@@ -2348,7 +1903,8 @@ function ClientDocumentsView({ data }) {
   );
 }
 
-function ClientMessagesView({ data }) {
+function ClientMessagesView() {
+  const { clientData: data } = useOutletContext();
     const [messageInput, setMessageInput] = useState("");
     const messages = data.messages || [{ sender: 'admin', text: 'Welcome to your portal! Let us know if you have questions.', time: 'System • Just now' }];
     const handleSendMessage = async (e) => { e.preventDefault(); if (!messageInput.trim()) return; try { await updateDoc(doc(db, "clients", data.id), { messages: arrayUnion({ sender: 'client', text: messageInput, time: new Date().toLocaleString() }) }); setMessageInput(""); } catch (err) { secureError("Message failed", err); } };
@@ -2357,7 +1913,8 @@ function ClientMessagesView({ data }) {
     );
 }
 
-function ClientInvoicesView({ data }) {
+function ClientInvoicesView() {
+  const { clientData: data } = useOutletContext();
   // Use data.invoices to ensure we only show the current client's invoices
   const invoices = data.invoices || [];
   
@@ -2499,7 +2056,8 @@ function ClientKnowledgeBaseView() {
     );
 }
 
-function SettingsView({ data, onUpdateClient, onDeleteAccount }) {
+function SettingsView({ onDeleteAccount }) {
+  const { clientData: data, onUpdateClient } = useOutletContext();
   const [name, setName] = useState(data?.name || "");
   const handleSave = () => { onUpdateClient({ ...data, name }); };
   return (<div className="animate-fade-in"><div className="mb-8"><h1 className="text-3xl font-bold mb-1">Settings</h1><p className="text-zinc-500">Manage your account preferences.</p></div><div className="grid gap-8 max-w-2xl"><div className="space-y-4"><h3 className="text-lg font-bold flex items-center gap-2"><User size={18}/> Profile Details</h3><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-medium text-zinc-500 mb-1">Company / Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-base md:text-sm text-white focus:border-blue-500 focus:outline-none" /></div><div><label className="block text-xs font-medium text-zinc-500 mb-1">Email (Locked)</label><input type="text" value={data?.email || ""} disabled className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-base md:text-sm text-zinc-500 cursor-not-allowed" /></div></div><Button onClick={handleSave} className="text-sm py-2 px-4">Save Changes</Button></div><div className="space-y-4 pt-4 border-t border-zinc-800"><h3 className="text-lg font-bold flex items-center gap-2 text-red-500"><Shield size={18}/> Danger Zone</h3><Button onClick={() => onDeleteAccount(data?.id)} variant="danger" className="w-full justify-start">Delete My Account</Button></div></div></div>);
@@ -2707,7 +2265,9 @@ function AdminDataAIView() {
 // [Assume these components are unchanged from your original upload]
 
 // [RE-INSERTING Unchanged Components for completeness so the file is runnable]
-function AdminDashboardView({ clients, onNavigateToTasks }) {
+function AdminDashboardView() {
+  const { clients } = useOutletContext();
+  const navigate = useNavigate();
   // Helper to parse amounts safely
   const parseAmount = (amt) => {
       if (typeof amt === 'number') return amt;
@@ -2750,7 +2310,7 @@ function AdminDashboardView({ clients, onNavigateToTasks }) {
         </Card>
         <Card
           className="border-l-4 border-l-yellow-500 cursor-pointer hover:bg-zinc-800/50 transition-colors group"
-          onClick={onNavigateToTasks}
+          onClick={() => navigate('/admin/tasks')}
         >
            <h3 className="text-zinc-400 text-sm mb-1 flex items-center gap-2"><ListTodo size={14}/> Pending Tasks</h3>
            <p className="text-2xl font-bold text-white flex items-center gap-2">
@@ -2793,7 +2353,8 @@ function AdminDashboardView({ clients, onNavigateToTasks }) {
   );
 }
 
-function AdminPipelineView({ clients }) {
+function AdminPipelineView() {
+  const { clients } = useOutletContext();
   const phases = ['Discovery', 'Design', 'Development', 'Testing', 'Live'];
   
   const handlePhaseChange = async (clientId, newPhase) => {
@@ -2858,7 +2419,8 @@ function AdminPipelineView({ clients }) {
   );
 }
 
-function AdminReportsView({ clients }) {
+function AdminReportsView() {
+  const { clients } = useOutletContext();
   const generateCSV = () => {
       const headers = "Client,Project,Phase,Revenue,Status\n";
       const rows = clients.map(c => `${c.name},${c.project},${c.phase},${c.revenue || 0},${c.status}`).join("\n");
@@ -2893,7 +2455,8 @@ function AdminReportsView({ clients }) {
   );
 }
 
-function AdminActivityLogsView({ clients }) {
+function AdminActivityLogsView() {
+  const { clients } = useOutletContext();
     const allLogs = clients
         .flatMap(c => (c.activity || []).map(a => ({
             id: c.id + a.date + a.action, 
@@ -2933,7 +2496,8 @@ function AdminActivityLogsView({ clients }) {
     );
 }
 
-function AdminGlobalSettingsView({ settings, onUpdateSettings }) {
+function AdminGlobalSettingsView() {
+  const { adminSettings: settings, setAdminSettings: onUpdateSettings } = useOutletContext();
     const [config, setConfig] = useState(settings);
 
     const handleSave = () => {
@@ -2979,7 +2543,8 @@ function AdminGlobalSettingsView({ settings, onUpdateSettings }) {
     );
 }
 
-function AdminClientsManager({ clients }) {
+function AdminClientsManager() {
+  const { clients, setClients } = useOutletContext();
   const actualClients = clients.filter(c => c.role !== 'admin');
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -3308,7 +2873,8 @@ function AdminUsersManager() {
   );
 }
 
-function AdminTasksView({ clients, onNavigateToTasks }) {
+function AdminTasksView() {
+  const { clients } = useOutletContext();
   const actualClients = clients.filter(c => c.role !== 'admin');
   const admins = clients.filter(c => c.role === 'admin');
   const [selectedClientId, setSelectedClientId] = useState(null);
@@ -3667,7 +3233,8 @@ function AdminTasksView({ clients, onNavigateToTasks }) {
   );
 }
 
-function AdminFinancialsView({ clients }) {
+function AdminFinancialsView() {
+  const { clients } = useOutletContext();
   const actualClients = clients.filter(c => c.role !== 'admin');
   const parseAmount = (amt) => {
       if (typeof amt === 'number') return amt;
@@ -4047,7 +3614,9 @@ function AdminAnalyticsView() {
   );
 }
 
-function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
+function AdminPortal() {
+  // Get data from AuthContext instead of props
+  const { clients, setClients, adminSettings, setAdminSettings, handleLogout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -4089,7 +3658,7 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
             </div>
           ))}
         </nav>
-        <button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-4 px-4 py-2 border-t border-zinc-800 pt-4">
+        <button onClick={handleLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-4 px-4 py-2 border-t border-zinc-800 pt-4">
           Log Out <ArrowRight size={14} />
         </button>
       </div>
@@ -4112,7 +3681,9 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
   );
 }
 
-function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount }) {
+function ClientPortal({ onUpdateClient, onDeleteAccount }) {
+  // Get data from AuthContext
+  const { currentClientData: clientData, handleLogout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard'); const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuItems = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'projects', label: 'Projects', icon: Briefcase }, { id: 'documents', label: 'Documents', icon: FolderOpen }, { id: 'messages', label: 'Messages', icon: MessageSquare }, { id: 'invoices', label: 'Invoices', icon: CreditCard }, { id: 'knowledge', label: 'Knowledge Base', icon: BookOpen }, { id: 'settings', label: 'Settings', icon: Settings }];
   const [showOnboarding, setShowOnboarding] = useState(clientData?.project === "New Project");
@@ -4124,7 +3695,7 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
     <div className="min-h-screen bg-black text-white font-sans flex flex-col lg:flex-row relative">
       <ProjectOnboardingModal isOpen={showOnboarding} onSubmit={handleProjectSubmit} />
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900"><div className="font-bold">WEBFRONT_OS</div><button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">{mobileMenuOpen ? <X /> : <Menu />}</button></div>
-      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}><h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">WEBFRONT<span className="text-blue-500">_OS</span></h2><nav className="space-y-1 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-zinc-800 text-white shadow-lg border-l-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30 border-l-2 border-transparent'}`}><item.icon size={18} className={activeTab === item.id ? 'text-blue-400' : ''} /> <span className={activeTab === item.id ? 'font-medium' : ''}>{item.label}</span></div>))}</nav><button onClick={onLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-4 border-t border-zinc-800">Log Out <ArrowRight size={14} /></button></div>
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-64 border-r border-zinc-800 bg-zinc-900/30 flex-col p-6 fixed lg:relative z-20 h-full backdrop-blur-md lg:backdrop-blur-none bg-black/90 lg:bg-transparent`}><h2 className="text-xl font-bold tracking-tighter mb-8 hidden lg:block">WEBFRONT<span className="text-blue-500">_OS</span></h2><nav className="space-y-1 flex-1">{menuItems.map((item) => (<div key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${activeTab === item.id ? 'bg-zinc-800 text-white shadow-lg border-l-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30 border-l-2 border-transparent'}`}><item.icon size={18} className={activeTab === item.id ? 'text-blue-400' : ''} /> <span className={activeTab === item.id ? 'font-medium' : ''}>{item.label}</span></div>))}</nav><button onClick={handleLogout} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mt-auto px-4 py-4 border-t border-zinc-800">Log Out <ArrowRight size={14} /></button></div>
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-black h-[calc(100vh-60px)] lg:h-screen">
         {activeTab === 'dashboard' && <ClientDashboardView data={clientData} />}
         {activeTab === 'projects' && <ClientProjectsView data={clientData} />}
@@ -4140,127 +3711,157 @@ function ClientPortal({ onLogout, clientData, onUpdateClient, onDeleteAccount })
 
 // --- APP CONTROLLER ---
 export default function App() {
-  const [view, setView] = useState('landing');
-  const [userRole, setUserRole] = useState('client');
-  const [clients, setClients] = useState([]);
-  const [currentClientData, setCurrentClientData] = useState(null);
-  const [appLoading, setAppLoading] = useState(true);
+  const { currentClientData, clients, adminSettings, setCurrentClientData, setClients, setAdminSettings, isSigningUp } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const MASTER_ADMIN_EMAIL = import.meta.env.VITE_MASTER_ADMIN_EMAIL?.toLowerCase() || '';
-  const [adminSettings, setAdminSettings] = useState({ name: "Admin User", email: MASTER_ADMIN_EMAIL, maintenanceMode: false });
-  const isSigningUp = useRef(false);
-  const [tempUserForReset, setTempUserForReset] = useState(null);
-  const [earlyAccessApproved, setEarlyAccessApproved] = useState(false);
 
-  // Check if we're before January 2, 2026
-  const LAUNCH_DATE = new Date('2026-01-02T00:00:00');
-  const isBeforeLaunch = new Date() < LAUNCH_DATE;
-
-  useEffect(() => {
-    const safetyTimer = setTimeout(() => { if (appLoading) { console.warn("Firebase auth timed out - forcing app load."); setAppLoading(false); } }, 3000);
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      clearTimeout(safetyTimer);
-      if (isSigningUp.current) return;
-      if (user) {
-        const isMaster = user.email.toLowerCase() === MASTER_ADMIN_EMAIL;
-        try {
-          const docRef = doc(db, "clients", user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            const role = isMaster ? 'admin' : (data.role || 'client');
-            setUserRole(role);
-            setCurrentClientData({ id: user.uid, ...data });
-
-            // Check if password reset required
-            if (data.requiresPasswordReset && !isMaster) {
-              setTempUserForReset(user);
-              setView('reset-password');
-            } else if (role === 'admin') {
-              setView('admin');
-            } else {
-              setView('portal');
-            }
-          } else { setView('landing'); }
-        } catch (err) { 
-            secureError("Error fetching user data on auth change:", err); 
-            if (err.message && err.message.includes("INTERNAL ASSERTION FAILED")) { alert("Session Error: Please clear your browser cache and refresh."); setView('landing'); }
-        }
-      } else { setView('landing'); setCurrentClientData(null); }
-      setAppLoading(false);
-    });
-    return () => { unsubscribeAuth(); clearTimeout(safetyTimer); };
-  }, []);
-
-  useEffect(() => {
-    if (appLoading) return;
-    if (!currentClientData && userRole !== 'admin') return;
-    let unsubscribe;
-    if (userRole === 'admin') {
-       const q = collection(db, "clients");
-       unsubscribe = onSnapshot(q, (snapshot) => { setClients(snapshot.docs.map(d => ({id: d.id, ...d.data()}))); }, (err) => secureLog("Admin listen error", err));
-    } else if (userRole === 'client' && currentClientData?.id) {
-       const docRef = doc(db, "clients", currentClientData.id);
-       unsubscribe = onSnapshot(docRef, (docSnap) => { if (docSnap.exists()) { setCurrentClientData({ id: docSnap.id, ...docSnap.data() }); } }, (err) => secureLog("Client listen error", err));
+  const handleClientUpdate = async (updatedClient) => {
+    try {
+      await updateDoc(doc(db, 'clients', updatedClient.id), {
+        name: updatedClient.name,
+        notifications: updatedClient.notifications,
+        project: updatedClient.project
+      });
+    } catch(e) {
+      secureError("Update failed", e);
     }
-    return () => { if (unsubscribe) unsubscribe(); };
-  }, [userRole, currentClientData?.id, appLoading]);
+  };
 
-  const handleLogin = (role, clientData) => { setUserRole(role); if (role === 'admin') { setView('admin'); } else { setCurrentClientData(clientData); setView('portal'); } };
-  const handleClientUpdate = async (updatedClient) => { try { await updateDoc(doc(db, 'clients', updatedClient.id), { name: updatedClient.name, notifications: updatedClient.notifications, project: updatedClient.project }); } catch(e) { secureError("Update failed", e); } };
-  const handleClientDelete = async (id) => { if (confirm("Are you sure you want to delete your account? This cannot be undone.")) { try { await deleteDoc(doc(db, 'clients', id)); await signOut(auth); setView('landing'); } catch(e) { alert(e.message); } } };
+  const handleClientDelete = async (id) => {
+    if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
+      try {
+        await deleteDoc(doc(db, 'clients', id));
+        await signOut(auth);
+        navigate('/');
+      } catch(e) {
+        alert(e.message);
+      }
+    }
+  };
+
   const handleAuthSubmit = async (isSignUp, email, password, name) => {
     const isMasterAdmin = email.toLowerCase() === MASTER_ADMIN_EMAIL;
-    if (adminSettings.maintenanceMode && isSignUp && !isMasterAdmin) return { error: "New signups are disabled during maintenance." };
+    if (adminSettings.maintenanceMode && isSignUp && !isMasterAdmin) {
+      return { error: "New signups are disabled during maintenance." };
+    }
+
     try {
-        let user; let uid;
-        if (isSignUp) {
-            isSigningUp.current = true; 
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
-            const role = isMasterAdmin ? 'admin' : 'client';
-            const clientData = { id: uid, name: name || (isMasterAdmin ? "Master Admin" : "New User"), email: email, role: role, project: isMasterAdmin ? "WebFront AI System" : "New Project", phase: "Discovery", progress: 0, milestone: "Onboarding", dueDate: "TBD", revenue: 0, status: "Active", activity: [{ action: "Account Created", date: new Date().toLocaleDateString(), status: "Completed" }], invoices: [], contracts: [], clientUploads: [], notifications: { email: true, push: false } };
-            await setDoc(doc(db, "clients", uid), clientData); handleLogin(role, clientData); isSigningUp.current = false; 
+      let user; let uid;
+      if (isSignUp) {
+        isSigningUp.current = true;
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        user = userCredential.user;
+        uid = user.uid;
+        const role = isMasterAdmin ? 'admin' : 'client';
+        const clientData = {
+          id: uid,
+          name: name || (isMasterAdmin ? "Master Admin" : "New User"),
+          email: email,
+          role: role,
+          project: isMasterAdmin ? "WebFront AI System" : "New Project",
+          phase: "Discovery",
+          progress: 0,
+          milestone: "Onboarding",
+          dueDate: "TBD",
+          revenue: 0,
+          status: "Active",
+          activity: [{ action: "Account Created", date: new Date().toLocaleDateString(), status: "Completed" }],
+          invoices: [],
+          contracts: [],
+          clientUploads: [],
+          notifications: { email: true, push: false }
+        };
+        await setDoc(doc(db, "clients", uid), clientData);
+        isSigningUp.current = false;
+
+        // Navigate to appropriate dashboard
+        if (role === 'admin') {
+          navigate('/admin/dashboard');
         } else {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password); user = userCredential.user; uid = user.uid;
-            const clientDocSnap = await getDoc(doc(db, "clients", uid));
-            if (clientDocSnap.exists()) { const userData = clientDocSnap.data(); const userRole = isMasterAdmin ? 'admin' : (userData.role || 'client'); handleLogin(userRole, userData); } 
-            else { if (isMasterAdmin) { const adminData = { id: uid, name: "Master Admin", email: email, role: 'admin', project: "System Admin", phase: "Admin", progress: 100, milestone: "N/A", dueDate: "N/A", revenue: 0, status: "Active", activity: [], invoices: [], contracts: [], clientUploads: [] }; await setDoc(doc(db, "clients", uid), adminData); handleLogin('admin', adminData); } else { await signOut(auth); return { error: "User data not found. Please contact support." }; } }
+          navigate('/dashboard/overview');
         }
-        return { error: null };
+      } else {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        user = userCredential.user;
+        uid = user.uid;
+        const clientDocSnap = await getDoc(doc(db, "clients", uid));
+
+        if (clientDocSnap.exists()) {
+          const userData = clientDocSnap.data();
+          const userRole = isMasterAdmin ? 'admin' : (userData.role || 'client');
+
+          // Navigate to appropriate dashboard
+          if (userRole === 'admin') {
+            navigate('/admin/dashboard');
+          } else {
+            navigate('/dashboard/overview');
+          }
+        } else {
+          if (isMasterAdmin) {
+            const adminData = {
+              id: uid,
+              name: "Master Admin",
+              email: email,
+              role: 'admin',
+              project: "System Admin",
+              phase: "Admin",
+              progress: 100,
+              milestone: "N/A",
+              dueDate: "N/A",
+              revenue: 0,
+              status: "Active",
+              activity: [],
+              invoices: [],
+              contracts: [],
+              clientUploads: []
+            };
+            await setDoc(doc(db, "clients", uid), adminData);
+            navigate('/admin/dashboard');
+          } else {
+            await signOut(auth);
+            return { error: "User data not found. Please contact support." };
+          }
+        }
+      }
+      return { error: null };
     } catch (firebaseError) {
-        isSigningUp.current = false; secureError("Auth Error:", firebaseError);
-        if (firebaseError.code === 'auth/email-already-in-use') return { error: "Email already in use." };
-        if (firebaseError.code === 'auth/invalid-credential') return { error: "Invalid email or password." };
-        return { error: firebaseError.message };
+      isSigningUp.current = false;
+      secureError("Auth Error:", firebaseError);
+      if (firebaseError.code === 'auth/email-already-in-use') return { error: "Email already in use." };
+      if (firebaseError.code === 'auth/invalid-credential') return { error: "Invalid email or password." };
+      return { error: firebaseError.message };
     }
   };
-
-  if (appLoading) { return (<div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-white w-10 h-10" /></div>); }
-
-  const handlePasswordResetComplete = () => {
-    // After password reset, redirect to appropriate dashboard
-    if (userRole === 'admin') {
-      setView('admin');
-    } else {
-      setView('portal');
-    }
-  };
-
-  const handleEarlyAccessLogin = () => {
-    setEarlyAccessApproved(true);
-  };
-
-  // Show early access gate if before launch date and not approved
-  if (isBeforeLaunch && !earlyAccessApproved) {
-    return <EarlyAccessGate onAdminLogin={handleEarlyAccessLogin} />;
-  }
 
   return (
-    <>
-      {view === 'landing' && <LandingPage onLogin={() => setView('auth')} />}
-      {view === 'auth' && <AuthScreen onAuthSubmit={handleAuthSubmit} onBack={() => setView('landing')} maintenanceMode={adminSettings.maintenanceMode} />}
-      {view === 'reset-password' && tempUserForReset && <PasswordResetScreen user={tempUserForReset} userData={currentClientData} onResetComplete={handlePasswordResetComplete} />}
-      {view === 'portal' && currentClientData && <ClientPortal onLogout={() => signOut(auth)} clientData={currentClientData} onUpdateClient={handleClientUpdate} onDeleteAccount={handleClientDelete} />}
-      {view === 'admin' && <AdminPortal onLogout={() => signOut(auth)} clients={clients} setClients={setClients} adminSettings={adminSettings} setAdminSettings={setAdminSettings} />}
-    </>
+    <AppRoutes
+      LandingPage={LandingPage}
+      handleAuthSubmit={handleAuthSubmit}
+      handleClientUpdate={handleClientUpdate}
+      handleClientDelete={handleClientDelete}
+      adminSettings={adminSettings}
+      // Client view components
+      ClientDashboardView={ClientDashboardView}
+      ClientProjectsView={ClientProjectsView}
+      ClientDocumentsView={ClientDocumentsView}
+      ClientMessagesView={ClientMessagesView}
+      ClientInvoicesView={ClientInvoicesView}
+      ClientKnowledgeBaseView={ClientKnowledgeBaseView}
+      SettingsView={SettingsView}
+      // Admin view components
+      AdminDashboardView={AdminDashboardView}
+      AdminPipelineView={AdminPipelineView}
+      AdminTasksView={AdminTasksView}
+      AdminClientsManager={AdminClientsManager}
+      AdminFinancialsView={AdminFinancialsView}
+      AdminAnalyticsView={AdminAnalyticsView}
+      AdminDataAIView={AdminDataAIView}
+      AdminReportsView={AdminReportsView}
+      AdminActivityLogsView={AdminActivityLogsView}
+      AdminUsersManager={AdminUsersManager}
+      AdminGlobalSettingsView={AdminGlobalSettingsView}
+    />
   );
 }
