@@ -30,7 +30,8 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_WEBFRONTAI_42249 }}
-      - name: Deploy Functions to Firebase
-        run: npx firebase-tools deploy --only functions --project webfrontai-42249
+      # Temporarily disabled until Secret Manager permissions are granted
+      # - name: Deploy Functions to Firebase
+      #   run: npx firebase-tools deploy --only functions --project webfrontai-42249
       - name: Deploy Hosting to Firebase
         run: npx firebase-tools deploy --only hosting --project webfrontai-42249
