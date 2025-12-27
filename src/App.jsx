@@ -1899,7 +1899,7 @@ function LandingPage({ onLogin }) {
         <div className="container mx-auto px-4 md:px-6 text-center">
           <FadeIn delay={100}>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-zinc-900/80 border border-zinc-800 text-[10px] md:text-xs font-mono mb-6 md:mb-8 backdrop-blur-sm">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_2s_infinite]"></span>ACCEPTING NEW CLIENTS FOR Q4
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_2s_infinite]"></span>ACCEPTING NEW CLIENTS FOR Q1
             </div>
           </FadeIn>
           <FadeIn delay={200}>
