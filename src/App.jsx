@@ -3328,7 +3328,7 @@ function AdminAnalyticsView() {
             Website Analytics
           </h1>
           <p className="text-zinc-500">
-            Real-time traffic insights and user behavior
+            Google Search Console performance metrics
             {lastUpdated && ` • Updated ${lastUpdated.toLocaleTimeString()}`}
           </p>
         </div>
@@ -3394,6 +3394,76 @@ function AdminAnalyticsView() {
             </p>
             <p className="text-xs text-zinc-500 mt-1">Single-page exits</p>
           </Card>
+        </div>
+      )}
+
+      {/* Search Performance Metrics */}
+      {analyticsData?.searchPerformance && (
+        <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6 mb-8">
+          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+            <Search className="text-blue-500" size={20} />
+            Search Performance
+          </h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-black/40 rounded-lg p-4 border border-zinc-800">
+              <div className="text-3xl font-bold text-blue-400 mb-1">
+                {analyticsData.searchPerformance.totalClicks.toLocaleString()}
+              </div>
+              <div className="text-sm text-zinc-500">Total Clicks</div>
+            </div>
+            <div className="bg-black/40 rounded-lg p-4 border border-zinc-800">
+              <div className="text-3xl font-bold text-purple-400 mb-1">
+                {analyticsData.searchPerformance.totalImpressions.toLocaleString()}
+              </div>
+              <div className="text-sm text-zinc-500">Total Impressions</div>
+            </div>
+            <div className="bg-black/40 rounded-lg p-4 border border-zinc-800">
+              <div className="text-3xl font-bold text-green-400 mb-1">
+                {analyticsData.searchPerformance.avgCTR}%
+              </div>
+              <div className="text-sm text-zinc-500">Average CTR</div>
+            </div>
+            <div className="bg-black/40 rounded-lg p-4 border border-zinc-800">
+              <div className="text-3xl font-bold text-yellow-400 mb-1">
+                {analyticsData.searchPerformance.avgPosition}
+              </div>
+              <div className="text-sm text-zinc-500">Average Position</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Search Queries */}
+      {analyticsData?.topQueries && analyticsData.topQueries.length > 0 && (
+        <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6 mb-8">
+          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+            <Search className="text-green-500" size={20} />
+            Top Search Queries
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left border-b border-zinc-800 text-zinc-400 text-sm">
+                  <th className="pb-3 font-medium">Query</th>
+                  <th className="pb-3 text-right font-medium">Clicks</th>
+                  <th className="pb-3 text-right font-medium">Impressions</th>
+                  <th className="pb-3 text-right font-medium">CTR</th>
+                  <th className="pb-3 text-right font-medium">Position</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analyticsData.topQueries.map((query, idx) => (
+                  <tr key={idx} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                    <td className="py-4 text-white font-medium">{query.query}</td>
+                    <td className="py-4 text-right text-zinc-300">{query.clicks}</td>
+                    <td className="py-4 text-right text-zinc-300">{query.impressions}</td>
+                    <td className="py-4 text-right text-green-400 font-semibold">{query.ctr}%</td>
+                    <td className="py-4 text-right text-blue-400 font-semibold">{query.position}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

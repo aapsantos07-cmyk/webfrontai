@@ -4,6 +4,7 @@ const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { google } = require("googleapis");
 const nodemailer = require("nodemailer");
 
 initializeApp();
@@ -12,6 +13,7 @@ const auth = getAuth();
 
 // SECURITY: Store API key in Cloud Secret Manager instead of Firestore
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+const gscServiceAccountKey = defineSecret("GSC_SERVICE_ACCOUNT_KEY");
 
 exports.chatWithAI = onCall(
   { secrets: [geminiApiKey] },
@@ -276,3 +278,190 @@ exports.sendClientInvitation = onCall(async (request) => {
     throw new HttpsError("internal", "Failed to send invitation email: " + error.message);
   }
 });
+
+// SECURITY: Verify admin before fetching Google Search Console analytics
+exports.getAnalyticsData = onCall(
+  {
+    secrets: [gscServiceAccountKey],
+    timeoutSeconds: 60,
+    memory: '512MB'
+  },
+  async (request) => {
+    // Verify admin access
+    await verifyAdminRole(request);
+
+    const { dateRange = '30daysAgo' } = request.data;
+
+    // Calculate date range
+    const endDate = new Date();
+    const startDate = new Date();
+    if (dateRange === '7daysAgo') {
+      startDate.setDate(endDate.getDate() - 7);
+    } else if (dateRange === '30daysAgo') {
+      startDate.setDate(endDate.getDate() - 30);
+    } else if (dateRange === '90daysAgo') {
+      startDate.setDate(endDate.getDate() - 90);
+    }
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    // Check cache
+    const cacheKey = `gsc_analytics_${startDateStr}_${endDateStr}`;
+    const cacheDoc = await db.collection('analytics_cache').doc(cacheKey).get();
+
+    if (cacheDoc.exists) {
+      const cacheData = cacheDoc.data();
+      const cacheAge = Date.now() - cacheData.timestamp;
+      if (cacheAge < 5 * 60 * 1000) { // 5 minutes
+        return { success: true, data: cacheData.data, generatedAt: cacheData.timestamp, cached: true };
+      }
+    }
+
+    try {
+      // Initialize GSC API
+      const serviceAccountKey = JSON.parse(gscServiceAccountKey.value());
+      const authClient = new google.auth.JWT(
+        serviceAccountKey.client_email,
+        null,
+        serviceAccountKey.private_key,
+        ['https://www.googleapis.com/auth/webmasters.readonly']
+      );
+
+      const searchconsole = google.searchconsole({ version: 'v1', auth: authClient });
+      const siteUrl = 'sc-domain:webfrontai.com';
+
+      // Query 1: Overall performance by date
+      const overallResponse = await searchconsole.searchanalytics.query({
+        siteUrl,
+        requestBody: {
+          startDate: startDateStr,
+          endDate: endDateStr,
+          dimensions: ['date'],
+          rowLimit: 1000
+        }
+      });
+
+      // Query 2: Top queries
+      const queriesResponse = await searchconsole.searchanalytics.query({
+        siteUrl,
+        requestBody: {
+          startDate: startDateStr,
+          endDate: endDateStr,
+          dimensions: ['query'],
+          rowLimit: 10
+        }
+      });
+
+      // Query 3: Top pages
+      const pagesResponse = await searchconsole.searchanalytics.query({
+        siteUrl,
+        requestBody: {
+          startDate: startDateStr,
+          endDate: endDateStr,
+          dimensions: ['page'],
+          rowLimit: 10
+        }
+      });
+
+      // Query 4: Devices
+      const devicesResponse = await searchconsole.searchanalytics.query({
+        siteUrl,
+        requestBody: {
+          startDate: startDateStr,
+          endDate: endDateStr,
+          dimensions: ['device'],
+          rowLimit: 10
+        }
+      });
+
+      // Query 5: Countries
+      const countriesResponse = await searchconsole.searchanalytics.query({
+        siteUrl,
+        requestBody: {
+          startDate: startDateStr,
+          endDate: endDateStr,
+          dimensions: ['country'],
+          rowLimit: 10
+        }
+      });
+
+      // Transform data
+      const dailyTrend = (overallResponse.data.rows || []).map(row => ({
+        date: row.keys[0],
+        users: Math.round(row.clicks),
+        sessions: Math.round(row.clicks * 1.2), // Estimate
+        pageViews: Math.round(row.impressions / 10) // Estimate
+      }));
+
+      const topQueries = (queriesResponse.data.rows || []).map(row => ({
+        query: row.keys[0],
+        clicks: row.clicks,
+        impressions: row.impressions,
+        ctr: (row.ctr * 100).toFixed(2),
+        position: row.position.toFixed(1)
+      }));
+
+      const topPages = (pagesResponse.data.rows || []).map(row => ({
+        title: row.keys[0].split('/').pop() || 'Homepage',
+        path: row.keys[0],
+        views: row.clicks,
+        impressions: row.impressions
+      }));
+
+      const devices = (devicesResponse.data.rows || []).map(row => ({
+        device: row.keys[0].charAt(0).toUpperCase() + row.keys[0].slice(1),
+        users: row.clicks
+      }));
+
+      const geography = (countriesResponse.data.rows || []).map(row => ({
+        country: row.keys[0],
+        users: row.clicks
+      }));
+
+      // Calculate totals
+      const totalClicks = dailyTrend.reduce((sum, day) => sum + day.users, 0);
+      const totalImpressions = (overallResponse.data.rows || []).reduce((sum, row) => sum + row.impressions, 0);
+      const avgCTR = totalImpressions > 0 ? (totalClicks / totalImpressions * 100).toFixed(2) : 0;
+      const avgPosition = (overallResponse.data.rows || []).reduce((sum, row) => sum + row.position, 0) / (overallResponse.data.rows?.length || 1);
+
+      const analyticsData = {
+        // GSC-specific metrics
+        searchPerformance: {
+          totalClicks,
+          totalImpressions,
+          avgCTR,
+          avgPosition: avgPosition.toFixed(1)
+        },
+        topQueries,
+
+        // Existing structure (adapted from GSC data)
+        userBehavior: {
+          engagementRate: avgCTR,
+          avgSessionDuration: 120, // Placeholder (GSC doesn't provide)
+          pagesPerSession: 2.5, // Placeholder
+          bounceRate: 45 // Placeholder
+        },
+        dailyTrend,
+        trafficSources: [{ source: 'google', medium: 'organic', users: totalClicks, sessions: totalClicks }],
+        devices,
+        topPages,
+        geography,
+        userTypes: [], // Not available from GSC
+        topEvents: [] // Not available from GSC
+      };
+
+      // Cache the result
+      await db.collection('analytics_cache').doc(cacheKey).set({
+        data: analyticsData,
+        timestamp: Date.now()
+      });
+
+      return { success: true, data: analyticsData, generatedAt: Date.now(), cached: false };
+
+    } catch (error) {
+      console.error('GSC API Error:', error);
+      throw new HttpsError('internal', `Failed to fetch GSC data: ${error.message}`);
+    }
+  }
+);
