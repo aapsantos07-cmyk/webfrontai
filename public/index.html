@@ -1,89 +1,358 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Welcome to Firebase Hosting</title>
 
-    <!-- update the version number as needed -->
+    <!-- SEO Meta Tags -->
+    <title>WebFront AI - AI-Powered Digital Agency Services & Solutions</title>
+    <meta name="description" content="WebFront AI delivers cutting-edge digital agency services powered by artificial intelligence. Web development, AI chatbots, custom software solutions, and digital transformation for modern businesses.">
+    <meta name="keywords" content="AI digital agency, web development, AI chatbots, custom software, digital transformation, artificial intelligence services">
+    <meta name="author" content="WebFront AI">
+
+    <!-- Open Graph Tags -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="WebFront AI - AI-Powered Digital Agency Services">
+    <meta property="og:description" content="Transform your business with AI-powered digital solutions. Expert web development, intelligent chatbots, and custom software tailored to your needs.">
+    <meta property="og:url" content="https://webfrontai.com">
+    <meta property="og:site_name" content="WebFront AI">
+    <meta property="og:image" content="https://webfrontai.com/images/og-image.jpg">
+
+    <!-- Twitter Card Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="WebFront AI - AI-Powered Digital Agency">
+    <meta name="twitter:description" content="Transform your business with AI-powered digital solutions. Expert web development, intelligent chatbots, and custom software.">
+    <meta name="twitter:image" content="https://webfrontai.com/images/twitter-card.jpg">
+
+    <!-- Schema.org Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "WebFront AI",
+      "url": "https://webfrontai.com",
+      "logo": "https://webfrontai.com/images/logo.png",
+      "description": "AI-powered digital agency specializing in web development, AI chatbots, and custom software solutions",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "US"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "Customer Service",
+        "email": "hello@webfrontai.com"
+      },
+      "sameAs": [
+        "https://twitter.com/webfrontai",
+        "https://linkedin.com/company/webfrontai"
+      ],
+      "service": [
+        {
+          "@type": "Service",
+          "name": "AI-Powered Web Development",
+          "description": "Custom web applications built with modern technologies and AI integration"
+        },
+        {
+          "@type": "Service",
+          "name": "AI Chatbot Development",
+          "description": "Intelligent chatbot solutions for customer service and engagement"
+        },
+        {
+          "@type": "Service",
+          "name": "Custom Software Development",
+          "description": "Tailored software solutions to meet your unique business needs"
+        }
+      ]
+    }
+    </script>
+
+    <!-- Firebase SDK -->
     <script defer src="/__/firebase/12.6.0/firebase-app-compat.js"></script>
-    <!-- include only the Firebase features as you need -->
     <script defer src="/__/firebase/12.6.0/firebase-auth-compat.js"></script>
     <script defer src="/__/firebase/12.6.0/firebase-database-compat.js"></script>
     <script defer src="/__/firebase/12.6.0/firebase-firestore-compat.js"></script>
     <script defer src="/__/firebase/12.6.0/firebase-functions-compat.js"></script>
     <script defer src="/__/firebase/12.6.0/firebase-messaging-compat.js"></script>
     <script defer src="/__/firebase/12.6.0/firebase-storage-compat.js"></script>
-    <script defer src="/__/firebase/12.6.0/firebase-analytics-compat.js"></script>
     <script defer src="/__/firebase/12.6.0/firebase-remote-config-compat.js"></script>
     <script defer src="/__/firebase/12.6.0/firebase-performance-compat.js"></script>
-    <!-- 
-      initialize the SDK after all desired features are loaded, set useEmulator to false
-      to avoid connecting the SDK to running emulators.
-    -->
     <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
-    <style media="screen">
-      body { background: #ECEFF1; color: rgba(0,0,0,0.87); font-family: Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-      #message { background: white; max-width: 360px; margin: 100px auto 16px; padding: 32px 24px; border-radius: 3px; }
-      #message h2 { color: #ffa100; font-weight: bold; font-size: 16px; margin: 0 0 8px; }
-      #message h1 { font-size: 22px; font-weight: 300; color: rgba(0,0,0,0.6); margin: 0 0 16px;}
-      #message p { line-height: 140%; margin: 16px 0 24px; font-size: 14px; }
-      #message a { display: block; text-align: center; background: #039be5; text-transform: uppercase; text-decoration: none; color: white; padding: 16px; border-radius: 4px; }
-      #message, #message a { box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
-      #load { color: rgba(0,0,0,0.4); text-align: center; font-size: 13px; }
-      @media (max-width: 600px) {
-        body, #message { margin-top: 0; background: white; box-shadow: none; }
-        body { border-top: 16px solid #ffa100; }
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: #f8f9fa;
+      }
+
+      header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+
+      nav {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .logo {
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 5rem 2rem;
+        text-align: center;
+      }
+
+      .hero h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        font-weight: 700;
+      }
+
+      .hero p {
+        font-size: 1.25rem;
+        max-width: 700px;
+        margin: 0 auto 2rem;
+        opacity: 0.95;
+      }
+
+      .cta-button {
+        display: inline-block;
+        background: white;
+        color: #667eea;
+        padding: 1rem 2.5rem;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: transform 0.3s, box-shadow 0.3s;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      }
+
+      .cta-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 2rem;
+      }
+
+      .section {
+        padding: 4rem 2rem;
+        background: white;
+        margin: 2rem 0;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      }
+
+      h2 {
+        font-size: 2.5rem;
+        margin-bottom: 2rem;
+        text-align: center;
+        color: #667eea;
+      }
+
+      .services {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-top: 3rem;
+      }
+
+      .service-card {
+        padding: 2rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        transition: transform 0.3s, box-shadow 0.3s;
+      }
+
+      .service-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+        border-color: #667eea;
+      }
+
+      .service-card h3 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: #667eea;
+      }
+
+      .about-content {
+        max-width: 800px;
+        margin: 0 auto;
+        font-size: 1.1rem;
+        line-height: 1.8;
+      }
+
+      .features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+        margin-top: 3rem;
+      }
+
+      .feature {
+        text-align: center;
+        padding: 1.5rem;
+      }
+
+      .feature-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+      }
+
+      footer {
+        background: #2c3e50;
+        color: white;
+        text-align: center;
+        padding: 2rem;
+        margin-top: 4rem;
+      }
+
+      @media (max-width: 768px) {
+        .hero h1 {
+          font-size: 2rem;
+        }
+
+        .hero p {
+          font-size: 1rem;
+        }
+
+        h2 {
+          font-size: 2rem;
+        }
       }
     </style>
   </head>
   <body>
-    <div id="message">
-      <h2>Welcome</h2>
-      <h1>Firebase Hosting Setup Complete</h1>
-      <p>You're seeing this because you've successfully setup Firebase Hosting. Now it's time to go build something extraordinary!</p>
-      <a target="_blank" href="https://firebase.google.com/docs/hosting/">Open Hosting Documentation</a>
+    <header>
+      <nav>
+        <div class="logo">WebFront AI</div>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <h1>Transform Your Business with AI-Powered Digital Solutions</h1>
+      <p>We blend cutting-edge artificial intelligence with expert web development to create intelligent, scalable solutions that drive real business results.</p>
+      <a href="#contact" class="cta-button">Get Started Today</a>
+    </section>
+
+    <div class="container">
+      <section class="section">
+        <h2>Our Services</h2>
+        <div class="services">
+          <article class="service-card">
+            <h3>AI-Powered Web Development</h3>
+            <p>Build modern, responsive web applications enhanced with artificial intelligence. We create fast, secure, and scalable solutions using the latest technologies including React, Vue.js, and Node.js. Our AI integration ensures your website provides personalized user experiences and intelligent automation.</p>
+          </article>
+
+          <article class="service-card">
+            <h3>Intelligent Chatbot Solutions</h3>
+            <p>Revolutionize customer engagement with AI chatbots powered by advanced language models. Our chatbots understand context, provide accurate responses, and integrate seamlessly with your existing systems. Available 24/7, they handle customer inquiries, generate leads, and improve satisfaction rates significantly.</p>
+          </article>
+
+          <article class="service-card">
+            <h3>Custom Software Development</h3>
+            <p>Get tailored software solutions designed specifically for your unique business challenges. From enterprise applications to specialized tools, we develop robust, maintainable code that scales with your growth. Our agile approach ensures rapid development without compromising quality or security.</p>
+          </article>
+
+          <article class="service-card">
+            <h3>Digital Transformation Consulting</h3>
+            <p>Navigate the AI revolution with expert guidance. We analyze your current processes, identify automation opportunities, and implement AI-driven solutions that reduce costs and increase efficiency. Our consulting services help you stay competitive in the rapidly evolving digital landscape.</p>
+          </article>
+
+          <article class="service-card">
+            <h3>Cloud Infrastructure & DevOps</h3>
+            <p>Deploy and manage your applications with confidence using modern cloud platforms. We specialize in Firebase, AWS, and Azure deployments with automated CI/CD pipelines, monitoring, and scaling. Our infrastructure solutions ensure maximum uptime and optimal performance for your applications.</p>
+          </article>
+
+          <article class="service-card">
+            <h3>UI/UX Design</h3>
+            <p>Create stunning user interfaces that convert visitors into customers. Our design team combines aesthetic excellence with data-driven insights to build intuitive, accessible interfaces. We focus on user-centered design principles to ensure your application is both beautiful and functional.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Why Choose WebFront AI?</h2>
+        <div class="features">
+          <div class="feature">
+            <div class="feature-icon">🚀</div>
+            <h3>Rapid Development</h3>
+            <p>Launch faster with our streamlined development process and AI-assisted coding tools.</p>
+          </div>
+
+          <div class="feature">
+            <div class="feature-icon">🎯</div>
+            <h3>Results-Driven</h3>
+            <p>We focus on delivering measurable outcomes that directly impact your bottom line.</p>
+          </div>
+
+          <div class="feature">
+            <div class="feature-icon">🔒</div>
+            <h3>Secure & Scalable</h3>
+            <p>Enterprise-grade security and infrastructure that grows with your business needs.</p>
+          </div>
+
+          <div class="feature">
+            <div class="feature-icon">💡</div>
+            <h3>Innovation First</h3>
+            <p>Stay ahead with the latest AI technologies and development best practices.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>About WebFront AI</h2>
+        <div class="about-content">
+          <p>WebFront AI is a forward-thinking digital agency at the intersection of artificial intelligence and web development. Founded on the principle that technology should empower businesses, not complicate them, we specialize in creating intelligent digital solutions that solve real-world problems.</p>
+
+          <p>Our team of experienced developers, AI specialists, and designers work collaboratively to deliver projects that exceed expectations. We believe in transparent communication, agile methodologies, and building long-term partnerships with our clients. Whether you're a startup looking to make your mark or an established enterprise seeking digital transformation, we have the expertise to bring your vision to life.</p>
+
+          <p>With expertise in modern frameworks, cloud platforms, and cutting-edge AI technologies including GPT-4, Claude, and custom machine learning models, we're equipped to handle projects of any complexity. From concept to deployment and beyond, WebFront AI is your trusted partner in the digital age.</p>
+
+          <p>Ready to transform your business with AI-powered solutions? Let's build something extraordinary together.</p>
+        </div>
+      </section>
+
+      <section class="section" id="contact">
+        <h2>Get In Touch</h2>
+        <div class="about-content" style="text-align: center;">
+          <p>Ready to start your next project? We'd love to hear from you.</p>
+          <p style="margin-top: 2rem; font-size: 1.25rem;">
+            <strong>Email:</strong> <a href="mailto:hello@webfrontai.com" style="color: #667eea; text-decoration: none;">hello@webfrontai.com</a>
+          </p>
+          <p style="margin-top: 1rem;">
+            <a href="#" class="cta-button">Schedule a Consultation</a>
+          </p>
+        </div>
+      </section>
     </div>
-    <p id="load">Firebase SDK Loading&hellip;</p>
 
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        const loadEl = document.querySelector('#load');
-        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
-        // // The Firebase SDK is initialized and available here!
-        //
-        // firebase.auth().onAuthStateChanged(user => { });
-        // firebase.database().ref('/path/to/ref').on('value', snapshot => { });
-        // firebase.firestore().doc('/foo/bar').get().then(() => { });
-        // firebase.functions().httpsCallable('yourFunction')().then(() => { });
-        // firebase.messaging().requestPermission().then(() => { });
-        // firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
-        // firebase.analytics(); // call to activate
-        // firebase.analytics().logEvent('tutorial_completed');
-        // firebase.performance(); // call to activate
-        //
-        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
-
-        try {
-          let app = firebase.app();
-          let features = [
-            'auth', 
-            'database', 
-            'firestore',
-            'functions',
-            'messaging', 
-            'storage', 
-            'analytics', 
-            'remoteConfig',
-            'performance',
-          ].filter(feature => typeof app[feature] === 'function');
-          loadEl.textContent = `Firebase SDK loaded with ${features.join(', ')}`;
-        } catch (e) {
-          console.error(e);
-          loadEl.textContent = 'Error loading the Firebase SDK, check the console.';
-        }
-      });
-    </script>
+    <footer>
+      <p>&copy; 2025 WebFront AI. All rights reserved.</p>
+      <p style="margin-top: 0.5rem; opacity: 0.8;">Empowering businesses through AI-driven digital solutions.</p>
+    </footer>
   </body>
 </html>

@@ -1,0 +1,11 @@
+# robots.txt for webfrontai.com
+
+User-agent: *
+Allow: /
+
+# Disallow admin/private areas (if any)
+Disallow: /admin/
+Disallow: /dashboard/
+
+# Sitemap location
+Sitemap: https://webfrontai.com/sitemap.xml

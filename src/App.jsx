@@ -7,8 +7,16 @@ import {
   DollarSign, Activity, UploadCloud, XCircle, CheckCircle2, LogOut, AlertTriangle,
   Power, ListTodo, FolderOpen, HelpCircle, BookOpen, Clock, CalendarDays, UserCheck,
   // Added Icons for Admin Panel
-  Database, FileJson, FileSpreadsheet, History, Sliders, ClipboardList, Phone, Server
+  Database, FileJson, FileSpreadsheet, History, Sliders, ClipboardList, Phone, Server,
+  // Analytics Icons
+  Globe, Smartphone, MapPin, Zap, RefreshCw, AlertCircle
 } from 'lucide-react';
+
+// --- RECHARTS IMPORTS ---
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 
 // --- FIREBASE IMPORTS ---
 import {
@@ -3675,6 +3683,370 @@ function AdminFinancialsView({ clients }) {
   );
 }
 
+function AdminAnalyticsView() {
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState('30daysAgo');
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const fetchAnalytics = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const getAnalytics = httpsCallable(functions, 'getAnalyticsData');
+      const result = await getAnalytics({ dateRange, metricsType: 'overview' });
+
+      if (result.data.success) {
+        setAnalyticsData(result.data.data);
+        setLastUpdated(new Date(result.data.generatedAt));
+      }
+    } catch (err) {
+      secureError('Analytics error:', err);
+      setError(err.message || 'Failed to load analytics data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [dateRange]);
+
+  const formatDuration = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}m ${secs}s`;
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr || dateStr.length !== 8) return dateStr;
+    const year = dateStr.substring(0, 4);
+    const month = dateStr.substring(4, 6);
+    const day = dateStr.substring(6, 8);
+    return `${month}/${day}`;
+  };
+
+  if (loading && !analyticsData) {
+    return (
+      <div className="animate-fade-in flex flex-col items-center justify-center h-full">
+        <Loader2 className="animate-spin mb-4" size={48} />
+        <p className="text-zinc-500">Loading analytics data...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="animate-fade-in">
+        <div className="bg-red-900/20 border border-red-900/50 rounded-xl p-6 text-center">
+          <AlertCircle className="mx-auto mb-4 text-red-500" size={48} />
+          <h3 className="text-xl font-bold mb-2 text-red-400">Failed to Load Analytics</h3>
+          <p className="text-zinc-400 mb-4">{error}</p>
+          <Button variant="danger" onClick={fetchAnalytics}>
+            <RefreshCw size={16} className="mr-2" /> Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-fade-in max-w-7xl">
+      {/* Header */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-1 flex items-center gap-3">
+            <BarChart3 className="text-blue-500" size={32} />
+            Website Analytics
+          </h1>
+          <p className="text-zinc-500">
+            Real-time traffic insights and user behavior
+            {lastUpdated && ` • Updated ${lastUpdated.toLocaleTimeString()}`}
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white focus:border-blue-500 outline-none"
+          >
+            <option value="7daysAgo">Last 7 Days</option>
+            <option value="30daysAgo">Last 30 Days</option>
+            <option value="90daysAgo">Last 90 Days</option>
+          </select>
+          <Button variant="secondary" onClick={fetchAnalytics} disabled={loading}>
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </Button>
+        </div>
+      </div>
+
+      {/* Overview Stats */}
+      {analyticsData?.userBehavior && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-gradient-to-br from-blue-900/20 to-blue-900/5 border-blue-900/30">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-zinc-400 text-sm">Engagement Rate</h3>
+              <TrendingUp className="text-blue-500" size={20} />
+            </div>
+            <p className="text-3xl font-bold text-blue-400">
+              {analyticsData.userBehavior.engagementRate.toFixed(1)}%
+            </p>
+            <p className="text-xs text-zinc-500 mt-1">Users actively engaged</p>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-900/20 to-green-900/5 border-green-900/30">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-zinc-400 text-sm">Avg. Session Time</h3>
+              <Clock className="text-green-500" size={20} />
+            </div>
+            <p className="text-3xl font-bold text-green-400">
+              {formatDuration(analyticsData.userBehavior.avgSessionDuration)}
+            </p>
+            <p className="text-xs text-zinc-500 mt-1">Time on site</p>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-900/20 to-purple-900/5 border-purple-900/30">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-zinc-400 text-sm">Pages per Session</h3>
+              <FileText className="text-purple-500" size={20} />
+            </div>
+            <p className="text-3xl font-bold text-purple-400">
+              {analyticsData.userBehavior.pagesPerSession.toFixed(1)}
+            </p>
+            <p className="text-xs text-zinc-500 mt-1">Average page depth</p>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-red-900/20 to-red-900/5 border-red-900/30">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-zinc-400 text-sm">Bounce Rate</h3>
+              <Activity className="text-red-500" size={20} />
+            </div>
+            <p className="text-3xl font-bold text-red-400">
+              {analyticsData.userBehavior.bounceRate.toFixed(1)}%
+            </p>
+            <p className="text-xs text-zinc-500 mt-1">Single-page exits</p>
+          </Card>
+        </div>
+      )}
+
+      {/* Daily Trend Chart */}
+      {analyticsData?.dailyTrend && analyticsData.dailyTrend.length > 0 && (
+        <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6 mb-8">
+          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+            <TrendingUp className="text-blue-500" size={20} />
+            Traffic Trend
+          </h3>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={analyticsData.dailyTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#71717a"
+                  tickFormatter={formatDate}
+                  style={{ fontSize: '12px' }}
+                />
+                <YAxis stroke="#71717a" style={{ fontSize: '12px' }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#18181b',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '8px'
+                  }}
+                  labelFormatter={formatDate}
+                />
+                <Legend />
+                <Line type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={2} name="Users" />
+                <Line type="monotone" dataKey="sessions" stroke="#8b5cf6" strokeWidth={2} name="Sessions" />
+                <Line type="monotone" dataKey="pageViews" stroke="#10b981" strokeWidth={2} name="Page Views" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Traffic Sources */}
+        {analyticsData?.trafficSources && analyticsData.trafficSources.length > 0 && (
+          <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <Globe className="text-green-500" size={20} />
+              Traffic Acquisition
+            </h3>
+            <div className="space-y-4">
+              {analyticsData.trafficSources.map((source, idx) => (
+                <div key={idx} className="flex items-center justify-between p-4 bg-black/40 rounded-lg border border-zinc-800">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white capitalize">{source.source}</span>
+                      <span className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400">{source.medium}</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      {source.users.toLocaleString()} users • {source.sessions.toLocaleString()} sessions
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-blue-400">{source.sessions.toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Device Breakdown */}
+        {analyticsData?.devices && analyticsData.devices.length > 0 && (
+          <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <Smartphone className="text-purple-500" size={20} />
+              Device Types
+            </h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={analyticsData.devices}
+                    dataKey="users"
+                    nameKey="device"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    label={(entry) => `${entry.device}: ${entry.users}`}
+                  >
+                    {analyticsData.devices.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={['#3b82f6', '#8b5cf6', '#10b981'][index % 3]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#18181b',
+                      border: '1px solid #3f3f46',
+                      borderRadius: '8px'
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Top Pages */}
+        {analyticsData?.topPages && analyticsData.topPages.length > 0 && (
+          <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <FileText className="text-blue-500" size={20} />
+              Top Pages
+            </h3>
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+              {analyticsData.topPages.map((page, idx) => (
+                <div key={idx} className="p-3 bg-black/40 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-colors">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-white truncate">{page.title || 'Untitled'}</p>
+                      <p className="text-xs text-zinc-500 font-mono truncate">{page.path}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-lg font-bold text-blue-400">{page.views.toLocaleString()}</p>
+                      <p className="text-xs text-zinc-500">views</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Geographic Data */}
+        {analyticsData?.geography && analyticsData.geography.length > 0 && (
+          <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <MapPin className="text-green-500" size={20} />
+              Geographic Location
+            </h3>
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+              {analyticsData.geography.map((geo, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-black/40 rounded-lg border border-zinc-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500 font-bold">
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <p className="font-medium text-white">{geo.city}</p>
+                      <p className="text-xs text-zinc-500">{geo.country}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-green-400">{geo.users.toLocaleString()}</p>
+                    <p className="text-xs text-zinc-500">users</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* User Types & Events */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* New vs Returning */}
+        {analyticsData?.userTypes && analyticsData.userTypes.length > 0 && (
+          <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <Users className="text-yellow-500" size={20} />
+              New vs Returning Users
+            </h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analyticsData.userTypes}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                  <XAxis dataKey="type" stroke="#71717a" />
+                  <YAxis stroke="#71717a" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#18181b',
+                      border: '1px solid #3f3f46',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar dataKey="users" fill="#eab308" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Top Events */}
+        {analyticsData?.topEvents && analyticsData.topEvents.length > 0 && (
+          <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <Zap className="text-orange-500" size={20} />
+              Top Events & Conversions
+            </h3>
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+              {analyticsData.topEvents.slice(0, 10).map((event, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-black/40 rounded-lg border border-zinc-800">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-white truncate">{event.eventName}</p>
+                    {event.conversions > 0 && (
+                      <p className="text-xs text-green-500">✓ {event.conversions} conversions</p>
+                    )}
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-4">
+                    <p className="text-lg font-bold text-orange-400">{event.count.toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSettings }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -3685,6 +4057,7 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
     { id: 'tasks', label: 'Project Tasks', icon: ClipboardList },
     { id: 'clients', label: 'Clients List', icon: Users },
     { id: 'financials', label: 'Financials', icon: CreditCard },
+    { id: 'analytics', label: 'Website Analytics', icon: BarChart3 },
     { id: 'data', label: 'Data & AI Models', icon: Brain },
     { id: 'reports', label: 'Reporting Tools', icon: FileSpreadsheet },
     { id: 'logs', label: 'Activity Logs', icon: History },
@@ -3728,6 +4101,7 @@ function AdminPortal({ onLogout, clients, setClients, adminSettings, setAdminSet
         {activeTab === 'tasks' && <AdminTasksView clients={clients} />}
         {activeTab === 'clients' && <AdminClientsManager clients={clients} setClients={setClients} />}
         {activeTab === 'financials' && <AdminFinancialsView clients={clients} />}
+        {activeTab === 'analytics' && <AdminAnalyticsView />}
         {activeTab === 'data' && <AdminDataAIView />}
         {activeTab === 'reports' && <AdminReportsView clients={clients} />}
         {activeTab === 'logs' && <AdminActivityLogsView clients={clients} />}
