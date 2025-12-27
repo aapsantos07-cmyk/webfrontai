@@ -38,7 +38,7 @@ exports.chatWithAI = onCall(
 
     // Initialize Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // Build conversation history for context
     const chatHistory = (history || []).map(msg => ({
