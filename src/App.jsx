@@ -1755,7 +1755,7 @@ function LandingPage({ onLogin }) {
         <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="text-xl font-bold tracking-tighter flex items-center gap-2"><Cpu size={18}/> WEBFRONT AI</div>
           <div className="text-zinc-500 text-sm">© 2026 WebFront AI. Built for the future.</div>
-          <div className="flex gap-6 text-zinc-400"><a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">Twitter</a><a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">LinkedIn</a><a href="#" className="hover:text-white transition-colors transform hover:scale-110 block">Instagram</a></div>
+          <div className="flex gap-6 text-zinc-400"><a href="https://www.instagram.com/webfrontai/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors transform hover:scale-110 block">Instagram</a><a href="https://www.facebook.com/profile.php?id=61584940317110" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors transform hover:scale-110 block">Facebook</a></div>
         </div>
       </footer>
 

@@ -48,6 +48,10 @@ export const AppRoutes = ({
         element={isBeforeLaunch ? <EarlyAccessPage /> : <LandingPage onLogin={() => window.location.href = '/login'} />}
       />
       <Route
+        path="/home"
+        element={<LandingPage onLogin={() => window.location.href = '/login'} />}
+      />
+      <Route
         path="/login"
         element={
           <LoginPage
