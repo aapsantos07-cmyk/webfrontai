@@ -306,8 +306,8 @@ exports.getAnalyticsData = onCall(
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
 
-    // Check cache
-    const cacheKey = `gsc_analytics_${startDateStr}_${endDateStr}`;
+    // Check cache (v2 = numeric data format)
+    const cacheKey = `gsc_analytics_v2_${startDateStr}_${endDateStr}`;
     const cacheDoc = await db.collection('analytics_cache').doc(cacheKey).get();
 
     if (cacheDoc.exists) {
@@ -398,8 +398,8 @@ exports.getAnalyticsData = onCall(
         query: row.keys[0],
         clicks: row.clicks,
         impressions: row.impressions,
-        ctr: (row.ctr * 100).toFixed(2),
-        position: row.position.toFixed(1)
+        ctr: parseFloat((row.ctr * 100).toFixed(2)),
+        position: parseFloat(row.position.toFixed(1))
       }));
 
       const topPages = (pagesResponse.data.rows || []).map(row => ({
@@ -422,8 +422,8 @@ exports.getAnalyticsData = onCall(
       // Calculate totals
       const totalClicks = dailyTrend.reduce((sum, day) => sum + day.users, 0);
       const totalImpressions = (overallResponse.data.rows || []).reduce((sum, row) => sum + row.impressions, 0);
-      const avgCTR = totalImpressions > 0 ? (totalClicks / totalImpressions * 100).toFixed(2) : 0;
-      const avgPosition = (overallResponse.data.rows || []).reduce((sum, row) => sum + row.position, 0) / (overallResponse.data.rows?.length || 1);
+      const avgCTR = totalImpressions > 0 ? parseFloat((totalClicks / totalImpressions * 100).toFixed(2)) : 0;
+      const avgPosition = parseFloat(((overallResponse.data.rows || []).reduce((sum, row) => sum + row.position, 0) / (overallResponse.data.rows?.length || 1)).toFixed(1));
 
       const analyticsData = {
         // GSC-specific metrics
@@ -431,7 +431,7 @@ exports.getAnalyticsData = onCall(
           totalClicks,
           totalImpressions,
           avgCTR,
-          avgPosition: avgPosition.toFixed(1)
+          avgPosition
         },
         topQueries,
 

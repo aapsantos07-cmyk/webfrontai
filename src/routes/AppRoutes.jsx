@@ -36,16 +36,12 @@ export const AppRoutes = ({
   AdminUsersManager,
   AdminGlobalSettingsView
 }) => {
-  // Check if we're before the launch date (January 2, 2026)
-  const LAUNCH_DATE = new Date('2026-01-02T00:00:00');
-  const isBeforeLaunch = new Date() < LAUNCH_DATE;
-
   return (
     <Routes>
       {/* Public Routes */}
       <Route
         path="/"
-        element={isBeforeLaunch ? <EarlyAccessPage /> : <LandingPage onLogin={() => window.location.href = '/login'} />}
+        element={<Navigate to="/home" replace />}
       />
       <Route
         path="/home"

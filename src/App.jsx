@@ -43,7 +43,7 @@ import { useAuth } from './context/AuthContext';
 import { useNavigate, useLocation, useOutletContext } from 'react-router-dom';
 
 // --- UTILS ---
-import { secureError, secureLog } from './utils/security';
+import { secureError, secureLog, isIOS } from './utils/security';
 // --------------------------------
 
 // SECURITY: Removed API keys from frontend. They are no longer safe here.
