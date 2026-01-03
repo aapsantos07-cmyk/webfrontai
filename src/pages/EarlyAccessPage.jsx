@@ -141,7 +141,7 @@ export default function EarlyAccessPage() {
 
               <div className="space-y-3">
                 <a
-                  href="tel:+19295157457"
+                  href="tel:+18627540435"
                   className="flex items-center gap-4 p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-xl transition-all group"
                 >
                   <div className="bg-blue-600 p-3 rounded-lg group-hover:scale-110 transition-transform">
@@ -149,7 +149,7 @@ export default function EarlyAccessPage() {
                   </div>
                   <div className="text-left">
                     <div className="text-white font-semibold">Call Us</div>
-                    <div className="text-zinc-400 text-sm">+1 (929) 515-7457</div>
+                    <div className="text-zinc-400 text-sm">+1 (862) 754-0435</div>
                   </div>
                 </a>
 

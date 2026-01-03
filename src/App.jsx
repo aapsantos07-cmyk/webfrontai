@@ -1434,7 +1434,7 @@ function LandingPage({ onLogin }) {
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black overflow-x-hidden">
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-md border-b border-zinc-800 py-3 md:py-4' : 'bg-transparent py-4 md:py-6'}`}>
-        <div className="container mx-auto px-6 flex justify-between items-center"><div className="text-xl md:text-2xl font-bold tracking-tighter flex items-center gap-2"><div className="w-8 h-8 bg-white text-black flex items-center justify-center rounded-lg"><Cpu size={20} /></div>WEBFRONT AI</div><div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400"><a href="#services" className="hover:text-white transition-colors">Services</a><a href="#demo" className="hover:text-white transition-colors">AI Demo</a><a href="#pricing" className="hover:text-white transition-colors">Pricing</a><button onClick={() => onLogin()} className="flex items-center gap-2 text-white hover:text-blue-400 transition-colors"><LogIn size={14} /> Login</button><Button variant="primary" onClick={() => window.location.href = 'tel:9295157457'}>Book Strategy Call</Button></div><button className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={28}/> : <Menu size={28}/>}</button></div>
+        <div className="container mx-auto px-6 flex justify-between items-center"><div className="text-xl md:text-2xl font-bold tracking-tighter flex items-center gap-2"><div className="w-8 h-8 bg-white text-black flex items-center justify-center rounded-lg"><Cpu size={20} /></div>WEBFRONT AI</div><div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400"><a href="#services" className="hover:text-white transition-colors">Services</a><a href="#demo" className="hover:text-white transition-colors">AI Demo</a><a href="#pricing" className="hover:text-white transition-colors">Pricing</a><button onClick={() => onLogin()} className="flex items-center gap-2 text-white hover:text-blue-400 transition-colors"><LogIn size={14} /> Login</button><Button variant="primary" onClick={() => window.location.href = 'tel:8627540435'}>Book Strategy Call</Button></div><button className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={28}/> : <Menu size={28}/>}</button></div>
         {isMenuOpen && (
           <div className="md:hidden fixed inset-0 top-[70px] bg-black/95 backdrop-blur-lg z-40 p-8 flex flex-col gap-6 animate-fade-in border-t border-zinc-800">
             <a href="#services" onClick={() => { setIsMenuOpen(false); scrollTo('services'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">Services</a>
@@ -1442,7 +1442,7 @@ function LandingPage({ onLogin }) {
             <a href="#pricing" onClick={() => { setIsMenuOpen(false); scrollTo('pricing'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">Pricing</a>
             <hr className="border-zinc-800"/>
             <button onClick={() => onLogin()} className="text-left text-2xl font-bold text-blue-400 hover:text-blue-300">Login to Portal</button>
-            <Button variant="primary" className="mt-4 py-4 w-full" onClick={() => { setIsMenuOpen(false); window.location.href = 'tel:9295157457'; }}>Book Strategy Call</Button>
+            <Button variant="primary" className="mt-4 py-4 w-full" onClick={() => { setIsMenuOpen(false); window.location.href = 'tel:8627540435'; }}>Book Strategy Call</Button>
           </div>
         )}
       </nav>
@@ -1536,10 +1536,10 @@ function LandingPage({ onLogin }) {
             </FadeIn>
 
             <FadeIn delay={200}>
-              <a href="https://portfoliodemo-rosy.vercel.app/" target="_blank" rel="noopener noreferrer" className="block h-full">
+              <a href="https://weddingdemopage.vercel.app/" target="_blank" rel="noopener noreferrer" className="block h-full">
                 <Card className="group overflow-hidden cursor-pointer h-full flex flex-col hover:border-blue-500 transition-all">
                   <div className="aspect-video bg-zinc-900 relative overflow-hidden mb-4">
-                    <img src="/portfolio.png" alt="Portfolio Website" className="w-full h-full object-cover" />
+                    <img src="/wedding.png" alt="Portfolio Website" className="w-full h-full object-cover" />
                     <div className="absolute bottom-0 right-0 bg-blue-600 text-white px-3 py-1 text-xs font-bold">Website</div>
                   </div>
                   <h3 className="text-xl font-bold mb-2">Portfolio Website</h3>
