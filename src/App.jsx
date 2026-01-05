@@ -849,10 +849,10 @@ function LandingPage({ onLogin }) {
             </div>
           </FadeIn>
           <FadeIn delay={200}>
-            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-6 md:mb-8 bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent leading-tight md:leading-[1.1]">AI-POWERED WEBSITES <br className="hidden md:block"/> THAT TURN VISITORS <br className="hidden md:block"/> INTO BOOKED CUSTOMERS 24/7.</h1>
+            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-6 md:mb-8 bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent leading-tight md:leading-[1.1]">AI Websites and Receptionists that Never Miss a Lead.</h1>
           </FadeIn>
           <FadeIn delay={300}>
-            <p className="text-base md:text-xl text-zinc-400 max-w-3xl mx-auto mb-10 md:mb-12 leading-relaxed px-4">We design and build conversion-focused sites with built-in AI chat and voice, so your business answers every question, captures every lead, and books appointments even while you sleep.</p>
+            <p className="text-base md:text-xl text-zinc-400 max-w-3xl mx-auto mb-10 md:mb-12 leading-relaxed px-4">Custom AI-powered sites and receptionists for small businesses that answer questions, capture leads, and book appointments around the clock.</p>
           </FadeIn>
           <FadeIn delay={400} className="flex flex-col sm:flex-row justify-center gap-4 items-center px-4">
             <Button variant="primary" onClick={() => scrollTo('pricing')} className="w-full sm:w-auto py-4">See AI Website Plans</Button>
