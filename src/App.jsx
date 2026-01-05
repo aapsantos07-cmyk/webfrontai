@@ -899,92 +899,6 @@ function LandingPage({ onLogin }) {
         </div>
       </section>
 
-      <section className="py-8 md:py-12 border-y border-zinc-900 bg-zinc-950/50">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-             {[{ icon: Palette, label: "Design", desc: "Minimalist aesthetics" }, { icon: Brain, label: "Intelligence", desc: "Autonomous agents" }, { icon: Headphones, label: "Support", desc: "24/7 Reliability" }, { icon: TrendingUp, label: "Growth", desc: "Scalable architecture" }].map((item, i) => (
-               <FadeIn key={i} delay={i * 100} className="flex flex-col items-center text-center gap-3 group"><div className="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 group-hover:text-blue-500 group-hover:bg-zinc-800 transition-all duration-300"><item.icon size={24} /></div><h3 className="font-bold text-lg">{item.label}</h3><p className="text-sm text-zinc-500 hidden sm:block">{item.desc}</p></FadeIn>
-             ))}
-          </div>
-        </div>
-      </section>
-      <section id="services" className="py-16 md:py-24 bg-zinc-950">
-        <div className="container mx-auto px-6">
-          <FadeIn className="mb-12 md:mb-16"><h2 className="text-3xl md:text-5xl font-bold mb-6">OUR SERVICES</h2><div className="w-20 h-1 bg-blue-600"></div></FadeIn>
-          <div className="grid md:grid-cols-2 gap-8">
-            <FadeIn delay={100}>
-              <Card className="group cursor-pointer h-full"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors duration-300 shadow-lg"><Code size={24} /></div><h3 className="text-2xl font-bold mb-4">Web Development</h3><p className="text-zinc-400 leading-relaxed mb-6">Custom-coded React & Next.js applications designed for speed, SEO, and conversion. We don't use templates; we architect experiences.</p><ul className="space-y-2 text-zinc-500"><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> High-Performance Animations</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> CMS Integration</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Dark Mode Optimized</li></ul></Card>
-            </FadeIn>
-            <FadeIn delay={200}>
-              <Card className="group cursor-pointer h-full"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-lg"><MessageSquare size={24} /></div><h3 className="text-2xl font-bold mb-4">AI Receptionists</h3><p className="text-zinc-400 leading-relaxed mb-6">Intelligent agents that handle customer support, booking, and inquiries 24/7. Train them on your data and let them run your front desk.</p><ul className="space-y-2 text-zinc-500"><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Natural Language Processing</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Calendar Integration</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Voice & Chat Support</li></ul></Card>
-            </FadeIn>
-          </div>
-        </div>
-      </section>
-
-      {/* Who We Help Section - NEW */}
-      <section className="py-16 md:py-24 bg-zinc-950/50 border-t border-zinc-900">
-        <div className="container mx-auto px-6">
-          <FadeIn className="mb-12 md:mb-16 text-center">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">WHO WE HELP</h2>
-            <div className="w-20 h-1 bg-blue-600 mx-auto mb-4"></div>
-            <p className="text-zinc-400 max-w-2xl mx-auto">
-              Small businesses that need to capture leads, answer questions, and book appointments without hiring more staff.
-            </p>
-          </FadeIn>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <FadeIn delay={100}>
-              <Card className="text-center h-full flex flex-col items-center gap-4">
-                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
-                  <Briefcase size={24} />
-                </div>
-                <h3 className="text-lg font-bold">Service Businesses</h3>
-                <p className="text-sm text-zinc-400 flex-1">
-                  Plumbers, HVAC, contractors, electricians who need to capture emergency calls 24/7.
-                </p>
-              </Card>
-            </FadeIn>
-
-            <FadeIn delay={200}>
-              <Card className="text-center h-full flex flex-col items-center gap-4">
-                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
-                  <CalendarDays size={24} />
-                </div>
-                <h3 className="text-lg font-bold">Appointment-Based</h3>
-                <p className="text-sm text-zinc-400 flex-1">
-                  Salons, medspas, clinics, trainers who need automated booking and reminders.
-                </p>
-              </Card>
-            </FadeIn>
-
-            <FadeIn delay={300}>
-              <Card className="text-center h-full flex flex-col items-center gap-4">
-                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
-                  <UserCheck size={24} />
-                </div>
-                <h3 className="text-lg font-bold">Professional Services</h3>
-                <p className="text-sm text-zinc-400 flex-1">
-                  Law, accounting, consulting firms that want to qualify leads before wasting time.
-                </p>
-              </Card>
-            </FadeIn>
-
-            <FadeIn delay={400}>
-              <Card className="text-center h-full flex flex-col items-center gap-4">
-                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
-                  <Users size={24} />
-                </div>
-                <h3 className="text-lg font-bold">Growing Teams</h3>
-                <p className="text-sm text-zinc-400 flex-1">
-                  Any small business ready to scale without doubling their support team.
-                </p>
-              </Card>
-            </FadeIn>
-          </div>
-        </div>
-      </section>
-
       {/* Helper Components for AI Voice Demo */}
       {(() => {
         // Feature Component
@@ -1437,6 +1351,92 @@ function LandingPage({ onLogin }) {
 
                 return <DemoCallInterface />;
               })()}
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-8 md:py-12 border-y border-zinc-900 bg-zinc-950/50">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+             {[{ icon: Palette, label: "Design", desc: "Minimalist aesthetics" }, { icon: Brain, label: "Intelligence", desc: "Autonomous agents" }, { icon: Headphones, label: "Support", desc: "24/7 Reliability" }, { icon: TrendingUp, label: "Growth", desc: "Scalable architecture" }].map((item, i) => (
+               <FadeIn key={i} delay={i * 100} className="flex flex-col items-center text-center gap-3 group"><div className="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 group-hover:text-blue-500 group-hover:bg-zinc-800 transition-all duration-300"><item.icon size={24} /></div><h3 className="font-bold text-lg">{item.label}</h3><p className="text-sm text-zinc-500 hidden sm:block">{item.desc}</p></FadeIn>
+             ))}
+          </div>
+        </div>
+      </section>
+      <section id="services" className="py-16 md:py-24 bg-zinc-950">
+        <div className="container mx-auto px-6">
+          <FadeIn className="mb-12 md:mb-16"><h2 className="text-3xl md:text-5xl font-bold mb-6">OUR SERVICES</h2><div className="w-20 h-1 bg-blue-600"></div></FadeIn>
+          <div className="grid md:grid-cols-2 gap-8">
+            <FadeIn delay={100}>
+              <Card className="group cursor-pointer h-full"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-6 group-hover:bg-white group-hover:text-black transition-colors duration-300 shadow-lg"><Code size={24} /></div><h3 className="text-2xl font-bold mb-4">Web Development</h3><p className="text-zinc-400 leading-relaxed mb-6">Custom-coded React & Next.js applications designed for speed, SEO, and conversion. We don't use templates; we architect experiences.</p><ul className="space-y-2 text-zinc-500"><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> High-Performance Animations</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> CMS Integration</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Dark Mode Optimized</li></ul></Card>
+            </FadeIn>
+            <FadeIn delay={200}>
+              <Card className="group cursor-pointer h-full"><div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-lg"><MessageSquare size={24} /></div><h3 className="text-2xl font-bold mb-4">AI Receptionists</h3><p className="text-zinc-400 leading-relaxed mb-6">Intelligent agents that handle customer support, booking, and inquiries 24/7. Train them on your data and let them run your front desk.</p><ul className="space-y-2 text-zinc-500"><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Natural Language Processing</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Calendar Integration</li><li className="flex items-center gap-2"><Check size={16} className="text-blue-500" /> Voice & Chat Support</li></ul></Card>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      {/* Who We Help Section - NEW */}
+      <section className="py-16 md:py-24 bg-zinc-950/50 border-t border-zinc-900">
+        <div className="container mx-auto px-6">
+          <FadeIn className="mb-12 md:mb-16 text-center">
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">WHO WE HELP</h2>
+            <div className="w-20 h-1 bg-blue-600 mx-auto mb-4"></div>
+            <p className="text-zinc-400 max-w-2xl mx-auto">
+              Small businesses that need to capture leads, answer questions, and book appointments without hiring more staff.
+            </p>
+          </FadeIn>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <FadeIn delay={100}>
+              <Card className="text-center h-full flex flex-col items-center gap-4">
+                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
+                  <Briefcase size={24} />
+                </div>
+                <h3 className="text-lg font-bold">Service Businesses</h3>
+                <p className="text-sm text-zinc-400 flex-1">
+                  Plumbers, HVAC, contractors, electricians who need to capture emergency calls 24/7.
+                </p>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={200}>
+              <Card className="text-center h-full flex flex-col items-center gap-4">
+                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
+                  <CalendarDays size={24} />
+                </div>
+                <h3 className="text-lg font-bold">Appointment-Based</h3>
+                <p className="text-sm text-zinc-400 flex-1">
+                  Salons, medspas, clinics, trainers who need automated booking and reminders.
+                </p>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={300}>
+              <Card className="text-center h-full flex flex-col items-center gap-4">
+                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
+                  <UserCheck size={24} />
+                </div>
+                <h3 className="text-lg font-bold">Professional Services</h3>
+                <p className="text-sm text-zinc-400 flex-1">
+                  Law, accounting, consulting firms that want to qualify leads before wasting time.
+                </p>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={400}>
+              <Card className="text-center h-full flex flex-col items-center gap-4">
+                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
+                  <Users size={24} />
+                </div>
+                <h3 className="text-lg font-bold">Growing Teams</h3>
+                <p className="text-sm text-zinc-400 flex-1">
+                  Any small business ready to scale without doubling their support team.
+                </p>
+              </Card>
             </FadeIn>
           </div>
         </div>
