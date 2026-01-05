@@ -985,76 +985,460 @@ function LandingPage({ onLogin }) {
         </div>
       </section>
 
+      {/* Helper Components for AI Voice Demo */}
+      {(() => {
+        // Feature Component
+        const Feature = ({ text }) => (
+          <div className="flex items-start gap-3">
+            <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-1">
+              <Check size={14} className="text-green-400" />
+            </div>
+            <span className="text-zinc-300">{text}</span>
+          </div>
+        );
+
+        // MessageBubble Component
+        const MessageBubble = ({ speaker, text, isTyping }) => (
+          <div className={`flex items-start gap-3 ${speaker === 'user' ? 'flex-row-reverse' : ''}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+              speaker === 'ai' ? 'bg-blue-500/20' : 'bg-zinc-700'
+            }`}>
+              {speaker === 'ai' ? (
+                <Bot size={16} className="text-blue-400" />
+              ) : (
+                <User size={16} className="text-zinc-400" />
+              )}
+            </div>
+            <div className={`max-w-[80%] px-4 py-3 rounded-2xl ${
+              speaker === 'ai'
+                ? 'bg-blue-500/10 border border-blue-500/20'
+                : 'bg-zinc-800 border border-zinc-700'
+            }`}>
+              <p className="text-sm text-zinc-200">{text}</p>
+              {isTyping && (
+                <span className="inline-flex gap-1 ml-2">
+                  <span className="w-1 h-1 bg-blue-400 rounded-full animate-bounce"></span>
+                  <span className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                  <span className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                </span>
+              )}
+            </div>
+          </div>
+        );
+
+        // AnimatedMetric Component
+        const AnimatedMetric = ({ value, unit = '', label, color = 'green' }) => {
+          const [count, setCount] = useState(0);
+          const [isVisible, setIsVisible] = useState(false);
+          const ref = useRef(null);
+
+          useEffect(() => {
+            const observer = new IntersectionObserver(
+              ([entry]) => {
+                if (entry.isIntersecting) {
+                  setIsVisible(true);
+                }
+              },
+              { threshold: 0.5 }
+            );
+
+            if (ref.current) {
+              observer.observe(ref.current);
+            }
+
+            return () => observer.disconnect();
+          }, []);
+
+          useEffect(() => {
+            if (!isVisible) return;
+
+            const numericValue = value.includes('/') ? value : parseFloat(value);
+
+            if (typeof numericValue === 'number') {
+              let start = 0;
+              const end = numericValue;
+              const duration = 2000;
+              const increment = end / (duration / 16);
+
+              const timer = setInterval(() => {
+                start += increment;
+                if (start >= end) {
+                  setCount(end);
+                  clearInterval(timer);
+                } else {
+                  setCount(start);
+                }
+              }, 16);
+
+              return () => clearInterval(timer);
+            }
+          }, [isVisible, value]);
+
+          const colorClasses = {
+            green: 'text-green-400',
+            blue: 'text-blue-400',
+            purple: 'text-purple-400'
+          };
+
+          return (
+            <div ref={ref} className="text-center">
+              <div className={`text-3xl md:text-4xl font-bold ${colorClasses[color]} mb-1`}>
+                {value.includes('/') ? value : `${count.toFixed(1)}${unit}`}
+              </div>
+              <div className="text-xs text-zinc-400">{label}</div>
+            </div>
+          );
+        };
+
+        // DemoCallInterface Component
+        const DemoCallInterface = () => {
+          const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+          const [displayedText, setDisplayedText] = useState('');
+          const [isTyping, setIsTyping] = useState(false);
+
+          const conversation = [
+            {
+              speaker: 'ai',
+              text: "Good afternoon! Thank you for calling Maria's Diner. How can I help you today?"
+            },
+            {
+              speaker: 'user',
+              text: "Hi, I'd like to place a catering order for 25 people next Friday."
+            },
+            {
+              speaker: 'ai',
+              text: "Wonderful! I'd be happy to help with your catering order. Let me get some details. What time would you need the food delivered?"
+            }
+          ];
+
+          useEffect(() => {
+            if (currentMessageIndex >= conversation.length) {
+              setTimeout(() => {
+                setCurrentMessageIndex(0);
+                setDisplayedText('');
+              }, 3000);
+              return;
+            }
+
+            const message = conversation[currentMessageIndex];
+            let charIndex = 0;
+            setIsTyping(true);
+            setDisplayedText('');
+
+            const typingInterval = setInterval(() => {
+              if (charIndex < message.text.length) {
+                setDisplayedText(message.text.slice(0, charIndex + 1));
+                charIndex++;
+              } else {
+                clearInterval(typingInterval);
+                setIsTyping(false);
+
+                setTimeout(() => {
+                  setCurrentMessageIndex(prev => prev + 1);
+                }, 1500);
+              }
+            }, 30);
+
+            return () => clearInterval(typingInterval);
+          }, [currentMessageIndex]);
+
+          return (
+            <Card className="relative bg-gradient-to-br from-zinc-900 via-zinc-900 to-blue-900/10 border-blue-500/20 p-8 overflow-hidden">
+              <div className="absolute inset-0 bg-blue-500/5 rounded-2xl blur-2xl"></div>
+
+              <div className="relative z-10 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
+                      <Phone className="text-green-400" size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg">Incoming Call</h3>
+                      <p className="text-sm text-zinc-400">+1 (555) 123-4567</p>
+                    </div>
+                  </div>
+                  <span className="flex items-center gap-2 px-3 py-1 bg-green-500/20 rounded-full">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span className="text-xs font-semibold text-green-400">Live</span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="relative z-10 space-y-4 mb-6 max-h-[300px] overflow-y-auto">
+                {conversation.slice(0, currentMessageIndex + 1).map((msg, idx) => (
+                  <MessageBubble
+                    key={idx}
+                    speaker={msg.speaker}
+                    text={idx === currentMessageIndex ? displayedText : msg.text}
+                    isTyping={idx === currentMessageIndex && isTyping}
+                  />
+                ))}
+              </div>
+
+              <div className="relative z-10 grid grid-cols-3 gap-4 pt-6 border-t border-zinc-800">
+                <AnimatedMetric value="0.8" unit="s" label="Response Time" color="green" />
+                <AnimatedMetric value="24/7" label="Availability" color="blue" />
+                <AnimatedMetric value="100" unit="%" label="Answered" color="green" />
+              </div>
+            </Card>
+          );
+        };
+
+        return null;
+      })()}
+
       <section id="portfolio" className="py-16 md:py-24 bg-black border-t border-zinc-900">
         <div className="container mx-auto px-6">
-          <FadeIn className="mb-12 md:mb-16 text-center">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">OUR PORTFOLIO</h2>
-            <div className="w-20 h-1 bg-blue-600 mx-auto mb-4"></div>
-            <p className="text-zinc-400 max-w-2xl mx-auto">Explore our latest projects showcasing custom web development and AI-powered solutions.</p>
-          </FadeIn>
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* LEFT SIDE: Marketing Copy */}
+            <FadeIn>
+              <div className="space-y-8">
+                {/* Badge */}
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900/80 border border-zinc-800">
+                  <Phone className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm font-medium text-zinc-300">AI Voice Technology</span>
+                </div>
 
-          {/* Portfolio Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Website Projects */}
-            <FadeIn delay={100}>
-              <a href="https://e-commerce-platform-two-indol.vercel.app/" target="_blank" rel="noopener noreferrer" className="block h-full">
-                <Card className="group overflow-hidden cursor-pointer h-full flex flex-col hover:border-blue-500 transition-all">
-                  <div className="aspect-video bg-zinc-900 relative overflow-hidden mb-4">
-                    <img src="/ecommerce.png" alt="E-Commerce Platform Demo" className="w-full h-full object-cover" />
-                    <div className="absolute bottom-0 right-0 bg-blue-600 text-white px-3 py-1 text-xs font-bold">Website</div>
+                {/* Main Heading */}
+                <h2 className="text-4xl md:text-6xl font-bold">
+                  Never Miss a <span className="text-blue-400">Customer Call</span> Again
+                </h2>
+
+                {/* Subheading */}
+                <p className="text-lg text-zinc-400">
+                  Your AI receptionist answers every call 24/7, books appointments,
+                  answers FAQs, and captures leads while you focus on running your business.
+                </p>
+
+                {/* Features List */}
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-1">
+                      <Check size={14} className="text-green-400" />
+                    </div>
+                    <span className="text-zinc-300">Answers in under 1 second — no hold music</span>
                   </div>
-                  <h3 className="text-xl font-bold mb-2">E-Commerce Platform Demo</h3>
-                  <p className="text-zinc-400 text-sm mb-4 flex-1">Full-stack React application with payment integration, real-time inventory, and admin dashboard.</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">React</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Stripe</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Firebase</span>
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-1">
+                      <Check size={14} className="text-green-400" />
+                    </div>
+                    <span className="text-zinc-300">Speaks naturally with your business context</span>
                   </div>
-                </Card>
-              </a>
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-1">
+                      <Check size={14} className="text-green-400" />
+                    </div>
+                    <span className="text-zinc-300">Sends instant lead notifications to your phone</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-1">
+                      <Check size={14} className="text-green-400" />
+                    </div>
+                    <span className="text-zinc-300">Handles multiple calls simultaneously</span>
+                  </div>
+                </div>
+
+                {/* CTA Button */}
+                <a href="tel:8627540435">
+                  <Button variant="primary" className="flex items-center gap-2 text-lg px-8 py-4">
+                    <Phone size={20} />
+                    TRY LIVE DEMO CALL
+                  </Button>
+                </a>
+              </div>
             </FadeIn>
 
-            <FadeIn delay={150}>
-              <a href="https://saasdashboarddemo.vercel.app/" target="_blank" rel="noopener noreferrer" className="block h-full">
-                <Card className="group overflow-hidden cursor-pointer h-full flex flex-col hover:border-blue-500 transition-all">
-                  <div className="aspect-video bg-zinc-900 relative overflow-hidden mb-4">
-                    <img src="/saasdashboard.png" alt="SaaS Dashboard Demo" className="w-full h-full object-cover" />
-                    <div className="absolute bottom-0 right-0 bg-blue-600 text-white px-3 py-1 text-xs font-bold">Website</div>
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">Saas Dashboard Demo</h3>
-                  <p className="text-zinc-400 text-sm mb-4 flex-1">Modern analytics platform with data visualization, user management, and API integrations.</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Next.js</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">TypeScript</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Tailwind</span>
-                  </div>
-                </Card>
-              </a>
-            </FadeIn>
-
+            {/* RIGHT SIDE: Simulated Call Interface */}
             <FadeIn delay={200}>
-              <a href="https://weddingdemopage.vercel.app/" target="_blank" rel="noopener noreferrer" className="block h-full">
-                <Card className="group overflow-hidden cursor-pointer h-full flex flex-col hover:border-blue-500 transition-all">
-                  <div className="aspect-video bg-zinc-900 relative overflow-hidden mb-4">
-                    <img src="/wedding.png" alt="Portfolio Website" className="w-full h-full object-cover" />
-                    <div className="absolute bottom-0 right-0 bg-blue-600 text-white px-3 py-1 text-xs font-bold">Website</div>
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">Portfolio Website</h3>
-                  <p className="text-zinc-400 text-sm mb-4 flex-1">High-performance creative portfolio with smooth animations and optimized media loading.</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">React</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Framer Motion</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Vite</span>
-                  </div>
-                </Card>
-              </a>
+              {(() => {
+                const DemoCallInterface = () => {
+                  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+                  const [displayedText, setDisplayedText] = useState('');
+                  const [isTyping, setIsTyping] = useState(false);
+
+                  const conversation = [
+                    {
+                      speaker: 'ai',
+                      text: "Good afternoon! Thank you for calling Maria's Diner. How can I help you today?"
+                    },
+                    {
+                      speaker: 'user',
+                      text: "Hi, I'd like to place a catering order for 25 people next Friday."
+                    },
+                    {
+                      speaker: 'ai',
+                      text: "Wonderful! I'd be happy to help with your catering order. Let me get some details. What time would you need the food delivered?"
+                    }
+                  ];
+
+                  useEffect(() => {
+                    if (currentMessageIndex >= conversation.length) {
+                      setTimeout(() => {
+                        setCurrentMessageIndex(0);
+                        setDisplayedText('');
+                      }, 3000);
+                      return;
+                    }
+
+                    const message = conversation[currentMessageIndex];
+                    let charIndex = 0;
+                    setIsTyping(true);
+                    setDisplayedText('');
+
+                    const typingInterval = setInterval(() => {
+                      if (charIndex < message.text.length) {
+                        setDisplayedText(message.text.slice(0, charIndex + 1));
+                        charIndex++;
+                      } else {
+                        clearInterval(typingInterval);
+                        setIsTyping(false);
+
+                        setTimeout(() => {
+                          setCurrentMessageIndex(prev => prev + 1);
+                        }, 1500);
+                      }
+                    }, 30);
+
+                    return () => clearInterval(typingInterval);
+                  }, [currentMessageIndex]);
+
+                  const MessageBubble = ({ speaker, text, isTyping }) => (
+                    <div className={`flex items-start gap-3 ${speaker === 'user' ? 'flex-row-reverse' : ''}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        speaker === 'ai' ? 'bg-blue-500/20' : 'bg-zinc-700'
+                      }`}>
+                        {speaker === 'ai' ? (
+                          <Bot size={16} className="text-blue-400" />
+                        ) : (
+                          <User size={16} className="text-zinc-400" />
+                        )}
+                      </div>
+                      <div className={`max-w-[80%] px-4 py-3 rounded-2xl ${
+                        speaker === 'ai'
+                          ? 'bg-blue-500/10 border border-blue-500/20'
+                          : 'bg-zinc-800 border border-zinc-700'
+                      }`}>
+                        <p className="text-sm text-zinc-200">{text}</p>
+                        {isTyping && (
+                          <span className="inline-flex gap-1 ml-2">
+                            <span className="w-1 h-1 bg-blue-400 rounded-full animate-bounce"></span>
+                            <span className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                            <span className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+
+                  const AnimatedMetric = ({ value, unit = '', label, color = 'green' }) => {
+                    const [count, setCount] = useState(0);
+                    const [isVisible, setIsVisible] = useState(false);
+                    const ref = useRef(null);
+
+                    useEffect(() => {
+                      const observer = new IntersectionObserver(
+                        ([entry]) => {
+                          if (entry.isIntersecting) {
+                            setIsVisible(true);
+                          }
+                        },
+                        { threshold: 0.5 }
+                      );
+
+                      if (ref.current) {
+                        observer.observe(ref.current);
+                      }
+
+                      return () => observer.disconnect();
+                    }, []);
+
+                    useEffect(() => {
+                      if (!isVisible) return;
+
+                      const numericValue = value.includes('/') ? value : parseFloat(value);
+
+                      if (typeof numericValue === 'number') {
+                        let start = 0;
+                        const end = numericValue;
+                        const duration = 2000;
+                        const increment = end / (duration / 16);
+
+                        const timer = setInterval(() => {
+                          start += increment;
+                          if (start >= end) {
+                            setCount(end);
+                            clearInterval(timer);
+                          } else {
+                            setCount(start);
+                          }
+                        }, 16);
+
+                        return () => clearInterval(timer);
+                      }
+                    }, [isVisible, value]);
+
+                    const colorClasses = {
+                      green: 'text-green-400',
+                      blue: 'text-blue-400',
+                      purple: 'text-purple-400'
+                    };
+
+                    return (
+                      <div ref={ref} className="text-center">
+                        <div className={`text-3xl md:text-4xl font-bold ${colorClasses[color]} mb-1`}>
+                          {value.includes('/') ? value : `${count.toFixed(1)}${unit}`}
+                        </div>
+                        <div className="text-xs text-zinc-400">{label}</div>
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <Card className="relative bg-gradient-to-br from-zinc-900 via-zinc-900 to-blue-900/10 border-blue-500/20 p-8 overflow-hidden">
+                      <div className="absolute inset-0 bg-blue-500/5 rounded-2xl blur-2xl"></div>
+
+                      <div className="relative z-10 mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
+                              <Phone className="text-green-400" size={24} />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-lg">Incoming Call</h3>
+                              <p className="text-sm text-zinc-400">+1 (555) 123-4567</p>
+                            </div>
+                          </div>
+                          <span className="flex items-center gap-2 px-3 py-1 bg-green-500/20 rounded-full">
+                            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                            <span className="text-xs font-semibold text-green-400">Live</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="relative z-10 space-y-4 mb-6 max-h-[300px] overflow-y-auto">
+                        {conversation.slice(0, currentMessageIndex + 1).map((msg, idx) => (
+                          <MessageBubble
+                            key={idx}
+                            speaker={msg.speaker}
+                            text={idx === currentMessageIndex ? displayedText : msg.text}
+                            isTyping={idx === currentMessageIndex && isTyping}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="relative z-10 grid grid-cols-3 gap-4 pt-6 border-t border-zinc-800">
+                        <AnimatedMetric value="0.8" unit="s" label="Response Time" color="green" />
+                        <AnimatedMetric value="24/7" label="Availability" color="blue" />
+                        <AnimatedMetric value="100" unit="%" label="Answered" color="green" />
+                      </div>
+                    </Card>
+                  );
+                };
+
+                return <DemoCallInterface />;
+              })()}
             </FadeIn>
           </div>
-
-          <FadeIn delay={400} className="text-center mt-12">
-            <p className="text-zinc-500 mb-6">Want to see your project here?</p>
-            <Button variant="primary" onClick={() => onLogin()}>Start Your Project</Button>
-          </FadeIn>
         </div>
       </section>
       <PageSpeedSection onLogin={onLogin} />
