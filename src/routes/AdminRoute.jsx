@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { AnimatedIcon } from '../components/icons/AnimatedIcon';
 
 export const AdminRoute = () => {
   const { currentUser, userRole, loading } = useAuth();
@@ -9,7 +9,7 @@ export const AdminRoute = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="animate-spin text-white w-10 h-10" />
+        <AnimatedIcon name="Loader2" size={40} autoplay />
       </div>
     );
   }

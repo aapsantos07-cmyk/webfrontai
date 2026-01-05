@@ -3,14 +3,15 @@ import {
   MessageSquare, Code, Cpu, ArrowRight, Check, Menu, X, ChevronDown, Lock,
   LayoutDashboard, FileText, CreditCard, Settings, Send, User, Bot, Palette,
   Brain, Headphones, TrendingUp, LogIn, Download, Bell, Shield, Mail, Sparkles,
-  Loader2, Users, BarChart3, Briefcase, Edit3, Plus, Save, Trash2, Search,
+  Users, BarChart3, Briefcase, Edit3, Plus, Save, Trash2, Search,
   DollarSign, Activity, UploadCloud, XCircle, CheckCircle2, LogOut, AlertTriangle,
   Power, ListTodo, FolderOpen, HelpCircle, BookOpen, Clock, CalendarDays, UserCheck,
   // Added Icons for Admin Panel
-  Database, FileJson, FileSpreadsheet, History, Sliders, ClipboardList, Phone, Server,
+  Database, FileJson, FileSpreadsheet, History, Sliders, ClipboardList, Phone, Server, Share,
   // Analytics Icons
   Globe, Smartphone, MapPin, Zap, RefreshCw, AlertCircle
 } from 'lucide-react';
+import { AnimatedIcon } from './components/icons/AnimatedIcon';
 
 // --- RECHARTS IMPORTS ---
 import {
@@ -217,13 +218,407 @@ function AIChatDemo() {
             </div>
           </div>
         ))}
-        {isTyping && <div className="flex justify-start animate-pulse"><div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center border border-zinc-700"><Loader2 size={14} className="animate-spin text-zinc-500" /><span className="text-xs text-zinc-500 ml-2">Thinking...</span></div></div>}
+        {isTyping && <div className="flex justify-start animate-pulse"><div className="bg-zinc-800 p-3 rounded-lg rounded-bl-none flex gap-1 items-center border border-zinc-700"><AnimatedIcon name="Loader2" size={14} autoplay /><span className="text-xs text-zinc-500 ml-2">Thinking...</span></div></div>}
       </div>
       <div className="p-4 bg-zinc-900/50 border-t border-zinc-800 flex gap-2">
         <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }} placeholder="Ask about pricing, services..." className="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-4 py-2 text-base md:text-sm text-white focus:outline-none focus:border-white transition-colors"/>
         <button onClick={handleSend} className="bg-white text-black p-2 rounded-lg hover:bg-gray-200 transition-colors transform active:scale-95"><Send size={18} /></button>
       </div>
     </div>
+  );
+}
+
+// PageSpeed Components
+
+function MetricCircle({ value, color, label, size = 'md' }) {
+  const dimensions = size === 'sm' ? 50 : 80;
+  const strokeWidth = size === 'sm' ? 4 : 6;
+  const radius = (dimensions - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (value / 100) * circumference;
+
+  const colorClasses = {
+    red: { stroke: 'stroke-red-500', text: 'text-red-400', bg: 'text-red-500/20' },
+    green: { stroke: 'stroke-green-500', text: 'text-green-400', bg: 'text-green-500/20' }
+  };
+
+  const colors = colorClasses[color] || colorClasses.green;
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <svg width={dimensions} height={dimensions} className="transform -rotate-90">
+        <circle
+          cx={dimensions / 2}
+          cy={dimensions / 2}
+          r={radius}
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          fill="none"
+          className="text-zinc-800"
+        />
+        <circle
+          cx={dimensions / 2}
+          cy={dimensions / 2}
+          r={radius}
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className={`${colors.stroke} transition-all duration-1000 ease-out`}
+          strokeLinecap="round"
+        />
+        <text
+          x="50%"
+          y="50%"
+          textAnchor="middle"
+          dy=".3em"
+          className={`text-2xl font-bold ${colors.text} transform rotate-90`}
+          style={{ transform: `rotate(90deg)`, transformOrigin: 'center' }}
+        >
+          {value}
+        </text>
+      </svg>
+      <span className="text-xs text-zinc-400 text-center">{label}</span>
+    </div>
+  );
+}
+
+function PageSpeedShowcase({ onTestWebsite }) {
+  const [inputUrl, setInputUrl] = useState('');
+
+  const handleAnalyze = () => {
+    if (inputUrl.trim()) {
+      onTestWebsite(inputUrl);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleAnalyze();
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto text-center space-y-12">
+      <FadeIn>
+        <h2 className="text-4xl md:text-6xl font-bold mb-6">
+          Is Your Site <span className="text-blue-400">Bleeding Money?</span>
+        </h2>
+        <p className="text-zinc-400 text-lg mb-12 max-w-2xl mx-auto">
+          Enter your website URL to see how it stacks up against WebFront AI's elite performance standards.
+        </p>
+      </FadeIn>
+
+      <FadeIn delay={100}>
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
+              <input
+                type="text"
+                value={inputUrl}
+                onChange={(e) => setInputUrl(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Enter your website URL..."
+                className="w-full bg-black/50 border border-zinc-700 rounded-lg pl-12 pr-4 py-4 text-white placeholder:text-zinc-500 focus:outline-none focus:border-blue-500 transition-colors"
+              />
+            </div>
+            <button
+              onClick={handleAnalyze}
+              className="bg-white text-black font-bold px-8 py-4 rounded-lg hover:bg-gray-200 transition-colors transform active:scale-95 whitespace-nowrap"
+            >
+              ANALYZE SPEED
+            </button>
+          </div>
+        </div>
+      </FadeIn>
+    </div>
+  );
+}
+
+function EmailCaptureModal({ isOpen, onClose, onSubmit, initialUrl = '' }) {
+  const [email, setEmail] = useState('');
+  const [url, setUrl] = useState('');
+  const [errors, setErrors] = useState({});
+
+  // Update URL when initialUrl changes
+  useEffect(() => {
+    if (initialUrl) {
+      setUrl(initialUrl);
+    }
+  }, [initialUrl]);
+
+  const validate = () => {
+    const newErrors = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const urlRegex = /^https?:\/\/.+\..+/;
+
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = 'Invalid email format';
+    }
+
+    if (!url.trim()) {
+      newErrors.url = 'Website URL is required';
+    } else if (!urlRegex.test(url)) {
+      newErrors.url = 'URL must start with http:// or https://';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validate()) {
+      onSubmit(email, url);
+      setEmail('');
+      setUrl('');
+      setErrors({});
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-md w-full shadow-2xl animate-scale-in" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-2xl font-bold mb-2">Test Your Website</h3>
+        <p className="text-zinc-400 text-sm mb-6">Enter your email to receive your speed analysis</p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm text-zinc-400 mb-2">Website URL</label>
+            <input
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://yourwebsite.com"
+              className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
+            {errors.url && <p className="text-red-400 text-xs mt-1">{errors.url}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm text-zinc-400 mb-2">Email Address</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
+            {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 bg-zinc-800 text-white py-3 rounded-lg hover:bg-zinc-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Analyze
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function LoadingState() {
+  const [progress, setProgress] = useState(0);
+  const steps = [
+    'Analyzing page structure...',
+    'Measuring load times...',
+    'Checking mobile performance...',
+    'Calculating optimization potential...'
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProgress(prev => (prev < 90 ? prev + 2 : prev));
+    }, 600);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentStep = Math.floor((progress / 100) * steps.length);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-16 space-y-6">
+      <AnimatedIcon name="Loader2" size={48} autoplay />
+      <div className="text-center">
+        <h3 className="text-2xl font-bold mb-2">Analyzing Your Website</h3>
+        <p className="text-zinc-400">{steps[currentStep] || steps[steps.length - 1]}</p>
+      </div>
+      <div className="w-full max-w-md bg-zinc-800 rounded-full h-2 overflow-hidden">
+        <div
+          className="bg-blue-500 h-full transition-all duration-300 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <p className="text-zinc-500 text-sm">This usually takes 30-60 seconds</p>
+    </div>
+  );
+}
+
+function PageSpeedResults({ results, shareableId, onBack }) {
+  const [copied, setCopied] = useState(false);
+  const shareUrl = `${window.location.origin}/speed-test/${shareableId}`;
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const improvements = results.improvements || {
+    avgImprovement: Math.round(
+      ((results.optimizedScores.performance - results.currentScores.performance) +
+       (results.optimizedScores.accessibility - results.currentScores.accessibility) +
+       (results.optimizedScores.seo - results.currentScores.seo) +
+       (results.optimizedScores.bestPractices - results.currentScores.bestPractices)) / 4
+    ),
+    loadTimeSaved: '2.3',
+    conversionBoost: 16
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center">
+        <h2 className="text-4xl font-bold mb-4">Your Speed Analysis</h2>
+        <p className="text-zinc-400">{results.url}</p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-8">
+        <Card className="p-6 border-red-500/20">
+          <h3 className="text-lg font-bold mb-6 text-center text-red-400">Current Performance</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <MetricCircle value={results.currentScores.performance} color="red" label="Performance" />
+            <MetricCircle value={results.currentScores.accessibility} color="red" label="Accessibility" />
+            <MetricCircle value={results.currentScores.seo} color="red" label="SEO" />
+            <MetricCircle value={results.currentScores.bestPractices} color="red" label="Best Practices" />
+          </div>
+        </Card>
+
+        <Card className="p-6 border-green-500/20">
+          <h3 className="text-lg font-bold mb-6 text-center text-green-400">With WebFront</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <MetricCircle value={results.optimizedScores.performance} color="green" label="Performance" />
+            <MetricCircle value={results.optimizedScores.accessibility} color="green" label="Accessibility" />
+            <MetricCircle value={results.optimizedScores.seo} color="green" label="SEO" />
+            <MetricCircle value={results.optimizedScores.bestPractices} color="green" label="Best Practices" />
+          </div>
+        </Card>
+      </div>
+
+      <Card className="p-6 bg-gradient-to-br from-green-900/10 to-blue-900/10">
+        <h3 className="text-xl font-bold mb-4 text-center">Estimated Improvements</h3>
+        <div className="grid md:grid-cols-3 gap-4 text-center">
+          <div>
+            <div className="text-3xl font-bold text-green-400">+{improvements.avgImprovement}%</div>
+            <div className="text-zinc-400 text-sm">Average Score Increase</div>
+          </div>
+          <div>
+            <div className="text-3xl font-bold text-green-400">{improvements.loadTimeSaved}s</div>
+            <div className="text-zinc-400 text-sm">Load Time Saved</div>
+          </div>
+          <div>
+            <div className="text-3xl font-bold text-green-400">+{improvements.conversionBoost}%</div>
+            <div className="text-zinc-400 text-sm">Conversion Boost</div>
+          </div>
+        </div>
+      </Card>
+
+      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <Button variant="primary" onClick={() => window.location.href = 'tel:8627540435'} className="flex items-center gap-2">
+          <Phone size={18} />
+          Book Strategy Call: (862) 754-0435
+        </Button>
+        <button
+          onClick={handleShare}
+          className="px-6 py-3 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
+        >
+          <Share size={18} />
+          {copied ? 'Link Copied!' : 'Share Results'}
+        </button>
+      </div>
+
+      <div className="text-center">
+        <button onClick={onBack} className="text-zinc-500 hover:text-white transition-colors text-sm">
+          ← Test Another Website
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PageSpeedSection({ onLogin }) {
+  const [view, setView] = useState('showcase'); // 'showcase' | 'testing' | 'results'
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [testResults, setTestResults] = useState(null);
+  const [shareableId, setShareableId] = useState(null);
+  const [prefilledUrl, setPrefilledUrl] = useState('');
+
+  const handleTestWebsite = (url) => {
+    setPrefilledUrl(url);
+    setShowEmailModal(true);
+  };
+
+  const handleEmailSubmit = async (email, url) => {
+    setShowEmailModal(false);
+    setView('testing');
+
+    try {
+      const pageSpeedFunction = httpsCallable(functions, 'runPageSpeedTest');
+      const result = await pageSpeedFunction({ email, url });
+
+      if (result.data.success) {
+        setTestResults(result.data.data);
+        setShareableId(result.data.testId);
+        setView('results');
+      } else {
+        throw new Error(result.data.error || 'Test failed');
+      }
+    } catch (error) {
+      secureError('PageSpeed test error:', error);
+      setView('showcase');
+      alert('Failed to test website. Please try again or call us at (862) 754-0435');
+    }
+  };
+
+  const handleBack = () => {
+    setView('showcase');
+    setTestResults(null);
+    setShareableId(null);
+    setPrefilledUrl('');
+  };
+
+  return (
+    <section id="pagespeed" className="py-16 md:py-24 relative overflow-hidden">
+      <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[800px] h-[800px] bg-blue-900/10 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
+      <div className="container mx-auto px-6">
+        {view === 'showcase' && <PageSpeedShowcase onTestWebsite={handleTestWebsite} />}
+        {view === 'testing' && <LoadingState />}
+        {view === 'results' && testResults && (
+          <PageSpeedResults results={testResults} shareableId={shareableId} onBack={handleBack} />
+        )}
+      </div>
+      <EmailCaptureModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        onSubmit={handleEmailSubmit}
+        initialUrl={prefilledUrl}
+      />
+    </section>
   );
 }
 
@@ -302,1109 +697,9 @@ function ProjectOnboardingModal({ isOpen, onSubmit }) {
             <input autoFocus type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. Acme Corp Redesign" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-4 text-white text-base md:text-lg focus:outline-none focus:border-blue-500 focus:bg-zinc-900 transition-all"/>
           </div>
           <Button type="submit" variant="primary" className="w-full py-4 text-lg" disabled={!projectName.trim() || loading}>
-            {loading ? <><Loader2 className="animate-spin mr-2"/> Setting up...</> : <>Launch Project <ArrowRight size={20}/></>}
+            {loading ? <><AnimatedIcon name="Loader2" size={20} autoplay /> Setting up...</> : <>Launch Project <ArrowRight size={20}/></>}
           </Button>
         </form>
-      </div>
-    </div>
-  );
-}
-
-
-function PhoneCallDemo({ isOpen, onClose }) {
-  const [callState, setCallState] = useState('dialing'); // dialing, connected, ended
-  const [messages, setMessages] = useState([]);
-  const [callDuration, setCallDuration] = useState(0);
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const recognitionRef = useRef(null);
-  const synthRef = useRef(window.speechSynthesis);
-  const timerRef = useRef(null);
-  const voicesLoadedRef = useRef(false);
-  const messagesRef = useRef(messages);
-
-  // Keep messagesRef in sync with messages state
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-
-  // Load voices on mount
-  useEffect(() => {
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        voicesLoadedRef.current = true;
-      }
-    };
-
-    // Load voices immediately and also listen for voiceschanged event
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Play ring tone and simulate dialing
-    setCallState('dialing');
-    const dialTimeout = setTimeout(async () => {
-      setCallState('connected');
-      setCallDuration(0);
-
-      // Start call timer
-      timerRef.current = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
-
-      // AI greeting - speak() will automatically start listening when done
-      const greeting = "Hello! Thank you for calling Valley Medical Center. Just so you know, this is a demo - no real appointments will be scheduled. How may I help you today?";
-      setMessages([{ role: 'ai', text: greeting }]);
-      speak(greeting);
-    }, 3000);
-
-    return () => {
-      clearTimeout(dialTimeout);
-      if (timerRef.current) clearInterval(timerRef.current);
-      stopListening();
-      synthRef.current.cancel();
-    };
-  }, [isOpen]);
-
-  const speak = (text) => {
-    // Stop listening to prevent echo/feedback
-    stopListening();
-
-    // Cancel any ongoing speech
-    synthRef.current.cancel();
-
-    const speakNow = () => {
-      setIsSpeaking(true);
-      const utterance = new SpeechSynthesisUtterance(text);
-
-      // Select a more natural voice (prefer female voices for medical receptionist)
-      const voices = window.speechSynthesis.getVoices();
-      const preferredVoice = voices.find(voice =>
-        voice.name.includes('Samantha') || // macOS/iOS
-        voice.name.includes('Microsoft Zira') || // Windows
-        voice.name.includes('Google US English Female') || // Chrome
-        voice.name.includes('Female')
-      );
-      if (preferredVoice) utterance.voice = preferredVoice;
-
-      // Adjust for more natural sound
-      utterance.rate = 0.95; // Slightly slower for clarity
-      utterance.pitch = 1.1; // Slightly higher for friendlier tone
-      utterance.volume = 1; // Max volume for iOS compatibility
-
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        // Automatically resume listening after speaking (for continuous conversation)
-        setTimeout(() => {
-          startListening();
-        }, 800); // Increased delay to ensure speech is fully stopped
-      };
-
-      utterance.onerror = (error) => {
-        secureError('Speech synthesis error:', error);
-        setIsSpeaking(false);
-        // Try to restart listening even if speech fails
-        setTimeout(() => startListening(), 1000);
-      };
-
-      synthRef.current.speak(utterance);
-    };
-
-    // iOS requires speech to be triggered synchronously from user interaction
-    // So we can't use setTimeout on iOS
-    if (isIOS()) {
-      speakNow();
-    } else {
-      // Small delay for other browsers to ensure cancel completes
-      setTimeout(speakNow, 100);
-    }
-  };
-
-  const startListening = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      secureError('Speech recognition not supported');
-      const errorMsg = "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari for the best experience.";
-      setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
-      speak(errorMsg);
-      return;
-    }
-
-    // Stop any existing recognition first
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // Ignore errors from stopping
-      }
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.onerror = (event) => {
-      secureError('Speech recognition error:', event.error);
-      setIsListening(false);
-
-      // Handle specific error cases with user-friendly messages
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        const errorMsg = "Microphone access was denied. Please allow microphone access in your browser settings and try again.";
-        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
-        speak(errorMsg);
-        return;
-      }
-
-      if (event.error === 'network') {
-        const errorMsg = "Network error occurred. Please check your internet connection and try again.";
-        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
-        speak(errorMsg);
-        return;
-      }
-
-      // Don't restart if it was manually aborted or no speech detected
-      if (event.error !== 'aborted' && event.error !== 'no-speech') {
-        // For other errors, try to restart after a delay
-        setTimeout(() => {
-          if (callState === 'connected' && !isSpeaking) {
-            startListening();
-          }
-        }, 1000);
-      } else if (event.error === 'no-speech') {
-        // Automatically restart listening if no speech was detected
-        setTimeout(() => {
-          if (callState === 'connected' && !isSpeaking) {
-            startListening();
-          }
-        }, 500);
-      }
-    };
-
-    recognition.onresult = async (event) => {
-      const transcript = event.results[0][0].transcript;
-
-      // Get current conversation history (use ref for latest value)
-      const currentMessages = messagesRef.current;
-
-      // Add user message to UI immediately
-      const updatedMessages = [...currentMessages, { role: 'user', text: transcript }];
-      setMessages(updatedMessages);
-
-      // Call AI with medical receptionist prompt
-      try {
-        const chatFunction = httpsCallable(functions, 'chatWithAI');
-        const medicalPrompt = "You are a professional medical office receptionist for Valley Medical Center. You help patients book appointments by gathering necessary information step-by-step. When booking an appointment, ask for: 1) Patient's full name, 2) Phone number, 3) Reason for visit, 4) Preferred date and time, 5) Insurance provider. You also answer questions about office hours (Mon-Fri 8AM-6PM, Sat 9AM-2PM), available services (general practice, pediatrics, dermatology), providers (Dr. Smith, Dr. Johnson, Dr. Lee), and accepted insurance (Blue Cross, Aetna, United Healthcare, Medicare). You do NOT give medical advice or diagnoses. Be friendly, professional, and conversational. Keep responses brief (2-3 sentences). Ask one question at a time to guide the conversation naturally.";
-
-        // CRITICAL: Pass only PREVIOUS messages as history, not including current message
-        // The current message is sent separately via the 'message' parameter
-        secureLog('📤 Sending to AI - Previous history:', currentMessages);
-        secureLog('📤 Current message:', transcript);
-
-        const result = await chatFunction({
-          message: transcript,
-          history: currentMessages, // Only previous messages, NOT including current one
-          customSystemPrompt: medicalPrompt
-        });
-
-        const responseText = result.data.text;
-        secureLog('📥 AI Response:', responseText);
-
-        // Add AI response to conversation history
-        const updatedWithResponse = [...updatedMessages, { role: 'ai', text: responseText }];
-        setMessages(updatedWithResponse);
-        speak(responseText);
-      } catch (error) {
-        secureError("AI Error:", error);
-        const errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
-        const errorMessages = [...updatedMessages, { role: 'ai', text: errorMsg }];
-        setMessages(errorMessages);
-        speak(errorMsg);
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    try {
-      recognition.start();
-    } catch (error) {
-      secureError('Error starting recognition:', error);
-      setIsListening(false);
-    }
-  };
-
-  const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-  };
-
-  const hangUp = () => {
-    setCallState('ended');
-    stopListening();
-    synthRef.current.cancel();
-    if (timerRef.current) clearInterval(timerRef.current);
-    setTimeout(() => onClose(), 1000);
-  };
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={hangUp}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="text-center mb-4 sm:mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-2">Medical Office AI – Live Demo</h2>
-          <p className="text-zinc-400 text-xs sm:text-sm">Simulated phone-style conversation, no real call placed.</p>
-        </div>
-
-        {/* Call Status */}
-        {callState === 'dialing' && (
-          <div className="text-center py-8 sm:py-12">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse">
-              <Phone size={32} className="sm:w-10 sm:h-10 text-white" />
-            </div>
-            <p className="text-lg sm:text-xl font-bold mb-2">Calling...</p>
-            <p className="text-zinc-400 text-xs sm:text-sm">Valley Medical Center</p>
-          </div>
-        )}
-
-        {callState === 'connected' && (
-          <div>
-            <div className="flex items-center justify-between mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-zinc-800">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 font-bold text-sm sm:text-base">Connected</span>
-              </div>
-              <div className="text-zinc-400 text-xs sm:text-sm font-mono">{formatTime(callDuration)}</div>
-            </div>
-
-            {/* Transcript */}
-            <div className="h-[250px] sm:h-[300px] overflow-y-auto mb-4 sm:mb-6 space-y-3 sm:space-y-4 custom-scrollbar">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] sm:max-w-[75%] p-2 sm:p-3 rounded-lg text-sm sm:text-base ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-              {isListening && (
-                <div className="flex justify-end">
-                  <div className="bg-blue-600/20 border border-blue-500 text-blue-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                    Listening...
-                  </div>
-                </div>
-              )}
-              {isSpeaking && (
-                <div className="flex justify-start">
-                  <div className="bg-zinc-800/50 border border-zinc-700 text-zinc-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
-                    <Loader2 size={14} className="animate-spin" />
-                    Speaking...
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 mb-3">
-              <button
-                onClick={startListening}
-                disabled={isListening || isSpeaking}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2 sm:py-3 rounded-lg transition-colors text-xs sm:text-sm flex items-center justify-center gap-2"
-              >
-                {isListening ? '🎤 Listening...' : '🎤 Tap to Speak'}
-              </button>
-            </div>
-
-            <button
-              onClick={hangUp}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
-            >
-              <Phone size={18} className="sm:w-5 sm:h-5 rotate-135" />
-              Hang Up
-            </button>
-          </div>
-        )}
-
-        {callState === 'ended' && (
-          <div className="text-center py-8 sm:py-12">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-zinc-800 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Phone size={32} className="sm:w-10 sm:h-10 text-zinc-500" />
-            </div>
-            <p className="text-lg sm:text-xl font-bold mb-2">Call Ended</p>
-            <p className="text-zinc-400 text-xs sm:text-sm">Duration: {formatTime(callDuration)}</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function RestaurantCallDemo({ isOpen, onClose }) {
-  const [callState, setCallState] = useState('dialing'); // dialing, connected, ended
-  const [messages, setMessages] = useState([]);
-  const [callDuration, setCallDuration] = useState(0);
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const recognitionRef = useRef(null);
-  const synthRef = useRef(window.speechSynthesis);
-  const timerRef = useRef(null);
-  const voicesLoadedRef = useRef(false);
-  const messagesRef = useRef(messages);
-
-  // Keep messagesRef in sync with messages state
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-
-  // Load voices on mount
-  useEffect(() => {
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        voicesLoadedRef.current = true;
-      }
-    };
-
-    // Load voices immediately and also listen for voiceschanged event
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Play ring tone and simulate dialing
-    setCallState('dialing');
-    const dialTimeout = setTimeout(async () => {
-      setCallState('connected');
-      setCallDuration(0);
-
-      // Start call timer
-      timerRef.current = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
-
-      // AI greeting - speak() will automatically start listening when done
-      const greeting = "Hello! Thank you for calling Bella Vista Restaurant. Just so you know, this is a demo - no real reservations will be made. How may I help you today?";
-      setMessages([{ role: 'ai', text: greeting }]);
-      speak(greeting);
-    }, 3000);
-
-    return () => {
-      clearTimeout(dialTimeout);
-      if (timerRef.current) clearInterval(timerRef.current);
-      stopListening();
-      synthRef.current.cancel();
-    };
-  }, [isOpen]);
-
-  const speak = (text) => {
-    // Stop listening to prevent echo/feedback
-    stopListening();
-
-    // Cancel any ongoing speech
-    synthRef.current.cancel();
-
-    const speakNow = () => {
-      setIsSpeaking(true);
-      const utterance = new SpeechSynthesisUtterance(text);
-
-      // Select a more natural voice (prefer female voices for friendly restaurant host)
-      const voices = window.speechSynthesis.getVoices();
-      const preferredVoice = voices.find(voice =>
-        voice.name.includes('Samantha') || // macOS/iOS
-        voice.name.includes('Microsoft Zira') || // Windows
-        voice.name.includes('Google US English Female') || // Chrome
-        voice.name.includes('Female')
-      );
-      if (preferredVoice) utterance.voice = preferredVoice;
-
-      // Adjust for more natural sound
-      utterance.rate = 0.95; // Slightly slower for clarity
-      utterance.pitch = 1.1; // Slightly higher for friendlier tone
-      utterance.volume = 1; // Max volume for iOS compatibility
-
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        // Automatically resume listening after speaking (for continuous conversation)
-        setTimeout(() => {
-          startListening();
-        }, 800); // Increased delay to ensure speech is fully stopped
-      };
-
-      utterance.onerror = (error) => {
-        secureError('Speech synthesis error:', error);
-        setIsSpeaking(false);
-        // Try to restart listening even if speech fails
-        setTimeout(() => startListening(), 1000);
-      };
-
-      synthRef.current.speak(utterance);
-    };
-
-    // iOS requires speech to be triggered synchronously from user interaction
-    // So we can't use setTimeout on iOS
-    if (isIOS()) {
-      speakNow();
-    } else {
-      // Small delay for other browsers to ensure cancel completes
-      setTimeout(speakNow, 100);
-    }
-  };
-
-  const startListening = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      secureError('Speech recognition not supported');
-      const errorMsg = "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari for the best experience.";
-      setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
-      speak(errorMsg);
-      return;
-    }
-
-    // Stop any existing recognition first
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // Ignore errors from stopping
-      }
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.onerror = (event) => {
-      secureError('Speech recognition error:', event.error);
-      setIsListening(false);
-
-      // Handle specific error cases with user-friendly messages
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        const errorMsg = "Microphone access was denied. Please allow microphone access in your browser settings and try again.";
-        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
-        speak(errorMsg);
-        return;
-      }
-
-      if (event.error === 'network') {
-        const errorMsg = "Network error occurred. Please check your internet connection and try again.";
-        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
-        speak(errorMsg);
-        return;
-      }
-
-      // Don't restart if it was manually aborted or no speech detected
-      if (event.error !== 'aborted' && event.error !== 'no-speech') {
-        // For other errors, try to restart after a delay
-        setTimeout(() => {
-          if (callState === 'connected' && !isSpeaking) {
-            startListening();
-          }
-        }, 1000);
-      } else if (event.error === 'no-speech') {
-        // Automatically restart listening if no speech was detected
-        setTimeout(() => {
-          if (callState === 'connected' && !isSpeaking) {
-            startListening();
-          }
-        }, 500);
-      }
-    };
-
-    recognition.onresult = async (event) => {
-      const transcript = event.results[0][0].transcript;
-
-      // Get current conversation history (use ref for latest value)
-      const currentMessages = messagesRef.current;
-
-      // Add user message to UI immediately
-      const updatedMessages = [...currentMessages, { role: 'user', text: transcript }];
-      setMessages(updatedMessages);
-
-      // Call AI with restaurant host prompt
-      try {
-        const chatFunction = httpsCallable(functions, 'chatWithAI');
-        const restaurantPrompt = "You are a professional restaurant host for Bella Vista Restaurant. You help customers with: 1) Reservations - ask for name, party size, date, time, and special requests (dietary restrictions, occasions), 2) Menu recommendations - we serve Italian cuisine including fresh pasta, wood-fired pizzas, seafood, steaks, and house-made desserts. Popular dishes include Lobster Ravioli, Margherita Pizza, Osso Buco, and Tiramisu, 3) Delivery orders - take orders, confirm items, collect delivery address and phone number, provide estimated delivery time (30-45 minutes). We're open Tuesday-Sunday 11AM-10PM, closed Mondays. We accept reservations for parties of 2-12 people. Delivery available within 5 miles. Be warm, welcoming, and conversational. Keep responses brief (2-3 sentences). Ask one question at a time to guide the conversation naturally.";
-
-        // CRITICAL: Pass only PREVIOUS messages as history, not including current message
-        // The current message is sent separately via the 'message' parameter
-        secureLog('📤 Sending to AI - Previous history:', currentMessages);
-        secureLog('📤 Current message:', transcript);
-
-        const result = await chatFunction({
-          message: transcript,
-          history: currentMessages, // Only previous messages, NOT including current one
-          customSystemPrompt: restaurantPrompt
-        });
-
-        const responseText = result.data.text;
-        secureLog('📥 AI Response:', responseText);
-
-        // Add AI response to conversation history
-        const updatedWithResponse = [...updatedMessages, { role: 'ai', text: responseText }];
-        setMessages(updatedWithResponse);
-        speak(responseText);
-      } catch (error) {
-        secureError("AI Error:", error);
-        let errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
-
-        // Provide more specific error messages
-        if (error.code === 'functions/not-found') {
-          errorMsg = "The AI service is not available. Please contact support.";
-        } else if (error.code === 'functions/unauthenticated') {
-          errorMsg = "Authentication error. Please refresh the page and try again.";
-        } else if (error.message && error.message.includes('network')) {
-          errorMsg = "Network error. Please check your internet connection and try again.";
-        }
-
-        const errorMessages = [...updatedMessages, { role: 'ai', text: errorMsg }];
-        setMessages(errorMessages);
-        speak(errorMsg);
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    try {
-      recognition.start();
-    } catch (error) {
-      secureError('Error starting recognition:', error);
-      setIsListening(false);
-
-      // Notify user if recognition fails to start
-      const errorMsg = "Unable to start voice recognition. Please check your microphone and try again.";
-      setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
-      speak(errorMsg);
-    }
-  };
-
-  const stopListening = () => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // Ignore errors from stopping
-        secureLog('Error stopping recognition:', e);
-      }
-    }
-  };
-
-  const hangUp = () => {
-    setCallState('ended');
-    stopListening();
-    synthRef.current.cancel();
-    if (timerRef.current) clearInterval(timerRef.current);
-    setTimeout(() => onClose(), 1000);
-  };
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={hangUp}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="text-center mb-4 sm:mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-2">Restaurant AI – Live Demo</h2>
-          <p className="text-zinc-400 text-xs sm:text-sm">Simulated phone-style conversation, no real reservations will be made.</p>
-        </div>
-
-        {/* Call Status */}
-        {callState === 'dialing' && (
-          <div className="text-center py-8 sm:py-12">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-orange-600 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse">
-              <Phone size={32} className="sm:w-10 sm:h-10 text-white" />
-            </div>
-            <p className="text-lg sm:text-xl font-bold mb-2">Calling...</p>
-            <p className="text-zinc-400 text-xs sm:text-sm">Bella Vista Restaurant</p>
-          </div>
-        )}
-
-        {callState === 'connected' && (
-          <div>
-            <div className="flex items-center justify-between mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-zinc-800">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 font-bold text-sm sm:text-base">Connected</span>
-              </div>
-              <div className="text-zinc-400 text-xs sm:text-sm font-mono">{formatTime(callDuration)}</div>
-            </div>
-
-            {/* Transcript */}
-            <div className="h-[250px] sm:h-[300px] overflow-y-auto mb-4 sm:mb-6 space-y-3 sm:space-y-4 custom-scrollbar">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] sm:max-w-[75%] p-2 sm:p-3 rounded-lg text-sm sm:text-base ${msg.role === 'user' ? 'bg-orange-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-              {isListening && (
-                <div className="flex justify-end">
-                  <div className="bg-orange-600/20 border border-orange-500 text-orange-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
-                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-                    Listening...
-                  </div>
-                </div>
-              )}
-              {isSpeaking && (
-                <div className="flex justify-start">
-                  <div className="bg-zinc-800/50 border border-zinc-700 text-zinc-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
-                    <Loader2 size={14} className="animate-spin" />
-                    Speaking...
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 mb-3">
-              <button
-                onClick={startListening}
-                disabled={isListening || isSpeaking}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2 sm:py-3 rounded-lg transition-colors text-xs sm:text-sm flex items-center justify-center gap-2"
-              >
-                {isListening ? '🎤 Listening...' : '🎤 Tap to Speak'}
-              </button>
-            </div>
-
-            <button
-              onClick={hangUp}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
-            >
-              <Phone size={18} className="sm:w-5 sm:h-5 rotate-135" />
-              Hang Up
-            </button>
-          </div>
-        )}
-
-        {callState === 'ended' && (
-          <div className="text-center py-8 sm:py-12">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-zinc-800 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Phone size={32} className="sm:w-10 sm:h-10 text-zinc-500" />
-            </div>
-            <p className="text-lg sm:text-xl font-bold mb-2">Call Ended</p>
-            <p className="text-zinc-400 text-xs sm:text-sm">Duration: {formatTime(callDuration)}</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function EcommerceCallDemo({ isOpen, onClose }) {
-  const [callState, setCallState] = useState('dialing'); // dialing, connected, ended
-  const [messages, setMessages] = useState([]);
-  const [callDuration, setCallDuration] = useState(0);
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const recognitionRef = useRef(null);
-  const synthRef = useRef(window.speechSynthesis);
-  const timerRef = useRef(null);
-  const voicesLoadedRef = useRef(false);
-  const messagesRef = useRef(messages);
-
-  // Keep messagesRef in sync with messages state
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-
-  // Load voices on mount
-  useEffect(() => {
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        voicesLoadedRef.current = true;
-      }
-    };
-
-    // Load voices immediately and also listen for voiceschanged event
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Play ring tone and simulate dialing
-    setCallState('dialing');
-    const dialTimeout = setTimeout(async () => {
-      setCallState('connected');
-      setCallDuration(0);
-
-      // Start call timer
-      timerRef.current = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
-
-      // AI greeting - speak() will automatically start listening when done
-      const greeting = "Hello! Thank you for calling TechStyle Online Support. This is a demo - no real orders or returns will be processed. How can I help you today?";
-      setMessages([{ role: 'ai', text: greeting }]);
-      speak(greeting);
-    }, 3000);
-
-    return () => {
-      clearTimeout(dialTimeout);
-      if (timerRef.current) clearInterval(timerRef.current);
-      stopListening();
-      synthRef.current.cancel();
-    };
-  }, [isOpen]);
-
-  const speak = (text) => {
-    // Stop listening to prevent echo/feedback
-    stopListening();
-
-    // Cancel any ongoing speech
-    synthRef.current.cancel();
-
-    const speakNow = () => {
-      setIsSpeaking(true);
-      const utterance = new SpeechSynthesisUtterance(text);
-
-      // Select a more natural voice (prefer female voices for friendly support agent)
-      const voices = window.speechSynthesis.getVoices();
-      const preferredVoice = voices.find(voice =>
-        voice.name.includes('Samantha') || // macOS/iOS
-        voice.name.includes('Microsoft Zira') || // Windows
-        voice.name.includes('Google US English Female') || // Chrome
-        voice.name.includes('Female')
-      );
-      if (preferredVoice) utterance.voice = preferredVoice;
-
-      // Adjust for more natural sound
-      utterance.rate = 0.95; // Slightly slower for clarity
-      utterance.pitch = 1.1; // Slightly higher for friendlier tone
-      utterance.volume = 1; // Max volume for iOS compatibility
-
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        // Automatically resume listening after speaking (for continuous conversation)
-        setTimeout(() => {
-          startListening();
-        }, 800); // Increased delay to ensure speech is fully stopped
-      };
-
-      utterance.onerror = (error) => {
-        secureError('Speech synthesis error:', error);
-        setIsSpeaking(false);
-        // Try to restart listening even if speech fails
-        setTimeout(() => startListening(), 1000);
-      };
-
-      synthRef.current.speak(utterance);
-    };
-
-    // iOS requires speech to be triggered synchronously from user interaction
-    // So we can't use setTimeout on iOS
-    if (isIOS()) {
-      speakNow();
-    } else {
-      // Small delay for other browsers to ensure cancel completes
-      setTimeout(speakNow, 100);
-    }
-  };
-
-  const startListening = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      secureError('Speech recognition not supported');
-      const errorMsg = "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari for the best experience.";
-      setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
-      speak(errorMsg);
-      return;
-    }
-
-    // Stop any existing recognition first
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // Ignore errors from stopping
-      }
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.onerror = (event) => {
-      secureError('Speech recognition error:', event.error);
-      setIsListening(false);
-
-      // Handle specific error cases with user-friendly messages
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        const errorMsg = "Microphone access was denied. Please allow microphone access in your browser settings and try again.";
-        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
-        speak(errorMsg);
-        return;
-      }
-
-      if (event.error === 'network') {
-        const errorMsg = "Network error occurred. Please check your internet connection and try again.";
-        setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
-        speak(errorMsg);
-        return;
-      }
-
-      // Don't restart if it was manually aborted or no speech detected
-      if (event.error !== 'aborted' && event.error !== 'no-speech') {
-        // For other errors, try to restart after a delay
-        setTimeout(() => {
-          if (callState === 'connected' && !isSpeaking) {
-            startListening();
-          }
-        }, 1000);
-      } else if (event.error === 'no-speech') {
-        // Automatically restart listening if no speech was detected
-        setTimeout(() => {
-          if (callState === 'connected' && !isSpeaking) {
-            startListening();
-          }
-        }, 500);
-      }
-    };
-
-    recognition.onresult = async (event) => {
-      const transcript = event.results[0][0].transcript;
-
-      // Get current conversation history (use ref for latest value)
-      const currentMessages = messagesRef.current;
-
-      // Add user message to UI immediately
-      const updatedMessages = [...currentMessages, { role: 'user', text: transcript }];
-      setMessages(updatedMessages);
-
-      // Call AI with e-commerce support prompt
-      try {
-        const chatFunction = httpsCallable(functions, 'chatWithAI');
-        const ecommercePrompt = "You are a helpful e-commerce customer support agent for TechStyle, an online fashion and electronics retailer. You assist customers with: 1) Product recommendations - we sell clothing, electronics, home goods, and accessories. Ask about their needs, budget, and preferences to suggest products, 2) Order tracking - ask for order number, provide estimated delivery dates (typically 3-5 business days), handle delivery issues, 3) Returns and exchanges - our return policy is 30 days, free returns, ask for order number and reason for return, provide return labels, process exchanges, 4) Account issues - password resets, order history, saved items, 5) Promotions - we have a 15% off sale for new customers, free shipping over $50, loyalty rewards program. Be friendly, efficient, and solution-oriented. Keep responses brief (2-3 sentences). Ask clarifying questions one at a time. Always offer to help with anything else before ending the conversation.";
-
-        // CRITICAL: Pass only PREVIOUS messages as history, not including current message
-        // The current message is sent separately via the 'message' parameter
-        secureLog('📤 Sending to AI - Previous history:', currentMessages);
-        secureLog('📤 Current message:', transcript);
-
-        const result = await chatFunction({
-          message: transcript,
-          history: currentMessages, // Only previous messages, NOT including current one
-          customSystemPrompt: ecommercePrompt
-        });
-
-        const responseText = result.data.text;
-        secureLog('📥 AI Response:', responseText);
-
-        // Add AI response to conversation history
-        const updatedWithResponse = [...updatedMessages, { role: 'ai', text: responseText }];
-        setMessages(updatedWithResponse);
-        speak(responseText);
-      } catch (error) {
-        secureError("AI Error:", error);
-        let errorMsg = "I'm sorry, I'm having trouble connecting right now. Please try again.";
-
-        // Provide more specific error messages
-        if (error.code === 'functions/not-found') {
-          errorMsg = "The AI service is not available. Please contact support.";
-        } else if (error.code === 'functions/unauthenticated') {
-          errorMsg = "Authentication error. Please refresh the page and try again.";
-        } else if (error.message && error.message.includes('network')) {
-          errorMsg = "Network error. Please check your internet connection and try again.";
-        }
-
-        const errorMessages = [...updatedMessages, { role: 'ai', text: errorMsg }];
-        setMessages(errorMessages);
-        speak(errorMsg);
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    try {
-      recognition.start();
-    } catch (error) {
-      secureError('Error starting recognition:', error);
-      setIsListening(false);
-
-      // Notify user if recognition fails to start
-      const errorMsg = "Unable to start voice recognition. Please check your microphone and try again.";
-      setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
-      speak(errorMsg);
-    }
-  };
-
-  const stopListening = () => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // Ignore errors from stopping
-        secureLog('Error stopping recognition:', e);
-      }
-    }
-  };
-
-  const hangUp = () => {
-    setCallState('ended');
-    stopListening();
-    synthRef.current.cancel();
-    if (timerRef.current) clearInterval(timerRef.current);
-    setTimeout(() => onClose(), 1000);
-  };
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={hangUp}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="text-center mb-4 sm:mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-2">E-Commerce AI – Live Demo</h2>
-          <p className="text-zinc-400 text-xs sm:text-sm">Simulated phone-style conversation, no real orders or returns will be processed.</p>
-        </div>
-
-        {/* Call Status */}
-        {callState === 'dialing' && (
-          <div className="text-center py-8 sm:py-12">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-indigo-600 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse">
-              <Phone size={32} className="sm:w-10 sm:h-10 text-white" />
-            </div>
-            <p className="text-lg sm:text-xl font-bold mb-2">Calling...</p>
-            <p className="text-zinc-400 text-xs sm:text-sm">TechStyle Support</p>
-          </div>
-        )}
-
-        {callState === 'connected' && (
-          <div>
-            <div className="flex items-center justify-between mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-zinc-800">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 font-bold text-sm sm:text-base">Connected</span>
-              </div>
-              <div className="text-zinc-400 text-xs sm:text-sm font-mono">{formatTime(callDuration)}</div>
-            </div>
-
-            {/* Transcript */}
-            <div className="h-[250px] sm:h-[300px] overflow-y-auto mb-4 sm:mb-6 space-y-3 sm:space-y-4 custom-scrollbar">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] sm:max-w-[75%] p-2 sm:p-3 rounded-lg text-sm sm:text-base ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-              {isListening && (
-                <div className="flex justify-end">
-                  <div className="bg-indigo-600/20 border border-indigo-500 text-indigo-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
-                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
-                    Listening...
-                  </div>
-                </div>
-              )}
-              {isSpeaking && (
-                <div className="flex justify-start">
-                  <div className="bg-zinc-800/50 border border-zinc-700 text-zinc-400 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
-                    <Loader2 size={14} className="animate-spin" />
-                    Speaking...
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 mb-3">
-              <button
-                onClick={startListening}
-                disabled={isListening || isSpeaking}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2 sm:py-3 rounded-lg transition-colors text-xs sm:text-sm flex items-center justify-center gap-2"
-              >
-                {isListening ? '🎤 Listening...' : '🎤 Tap to Speak'}
-              </button>
-            </div>
-
-            <button
-              onClick={hangUp}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
-            >
-              <Phone size={18} className="sm:w-5 sm:h-5 rotate-135" />
-              Hang Up
-            </button>
-          </div>
-        )}
-
-        {callState === 'ended' && (
-          <div className="text-center py-8 sm:py-12">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-zinc-800 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Phone size={32} className="sm:w-10 sm:h-10 text-zinc-500" />
-            </div>
-            <p className="text-lg sm:text-xl font-bold mb-2">Call Ended</p>
-            <p className="text-zinc-400 text-xs sm:text-sm">Duration: {formatTime(callDuration)}</p>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1413,9 +708,6 @@ function EcommerceCallDemo({ isOpen, onClose }) {
 function LandingPage({ onLogin }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [showPhoneDemo, setShowPhoneDemo] = useState(false);
-  const [showRestaurantDemo, setShowRestaurantDemo] = useState(false);
-  const [showEcommerceDemo, setShowEcommerceDemo] = useState(false);
   
   useEffect(() => { 
     const handleScroll = () => setScrolled(window.scrollY > 50); 
@@ -1434,11 +726,11 @@ function LandingPage({ onLogin }) {
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black overflow-x-hidden">
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-md border-b border-zinc-800 py-3 md:py-4' : 'bg-transparent py-4 md:py-6'}`}>
-        <div className="container mx-auto px-6 flex justify-between items-center"><div className="text-xl md:text-2xl font-bold tracking-tighter flex items-center gap-2"><div className="w-8 h-8 bg-white text-black flex items-center justify-center rounded-lg"><Cpu size={20} /></div>WEBFRONT AI</div><div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400"><a href="#services" className="hover:text-white transition-colors">Services</a><a href="#demo" className="hover:text-white transition-colors">AI Demo</a><a href="#pricing" className="hover:text-white transition-colors">Pricing</a><button onClick={() => onLogin()} className="flex items-center gap-2 text-white hover:text-blue-400 transition-colors"><LogIn size={14} /> Login</button><Button variant="primary" onClick={() => window.location.href = 'tel:8627540435'}>Book Strategy Call</Button></div><button className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={28}/> : <Menu size={28}/>}</button></div>
+        <div className="container mx-auto px-6 flex justify-between items-center"><div className="text-xl md:text-2xl font-bold tracking-tighter flex items-center gap-2"><div className="w-8 h-8 bg-white text-black flex items-center justify-center rounded-lg"><Cpu size={20} /></div>WEBFRONT AI</div><div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400"><a href="#services" className="hover:text-white transition-colors">Services</a><a href="#pagespeed" className="hover:text-white transition-colors">Speed Test</a><a href="#pricing" className="hover:text-white transition-colors">Pricing</a><button onClick={() => onLogin()} className="flex items-center gap-2 text-white hover:text-blue-400 transition-colors"><LogIn size={14} /> Login</button><Button variant="primary" onClick={() => window.location.href = 'tel:8627540435'}>Book Strategy Call</Button></div><button className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>{isMenuOpen ? <X size={28}/> : <Menu size={28}/>}</button></div>
         {isMenuOpen && (
           <div className="md:hidden fixed inset-0 top-[70px] bg-black/95 backdrop-blur-lg z-40 p-8 flex flex-col gap-6 animate-fade-in border-t border-zinc-800">
             <a href="#services" onClick={() => { setIsMenuOpen(false); scrollTo('services'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">Services</a>
-            <a href="#demo" onClick={() => { setIsMenuOpen(false); scrollTo('demo'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">AI Demo</a>
+            <a href="#pagespeed" onClick={() => { setIsMenuOpen(false); scrollTo('pagespeed'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">Speed Test</a>
             <a href="#pricing" onClick={() => { setIsMenuOpen(false); scrollTo('pricing'); }} className="text-2xl font-bold text-zinc-400 hover:text-white">Pricing</a>
             <hr className="border-zinc-800"/>
             <button onClick={() => onLogin()} className="text-left text-2xl font-bold text-blue-400 hover:text-blue-300">Login to Portal</button>
@@ -1455,17 +747,56 @@ function LandingPage({ onLogin }) {
             </div>
           </FadeIn>
           <FadeIn delay={200}>
-            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-6 md:mb-8 bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent leading-tight md:leading-[1.1]">ELEVATE YOUR <br className="hidden md:block"/> DIGITAL REALITY.</h1>
+            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-6 md:mb-8 bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent leading-tight md:leading-[1.1]">AI-POWERED WEBSITES <br className="hidden md:block"/> THAT TURN VISITORS <br className="hidden md:block"/> INTO BOOKED CUSTOMERS 24/7.</h1>
           </FadeIn>
           <FadeIn delay={300}>
-            <p className="text-base md:text-xl text-zinc-400 max-w-2xl mx-auto mb-10 md:mb-12 leading-relaxed px-4">WebFront AI builds high-performance websites and autonomous AI receptionists that work while you sleep. The future isn't coming—it's hired.</p>
+            <p className="text-base md:text-xl text-zinc-400 max-w-3xl mx-auto mb-10 md:mb-12 leading-relaxed px-4">We design and build conversion-focused sites with built-in AI chat and voice, so your business answers every question, captures every lead, and books appointments even while you sleep.</p>
           </FadeIn>
           <FadeIn delay={400} className="flex flex-col sm:flex-row justify-center gap-4 items-center px-4">
-            <Button variant="primary" onClick={() => onLogin()} className="w-full sm:w-auto py-4">Start Project</Button>
-            <Button variant="secondary" onClick={() => scrollTo('portfolio')} className="w-full sm:w-auto py-4">View Portfolio</Button>
+            <Button variant="primary" onClick={() => scrollTo('pricing')} className="w-full sm:w-auto py-4">See AI Website Plans</Button>
+            <Button variant="secondary" onClick={() => onLogin()} className="w-full sm:w-auto py-4">Book a 15-Minute Demo</Button>
           </FadeIn>
         </div>
       </section>
+
+      {/* Pain Points Section - NEW */}
+      <section className="py-12 md:py-16 bg-zinc-950/30 border-b border-zinc-900">
+        <div className="container mx-auto px-6">
+          <FadeIn className="text-center mb-8">
+            <p className="text-zinc-500 text-sm uppercase tracking-wider mb-4">Sound Familiar?</p>
+          </FadeIn>
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <FadeIn delay={100}>
+              <div className="flex flex-col items-center text-center gap-3 p-6 rounded-xl bg-zinc-900/30 border border-zinc-800/50 hover:border-zinc-700 transition-all">
+                <div className="w-12 h-12 rounded-full bg-red-900/20 flex items-center justify-center text-red-500">
+                  <Phone size={20} />
+                </div>
+                <h3 className="font-bold text-base text-zinc-300">Tired of missing calls while you're on a job?</h3>
+                <p className="text-sm text-zinc-500">Every missed call is a lost customer going to your competitor.</p>
+              </div>
+            </FadeIn>
+            <FadeIn delay={200}>
+              <div className="flex flex-col items-center text-center gap-3 p-6 rounded-xl bg-zinc-900/30 border border-zinc-800/50 hover:border-zinc-700 transition-all">
+                <div className="w-12 h-12 rounded-full bg-red-900/20 flex items-center justify-center text-red-500">
+                  <Clock size={20} />
+                </div>
+                <h3 className="font-bold text-base text-zinc-300">Spending nights replying to website inquiries?</h3>
+                <p className="text-sm text-zinc-500">Your time is worth more than answering the same questions manually.</p>
+              </div>
+            </FadeIn>
+            <FadeIn delay={300}>
+              <div className="flex flex-col items-center text-center gap-3 p-6 rounded-xl bg-zinc-900/30 border border-zinc-800/50 hover:border-zinc-700 transition-all">
+                <div className="w-12 h-12 rounded-full bg-red-900/20 flex items-center justify-center text-red-500">
+                  <TrendingUp size={20} className="rotate-180" />
+                </div>
+                <h3 className="font-bold text-base text-zinc-300">Losing leads because your site is slow and outdated?</h3>
+                <p className="text-sm text-zinc-500">First impressions matter. A dated website drives customers away.</p>
+              </div>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
       <section className="py-8 md:py-12 border-y border-zinc-900 bg-zinc-950/50">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
@@ -1488,6 +819,70 @@ function LandingPage({ onLogin }) {
           </div>
         </div>
       </section>
+
+      {/* Who We Help Section - NEW */}
+      <section className="py-16 md:py-24 bg-zinc-950/50 border-t border-zinc-900">
+        <div className="container mx-auto px-6">
+          <FadeIn className="mb-12 md:mb-16 text-center">
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">WHO WE HELP</h2>
+            <div className="w-20 h-1 bg-blue-600 mx-auto mb-4"></div>
+            <p className="text-zinc-400 max-w-2xl mx-auto">
+              Small businesses that need to capture leads, answer questions, and book appointments without hiring more staff.
+            </p>
+          </FadeIn>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <FadeIn delay={100}>
+              <Card className="text-center h-full flex flex-col items-center gap-4">
+                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
+                  <Briefcase size={24} />
+                </div>
+                <h3 className="text-lg font-bold">Service Businesses</h3>
+                <p className="text-sm text-zinc-400 flex-1">
+                  Plumbers, HVAC, contractors, electricians who need to capture emergency calls 24/7.
+                </p>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={200}>
+              <Card className="text-center h-full flex flex-col items-center gap-4">
+                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
+                  <CalendarDays size={24} />
+                </div>
+                <h3 className="text-lg font-bold">Appointment-Based</h3>
+                <p className="text-sm text-zinc-400 flex-1">
+                  Salons, medspas, clinics, trainers who need automated booking and reminders.
+                </p>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={300}>
+              <Card className="text-center h-full flex flex-col items-center gap-4">
+                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
+                  <UserCheck size={24} />
+                </div>
+                <h3 className="text-lg font-bold">Professional Services</h3>
+                <p className="text-sm text-zinc-400 flex-1">
+                  Law, accounting, consulting firms that want to qualify leads before wasting time.
+                </p>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={400}>
+              <Card className="text-center h-full flex flex-col items-center gap-4">
+                <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500">
+                  <Users size={24} />
+                </div>
+                <h3 className="text-lg font-bold">Growing Teams</h3>
+                <p className="text-sm text-zinc-400 flex-1">
+                  Any small business ready to scale without doubling their support team.
+                </p>
+              </Card>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
       <section id="portfolio" className="py-16 md:py-24 bg-black border-t border-zinc-900">
         <div className="container mx-auto px-6">
           <FadeIn className="mb-12 md:mb-16 text-center">
@@ -1552,70 +947,6 @@ function LandingPage({ onLogin }) {
                 </Card>
               </a>
             </FadeIn>
-
-            {/* AI Receptionist Projects */}
-            <FadeIn delay={250}>
-              <div
-                style={{ cursor: 'pointer' }}
-                onClick={() => setShowPhoneDemo(true)}
-              >
-                <Card className="group overflow-hidden h-full flex flex-col hover:border-purple-500 transition-all">
-                  <div className="aspect-video bg-gradient-to-br from-cyan-900/30 to-blue-900/30 relative overflow-hidden mb-4">
-                    <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
-                    <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">Medical Office AI</h3>
-                  <p className="text-zinc-400 text-sm mb-4 flex-1">Appointment booking, patient inquiries, and insurance verification via phone and chat.</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">GPT-4</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Twilio</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Calendar API</span>
-                  </div>
-                </Card>
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={300}>
-              <div
-                style={{ cursor: 'pointer' }}
-                onClick={() => setShowRestaurantDemo(true)}
-              >
-                <Card className="group overflow-hidden h-full flex flex-col hover:border-purple-500 transition-all">
-                  <div className="aspect-video bg-gradient-to-br from-orange-900/30 to-red-900/30 relative overflow-hidden mb-4">
-                    <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
-                    <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">Restaurant Chatbot</h3>
-                  <p className="text-zinc-400 text-sm mb-4 flex-1">24/7 reservation system, menu recommendations, and delivery order processing.</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Gemini</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Voice AI</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">CRM</span>
-                  </div>
-                </Card>
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={350}>
-              <div
-                style={{ cursor: 'pointer' }}
-                onClick={() => setShowEcommerceDemo(true)}
-              >
-                <Card className="group overflow-hidden h-full flex flex-col hover:border-purple-500 transition-all">
-                  <div className="aspect-video bg-gradient-to-br from-indigo-900/30 to-purple-900/30 relative overflow-hidden mb-4">
-                    <div className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/10">AI</div>
-                    <div className="absolute bottom-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold">AI Agent</div>
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">E-Commerce Support</h3>
-                  <p className="text-zinc-400 text-sm mb-4 flex-1">Product recommendations, order tracking, and return processing automation.</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Claude</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Shopify API</span>
-                    <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">Analytics</span>
-                  </div>
-                </Card>
-              </div>
-            </FadeIn>
           </div>
 
           <FadeIn delay={400} className="text-center mt-12">
@@ -1624,32 +955,25 @@ function LandingPage({ onLogin }) {
           </FadeIn>
         </div>
       </section>
-      <section id="demo" className="py-16 md:py-24 relative overflow-hidden bg-black">
-        <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[800px] h-[800px] bg-blue-900/10 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
-        <div className="container mx-auto px-6 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-          <div className="flex-1 w-full text-center lg:text-left">
-            <FadeIn>
-              <div className="inline-block px-3 py-1 bg-blue-900/30 text-blue-400 rounded-full text-xs font-bold tracking-widest mb-6 border border-blue-900/50">LIVE PREVIEW</div>
-              <h2 className="text-4xl md:text-6xl font-bold mb-6">TALK TO THE <br /> MACHINE.</h2>
-              <p className="text-zinc-400 text-lg mb-8 max-w-md mx-auto lg:mx-0">Test our AI receptionist instantly. It can answer questions about our pricing, services, and availability. No human required.</p>
-              <div className="flex items-center justify-center lg:justify-start gap-4 text-sm text-zinc-500"><div className="flex -space-x-3">{[1,2,3].map(i => (<div key={i} className="w-10 h-10 rounded-full bg-zinc-800 border-2 border-black flex items-center justify-center text-xs text-white">U{i}</div>))}</div><p>Trusted by 50+ agencies</p></div>
-            </FadeIn>
-          </div>
-          <div className="flex-1 w-full flex justify-center lg:justify-end">
-            <FadeIn delay={200} className="w-full max-w-md">
-              <AIChatDemo />
-            </FadeIn>
-          </div>
-        </div>
-      </section>
+      <PageSpeedSection onLogin={onLogin} />
       <section id="pricing" className="py-16 md:py-24 bg-zinc-950 border-t border-zinc-900">
         <div className="container mx-auto px-6">
           <FadeIn className="mb-16 text-center"><h2 className="text-3xl md:text-4xl font-bold mb-4">TRANSPARENT PRICING</h2><p className="text-zinc-400">Invest in your digital infrastructure.</p></FadeIn>
           <div className="grid md:grid-cols-3 gap-8">
-            {[{ title: 'Starter', price: '$900', sub: 'One-time', features: ['Custom Landing Page', 'Mobile Responsive', 'Basic SEO', '1 Week Support'], hosting: '$50/mo' }, { title: 'Growth', price: '$3,000', sub: 'One-time', features: ['Multi-page Website', 'CMS Integration', 'Advanced Animations', 'AI Chatbot Setup'], hosting: '$90/mo' }, { title: 'Agency', price: '$5,000+', sub: 'Custom Quote', features: ['Full Web App', 'User Authentication', 'Payment Integration', 'Custom AI Training'], hosting: '$150+/mo' }].map((tier, index) => (
-              <FadeIn key={index} delay={index * 150}><Card className={`relative flex flex-col h-full transform transition-all duration-300 hover:-translate-y-2 ${index === 1 ? 'border-blue-600/50 bg-zinc-900/80 shadow-[0_0_30px_rgba(37,99,235,0.15)]' : 'bg-transparent'}`}>{index === 1 && (<div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-1 text-xs font-bold rounded-full shadow-lg">MOST POPULAR</div>)}<h3 className="text-xl font-bold mb-2">{tier.title}</h3><div className="flex items-baseline gap-1 mb-6"><span className="text-4xl font-bold">{tier.price}</span><span className="text-zinc-500 text-sm">{tier.sub}</span></div><div className="space-y-4 mb-6 flex-1">{tier.features.map((f, i) => (<div key={i} className="flex items-center gap-3 text-sm text-zinc-300"><Check size={14} className="text-blue-500 flex-shrink-0" /> {f}</div>))}</div><div className="pt-4 mb-6 border-t border-zinc-800/50"><div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-lg p-3"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><Server size={16} className="text-purple-400" /><span className="text-xs font-semibold text-purple-300">Optional Hosting</span></div><span className="text-sm font-bold text-white">{tier.hosting}</span></div></div></div><Button variant={index === 1 ? 'accent' : 'secondary'} className="w-full" onClick={() => onLogin()}>Get Started</Button></Card></FadeIn>
+            {[{ title: 'Starter', price: '$900', sub: 'One-time', description: 'Perfect for solo and early-stage businesses that need a clean, fast AI-enabled landing page to start capturing leads right away.', features: ['Custom Landing Page', 'Mobile Responsive', 'Basic SEO', 'AI Chat Widget', '1 Week Support'], hosting: '$50/mo' }, { title: 'Growth', price: '$3,000', sub: 'One-time', description: 'For growing small businesses that need a full site + AI chatbot to answer questions and book more appointments without hiring staff.', features: ['Multi-page Website', 'CMS Integration', 'Advanced Animations', 'AI Chatbot Setup', 'Booking Integration'], hosting: '$90/mo' }, { title: 'Agency', price: '$5,000+', sub: 'Custom Quote', description: 'For serious operators who need a full web app and custom AI workflows to automate sales and onboarding.', features: ['Full Web App', 'User Authentication', 'Payment Integration', 'Custom AI Training', 'Advanced Automation'], hosting: '$150+/mo' }].map((tier, index) => (
+              <FadeIn key={index} delay={index * 150}><Card className={`relative flex flex-col h-full transform transition-all duration-300 hover:-translate-y-2 ${index === 1 ? 'border-blue-600/50 bg-zinc-900/80 shadow-[0_0_30px_rgba(37,99,235,0.15)]' : 'bg-transparent'}`}>{index === 1 && (<div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-1 text-xs font-bold rounded-full shadow-lg">MOST POPULAR</div>)}<h3 className="text-xl font-bold mb-2">{tier.title}</h3><div className="flex items-baseline gap-1 mb-6"><span className="text-4xl font-bold">{tier.price}</span><span className="text-zinc-500 text-sm">{tier.sub}</span></div>{tier.description && (<p className="text-sm text-zinc-400 mb-6 leading-relaxed border-l-2 border-blue-600/30 pl-3">{tier.description}</p>)}<div className="space-y-4 mb-6 flex-1">{tier.features.map((f, i) => (<div key={i} className="flex items-center gap-3 text-sm text-zinc-300"><Check size={14} className="text-blue-500 flex-shrink-0" /> {f}</div>))}</div><div className="pt-4 mb-6 border-t border-zinc-800/50"><div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-lg p-3"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><Server size={16} className="text-purple-400" /><span className="text-xs font-semibold text-purple-300">Optional Hosting</span></div><span className="text-sm font-bold text-white">{tier.hosting}</span></div></div></div><Button variant={index === 1 ? 'accent' : 'secondary'} className="w-full" onClick={() => onLogin()}>Get Started</Button></Card></FadeIn>
             ))}
           </div>
+
+          {/* No Surprises Note - NEW */}
+          <FadeIn delay={500} className="mt-8 text-center">
+            <div className="inline-block px-4 py-2 bg-zinc-900/50 border border-zinc-800 rounded-lg">
+              <p className="text-sm text-zinc-400">
+                <Shield size={14} className="inline mr-2 text-green-500" />
+                No hidden fees. Clear hosting options and upgrade paths as you grow.
+              </p>
+            </div>
+          </FadeIn>
         </div>
       </section>
 
@@ -1657,9 +981,11 @@ function LandingPage({ onLogin }) {
       <section className="py-16 md:py-24 bg-black border-t border-zinc-900">
         <div className="container mx-auto px-6">
           <FadeIn className="mb-16 text-center">
-            <div className="inline-block px-3 py-1 bg-purple-900/30 text-purple-400 rounded-full text-xs font-bold tracking-widest mb-6 border border-purple-900/50">AI RECEPTIONIST</div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">VOICE AI PRICING</h2>
-            <p className="text-zinc-400">24/7 intelligent phone support for your business.</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Add 24/7 AI Phone Support to Your Website</h2>
+            <p className="text-zinc-400 max-w-2xl mx-auto mb-6">
+              Already have or getting a WebFront AI site? Turn your phone line into a 24/7 receptionist that answers FAQs, books appointments, and routes leads.
+            </p>
+            <div className="inline-block px-3 py-1 bg-purple-900/30 text-purple-400 rounded-full text-xs font-bold tracking-widest border border-purple-900/50">VOICE AI PRICING</div>
           </FadeIn>
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -1748,6 +1074,34 @@ function LandingPage({ onLogin }) {
               </FadeIn>
             ))}
           </div>
+
+          {/* Cost Comparison - NEW */}
+          <FadeIn delay={500} className="mt-12 text-center">
+            <div className="max-w-3xl mx-auto p-6 bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-800/30 rounded-2xl">
+              <div className="grid md:grid-cols-2 gap-8 items-center">
+                <div className="text-left">
+                  <p className="text-sm text-zinc-500 mb-2">Traditional Receptionist</p>
+                  <p className="text-4xl font-bold text-zinc-400 line-through">$3,000+</p>
+                  <p className="text-xs text-zinc-500 mt-1">per month, 9-5 only, sick days, vacation</p>
+                </div>
+                <div className="text-left md:border-l md:border-purple-800/30 md:pl-8">
+                  <p className="text-sm text-purple-400 mb-2 font-semibold">Your AI Receptionist</p>
+                  <p className="text-4xl font-bold text-white">From $85</p>
+                  <p className="text-xs text-zinc-400 mt-1">per month, 24/7/365, never misses a call</p>
+                </div>
+              </div>
+            </div>
+          </FadeIn>
+
+          {/* No Surprises Note - NEW */}
+          <FadeIn delay={600} className="mt-8 text-center">
+            <div className="inline-block px-4 py-2 bg-zinc-900/50 border border-zinc-800 rounded-lg">
+              <p className="text-sm text-zinc-400">
+                <Shield size={14} className="inline mr-2 text-green-500" />
+                No hidden fees. Clear minutes, clear hosting options, and upgrade paths as you grow.
+              </p>
+            </div>
+          </FadeIn>
         </div>
       </section>
 
@@ -1758,15 +1112,6 @@ function LandingPage({ onLogin }) {
           <div className="flex gap-6 text-zinc-400"><a href="https://www.instagram.com/webfrontai/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors transform hover:scale-110 block">Instagram</a><a href="https://www.facebook.com/profile.php?id=61584940317110" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors transform hover:scale-110 block">Facebook</a></div>
         </div>
       </footer>
-
-      {/* Phone Call Demo Modal */}
-      <PhoneCallDemo isOpen={showPhoneDemo} onClose={() => setShowPhoneDemo(false)} />
-
-      {/* Restaurant Call Demo Modal */}
-      <RestaurantCallDemo isOpen={showRestaurantDemo} onClose={() => setShowRestaurantDemo(false)} />
-
-      {/* E-Commerce Call Demo Modal */}
-      <EcommerceCallDemo isOpen={showEcommerceDemo} onClose={() => setShowEcommerceDemo(false)} />
     </div>
   );
 }
@@ -2137,7 +1482,7 @@ function AdminDataAIView() {
         }));
     };
 
-    if (loading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/> Loading AI Settings...</div>;
+    if (loading) return <div className="p-8 text-center"><AnimatedIcon name="Loader2" size={24} autoplay /> Loading AI Settings...</div>;
 
     return (
         <div className="animate-fade-in max-w-4xl">
@@ -2147,7 +1492,7 @@ function AdminDataAIView() {
                     <p className="text-zinc-500">Configure LLM parameters and manage knowledge sources.</p>
                 </div>
                 <Button variant="primary" onClick={handleSave} disabled={saving} className="shadow-blue-900/20">
-                    {saving ? <Loader2 className="animate-spin mr-2" size={18}/> : <Save className="mr-2" size={18}/>} 
+                    {saving ? <AnimatedIcon name="Loader2" size={18} autoplay /> : <Save className="mr-2" size={18}/>}
                     {saving ? "Saving..." : "Save Configuration"}
                 </Button>
             </div>
@@ -2860,7 +2205,7 @@ function AdminUsersManager() {
       <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto">
         <div className="min-w-[700px]">
           <div className="grid grid-cols-12 p-4 border-b border-zinc-800 text-sm font-medium text-zinc-500 bg-zinc-900/50"><div className="col-span-4">User / Email</div><div className="col-span-3">Project</div><div className="col-span-3">Current Role</div><div className="col-span-2 text-right">Actions</div></div>
-          {loading ? <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/></div> : users.map((user) => (
+          {loading ? <div className="p-8 text-center"><AnimatedIcon name="Loader2" size={24} autoplay /></div> : users.map((user) => (
               <div key={user.id} className="grid grid-cols-12 p-4 border-b border-zinc-800 last:border-0 items-center hover:bg-zinc-800/20 transition-colors">
                 <div className="col-span-4 min-w-0 pr-4"><div className="font-bold text-white truncate">{user.name || 'Unknown'}</div><div className="text-xs text-zinc-500 truncate">{user.email || 'No Email'}</div></div><div className="col-span-3 text-zinc-400 text-sm truncate">{user.project || 'N/A'}</div>
                 <div className="col-span-3"><span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${user.role === 'admin' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>{user.role || 'CLIENT'}</span></div>
@@ -3297,8 +2642,8 @@ function AdminAnalyticsView() {
   if (loading && !analyticsData) {
     return (
       <div className="animate-fade-in flex flex-col items-center justify-center h-full">
-        <Loader2 className="animate-spin mb-4" size={48} />
-        <p className="text-zinc-500">Loading analytics data...</p>
+        <AnimatedIcon name="Loader2" size={48} autoplay />
+        <p className="text-zinc-500 mt-4">Loading analytics data...</p>
       </div>
     );
   }

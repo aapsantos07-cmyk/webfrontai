@@ -49,6 +49,26 @@ service cloud.firestore {
                         .hasOnly(['name', 'notifications', 'clientUploads', 'project', 'activity', 'messages']);
     }
 
+    // --- PAGESPEED TESTS COLLECTION ---
+    // Public read for shareable links, only Cloud Functions can write
+    match /pagespeed_tests/{testId} {
+      allow read: if true; // Public shareable links
+      allow write: if false; // Only Cloud Functions
+    }
+
+    // --- PAGESPEED CACHE COLLECTION ---
+    // Only Cloud Functions can read/write
+    match /pagespeed_cache/{cacheKey} {
+      allow read, write: if false;
+    }
+
+    // --- LEADS COLLECTION ---
+    // Only admins can read, only Cloud Functions can write
+    match /leads/{leadId} {
+      allow read: if isMasterAdmin() || isDbAdmin();
+      allow write: if false; // Only Cloud Functions
+    }
+
     // Default Deny
     match /{document=**} {
       allow read, write: if false;

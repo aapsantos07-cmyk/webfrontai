@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
-import { Cpu, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
+import { Cpu, ArrowRight, AlertTriangle } from 'lucide-react';
+import { AnimatedIcon } from '../components/icons/AnimatedIcon';
 
 export default function LoginPage({ onAuthSubmit, onBack, maintenanceMode }) {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -124,7 +125,7 @@ export default function LoginPage({ onAuthSubmit, onBack, maintenanceMode }) {
             >
               {isLoading ? (
                 <>
-                  <Loader2 size={16} className="animate-spin mr-1"/> Processing...
+                  <AnimatedIcon name="Loader2" size={16} autoplay /> Processing...
                 </>
               ) : (
                 isForgotPassword ? (

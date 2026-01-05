@@ -6,6 +6,7 @@ const { getAuth } = require("firebase-admin/auth");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { google } = require("googleapis");
 const nodemailer = require("nodemailer");
+const fetch = require("node-fetch");
 
 initializeApp();
 const db = getFirestore();
@@ -14,6 +15,7 @@ const auth = getAuth();
 // SECURITY: Store API key in Cloud Secret Manager instead of Firestore
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
 const gscServiceAccountKey = defineSecret("GSC_SERVICE_ACCOUNT_KEY");
+const pageSpeedApiKey = defineSecret("PAGESPEED_API_KEY");
 
 exports.chatWithAI = onCall(
   { secrets: [geminiApiKey] },
@@ -462,6 +464,165 @@ exports.getAnalyticsData = onCall(
     } catch (error) {
       console.error('GSC API Error:', error);
       throw new HttpsError('internal', `Failed to fetch GSC data: ${error.message}`);
+    }
+  }
+);
+
+// PageSpeed Insights API Integration
+exports.runPageSpeedTest = onCall(
+  { secrets: [pageSpeedApiKey], timeoutSeconds: 120 },
+  async (request) => {
+    const { url, email } = request.data;
+
+    // Validation
+    const urlRegex = /^https?:\/\/.+\..+/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!url || !urlRegex.test(url)) {
+      throw new HttpsError('invalid-argument', 'URL must start with http:// or https://');
+    }
+
+    if (!email || !emailRegex.test(email)) {
+      throw new HttpsError('invalid-argument', 'Valid email is required');
+    }
+
+    try {
+      const apiKey = pageSpeedApiKey.value();
+
+      if (!apiKey) {
+        throw new HttpsError('failed-precondition', 'PageSpeed API key not configured');
+      }
+
+      // Check cache (24hr window)
+      const cacheKey = Buffer.from(url).toString('base64');
+      const cacheRef = db.collection('pagespeed_cache').doc(cacheKey);
+      const cacheDoc = await cacheRef.get();
+
+      let currentScores;
+      const now = Date.now();
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+
+      if (cacheDoc.exists && (now - cacheDoc.data().timestamp) < twentyFourHours) {
+        // Use cached data
+        currentScores = cacheDoc.data().scores;
+        console.log('Using cached PageSpeed data for:', url);
+      } else {
+        // Call PageSpeed Insights API
+        console.log('Fetching fresh PageSpeed data for:', url);
+        const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&key=${apiKey}&category=PERFORMANCE&category=ACCESSIBILITY&category=SEO&category=BEST_PRACTICES&strategy=MOBILE`;
+
+        const response = await fetch(apiUrl);
+
+        if (!response.ok) {
+          throw new HttpsError('internal', `PageSpeed API returned ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Extract scores
+        currentScores = {
+          performance: Math.round(data.lighthouseResult.categories.performance.score * 100),
+          accessibility: Math.round(data.lighthouseResult.categories.accessibility.score * 100),
+          seo: Math.round(data.lighthouseResult.categories.seo.score * 100),
+          bestPractices: Math.round(data.lighthouseResult.categories['best-practices'].score * 100)
+        };
+
+        // Cache the result
+        await cacheRef.set({
+          url,
+          scores: currentScores,
+          timestamp: now
+        });
+      }
+
+      // Calculate optimized scores (WebFront improvements)
+      const optimizedScores = {
+        performance: Math.min(100, currentScores.performance + 45),
+        accessibility: Math.min(100, currentScores.accessibility + 20),
+        seo: Math.min(100, currentScores.seo + 18),
+        bestPractices: Math.min(100, currentScores.bestPractices + 25)
+      };
+
+      const avgImprovement = Math.round(
+        ((optimizedScores.performance - currentScores.performance) +
+         (optimizedScores.accessibility - currentScores.accessibility) +
+         (optimizedScores.seo - currentScores.seo) +
+         (optimizedScores.bestPractices - currentScores.bestPractices)) / 4
+      );
+
+      const improvements = {
+        avgImprovement,
+        loadTimeSaved: '2.3',
+        conversionBoost: Math.round(avgImprovement * 0.35) // Rough estimate
+      };
+
+      // Store test result
+      const testRef = db.collection('pagespeed_tests').doc();
+      const testId = testRef.id;
+
+      await testRef.set({
+        testId,
+        url,
+        email,
+        currentScores,
+        optimizedScores,
+        improvements,
+        timestamp: now,
+        createdAt: new Date().toISOString()
+      });
+
+      // Store email lead
+      await db.collection('leads').add({
+        email,
+        source: 'pagespeed_test',
+        testId,
+        url,
+        timestamp: now,
+        createdAt: new Date().toISOString()
+      });
+
+      return {
+        success: true,
+        testId,
+        data: {
+          url,
+          currentScores,
+          optimizedScores,
+          improvements
+        }
+      };
+
+    } catch (error) {
+      console.error('PageSpeed test error:', error);
+      throw new HttpsError('internal', `Failed to test website: ${error.message}`);
+    }
+  }
+);
+
+// Get PageSpeed test results by ID (for shareable links)
+exports.getPageSpeedResult = onCall(
+  async (request) => {
+    const { testId } = request.data;
+
+    if (!testId) {
+      throw new HttpsError('invalid-argument', 'Test ID is required');
+    }
+
+    try {
+      const testDoc = await db.collection('pagespeed_tests').doc(testId).get();
+
+      if (!testDoc.exists) {
+        throw new HttpsError('not-found', 'Test result not found');
+      }
+
+      return {
+        success: true,
+        data: testDoc.data()
+      };
+
+    } catch (error) {
+      console.error('Get PageSpeed result error:', error);
+      throw new HttpsError('internal', `Failed to retrieve test result: ${error.message}`);
     }
   }
 );

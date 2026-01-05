@@ -4,7 +4,8 @@ import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import CountdownTimer from '../components/common/CountdownTimer';
-import { Lock, ArrowRight, Loader2, Shield, CalendarDays, Phone, Mail, X } from 'lucide-react';
+import { Lock, ArrowRight, Shield, CalendarDays, Phone, Mail, X } from 'lucide-react';
+import { AnimatedIcon } from '../components/icons/AnimatedIcon';
 
 export default function EarlyAccessPage() {
   const navigate = useNavigate();
@@ -103,7 +104,7 @@ export default function EarlyAccessPage() {
             >
               {isLoading ? (
                 <>
-                  <Loader2 size={16} className="animate-spin" /> Verifying...
+                  <AnimatedIcon name="Loader2" size={16} autoplay /> Verifying...
                 </>
               ) : (
                 <>

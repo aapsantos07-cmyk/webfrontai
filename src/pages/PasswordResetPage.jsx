@@ -4,7 +4,8 @@ import { updatePassword } from 'firebase/auth';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebase';
 import { secureError } from '../utils/security';
-import { Lock, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
+import { Lock, ArrowRight, AlertTriangle } from 'lucide-react';
+import { AnimatedIcon } from '../components/icons/AnimatedIcon';
 
 export default function PasswordResetPage() {
   const location = useLocation();
@@ -116,7 +117,7 @@ export default function PasswordResetPage() {
             >
               {isLoading ? (
                 <>
-                  <Loader2 size={16} className="animate-spin mr-1"/> Updating Password...
+                  <AnimatedIcon name="Loader2" size={16} autoplay /> Updating Password...
                 </>
               ) : (
                 <>

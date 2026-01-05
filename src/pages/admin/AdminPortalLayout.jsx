@@ -4,8 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard, Briefcase, ClipboardList, Users, CreditCard,
   BarChart3, Brain, FileSpreadsheet, History, Shield, Sliders,
-  Menu, X, ArrowRight
+  ArrowRight
 } from 'lucide-react';
+import { AnimatedIcon } from '../../components/icons/AnimatedIcon';
 
 export default function AdminPortalLayout() {
   const location = useLocation();
@@ -35,7 +36,7 @@ export default function AdminPortalLayout() {
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900">
         <div className="font-bold text-red-500">ADMIN PANEL</div>
         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">
-          {mobileMenuOpen ? <X /> : <Menu />}
+          <AnimatedIcon name="Menu" size={28} reverse={mobileMenuOpen} />
         </button>
       </div>
 

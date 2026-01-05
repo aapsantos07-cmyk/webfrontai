@@ -3,8 +3,9 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard, Briefcase, FolderOpen, MessageSquare, CreditCard,
-  BookOpen, Settings, Menu, X, ArrowRight
+  BookOpen, Settings, ArrowRight
 } from 'lucide-react';
+import { AnimatedIcon } from '../../components/icons/AnimatedIcon';
 
 export default function ClientPortalLayout({ onUpdateClient }) {
   const location = useLocation();
@@ -30,7 +31,7 @@ export default function ClientPortalLayout({ onUpdateClient }) {
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900">
         <div className="font-bold">WEBFRONT_OS</div>
         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">
-          {mobileMenuOpen ? <X /> : <Menu />}
+          <AnimatedIcon name="Menu" size={28} reverse={mobileMenuOpen} />
         </button>
       </div>
 
