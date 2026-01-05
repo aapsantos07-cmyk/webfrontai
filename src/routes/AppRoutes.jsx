@@ -6,6 +6,7 @@ import { AdminRoute } from './AdminRoute';
 import EarlyAccessPage from '../pages/EarlyAccessPage';
 import LoginPage from '../pages/LoginPage';
 import PasswordResetPage from '../pages/PasswordResetPage';
+import SharedSpeedTestPage from '../pages/SharedSpeedTestPage';
 import ClientPortalLayout from '../pages/client/ClientPortalLayout';
 import AdminPortalLayout from '../pages/admin/AdminPortalLayout';
 
@@ -62,6 +63,12 @@ export const AppRoutes = ({
       <Route
         path="/reset-password"
         element={<PasswordResetPage />}
+      />
+
+      {/* Shared Speed Test Results - Public */}
+      <Route
+        path="/speed-test/:testId"
+        element={<SharedSpeedTestPage />}
       />
 
       {/* Client Portal - Protected */}

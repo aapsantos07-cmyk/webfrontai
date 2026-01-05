@@ -468,6 +468,160 @@ exports.getAnalyticsData = onCall(
   }
 );
 
+// Helper function to analyze website audits and calculate realistic improvements
+function analyzeWebsite(audits, currentScores) {
+  const issues = {
+    performance: [],
+    accessibility: [],
+    seo: [],
+    bestPractices: []
+  };
+
+  let performanceGain = 0;
+  let accessibilityGain = 0;
+  let seoGain = 0;
+  let bestPracticesGain = 0;
+  let estimatedLoadTimeSaved = 0;
+
+  if (!audits) {
+    // If no audits available (using cached scores), use conservative estimates
+    performanceGain = Math.min(45, 100 - currentScores.performance);
+    accessibilityGain = Math.min(20, 100 - currentScores.accessibility);
+    seoGain = Math.min(18, 100 - currentScores.seo);
+    bestPracticesGain = Math.min(25, 100 - currentScores.bestPractices);
+    estimatedLoadTimeSaved = 2.3;
+  } else {
+    // Analyze Performance Opportunities
+    const performanceOpportunities = [
+      { key: 'render-blocking-resources', impact: 8, label: 'Eliminate render-blocking resources' },
+      { key: 'unused-css-rules', impact: 6, label: 'Remove unused CSS' },
+      { key: 'unused-javascript', impact: 7, label: 'Remove unused JavaScript' },
+      { key: 'modern-image-formats', impact: 5, label: 'Serve images in next-gen formats' },
+      { key: 'offscreen-images', impact: 6, label: 'Defer offscreen images' },
+      { key: 'unminified-css', impact: 4, label: 'Minify CSS' },
+      { key: 'unminified-javascript', impact: 4, label: 'Minify JavaScript' },
+      { key: 'efficient-animated-content', impact: 5, label: 'Use video for animated content' },
+      { key: 'uses-long-cache-ttl', impact: 7, label: 'Serve static assets with efficient cache policy' },
+      { key: 'uses-optimized-images', impact: 6, label: 'Efficiently encode images' },
+      { key: 'uses-text-compression', impact: 5, label: 'Enable text compression' },
+      { key: 'uses-responsive-images', impact: 5, label: 'Properly size images' },
+      { key: 'server-response-time', impact: 8, label: 'Reduce server response time' },
+      { key: 'redirects', impact: 3, label: 'Avoid multiple page redirects' },
+      { key: 'uses-rel-preconnect', impact: 4, label: 'Preconnect to required origins' },
+      { key: 'font-display', impact: 3, label: 'Ensure text remains visible during webfont load' },
+      { key: 'third-party-summary', impact: 6, label: 'Minimize third-party usage' },
+      { key: 'largest-contentful-paint-element', impact: 7, label: 'Optimize Largest Contentful Paint' },
+      { key: 'lcp-lazy-loaded', impact: 8, label: 'Avoid lazy loading LCP image' },
+      { key: 'layout-shift-elements', impact: 6, label: 'Avoid large layout shifts' },
+      { key: 'non-composited-animations', impact: 4, label: 'Avoid non-composited animations' },
+      { key: 'unsized-images', impact: 5, label: 'Image elements have explicit width and height' }
+    ];
+
+    performanceOpportunities.forEach(opp => {
+      const audit = audits[opp.key];
+      if (audit && audit.score !== null && audit.score < 0.9) {
+        issues.performance.push(opp.label);
+        performanceGain += opp.impact;
+
+        // Extract estimated time saved if available
+        if (audit.numericValue && audit.numericUnit === 'millisecond') {
+          estimatedLoadTimeSaved += audit.numericValue / 1000;
+        }
+      }
+    });
+
+    // Analyze Accessibility Issues
+    const accessibilityAudits = [
+      { key: 'color-contrast', impact: 5, label: 'Improve color contrast' },
+      { key: 'image-alt', impact: 4, label: 'Add alt text to images' },
+      { key: 'link-name', impact: 4, label: 'Ensure links have discernible text' },
+      { key: 'button-name', impact: 4, label: 'Ensure buttons have accessible names' },
+      { key: 'html-has-lang', impact: 3, label: 'Add lang attribute to html' },
+      { key: 'meta-viewport', impact: 3, label: 'Add viewport meta tag' },
+      { key: 'document-title', impact: 2, label: 'Add page title' },
+      { key: 'aria-allowed-attr', impact: 3, label: 'Fix ARIA attributes' },
+      { key: 'aria-required-attr', impact: 3, label: 'Add required ARIA attributes' },
+      { key: 'form-field-multiple-labels', impact: 3, label: 'Fix form field labels' },
+      { key: 'heading-order', impact: 2, label: 'Fix heading hierarchy' },
+      { key: 'label', impact: 4, label: 'Add form input labels' },
+      { key: 'list', impact: 2, label: 'Fix list structure' },
+      { key: 'listitem', impact: 2, label: 'Fix list items' },
+      { key: 'tabindex', impact: 3, label: 'Fix tab index' }
+    ];
+
+    accessibilityAudits.forEach(audit => {
+      const auditData = audits[audit.key];
+      if (auditData && auditData.score !== null && auditData.score < 1) {
+        issues.accessibility.push(audit.label);
+        accessibilityGain += audit.impact;
+      }
+    });
+
+    // Analyze SEO Issues
+    const seoAudits = [
+      { key: 'meta-description', impact: 4, label: 'Add meta description' },
+      { key: 'http-status-code', impact: 5, label: 'Fix HTTP status code' },
+      { key: 'link-text', impact: 3, label: 'Use descriptive link text' },
+      { key: 'crawlable-anchors', impact: 3, label: 'Make links crawlable' },
+      { key: 'is-crawlable', impact: 5, label: 'Ensure page is crawlable' },
+      { key: 'robots-txt', impact: 4, label: 'Fix robots.txt' },
+      { key: 'hreflang', impact: 3, label: 'Add hreflang tags' },
+      { key: 'canonical', impact: 4, label: 'Add canonical URL' },
+      { key: 'structured-data', impact: 4, label: 'Add structured data' },
+      { key: 'font-size', impact: 2, label: 'Use legible font sizes' },
+      { key: 'tap-targets', impact: 3, label: 'Size tap targets appropriately' }
+    ];
+
+    seoAudits.forEach(audit => {
+      const auditData = audits[audit.key];
+      if (auditData && auditData.score !== null && auditData.score < 1) {
+        issues.seo.push(audit.label);
+        seoGain += audit.impact;
+      }
+    });
+
+    // Analyze Best Practices Issues
+    const bestPracticesAudits = [
+      { key: 'uses-https', impact: 5, label: 'Use HTTPS' },
+      { key: 'is-on-https', impact: 5, label: 'Ensure all resources use HTTPS' },
+      { key: 'geolocation-on-start', impact: 3, label: 'Avoid requesting geolocation on page load' },
+      { key: 'notification-on-start', impact: 3, label: 'Avoid requesting notifications on page load' },
+      { key: 'no-vulnerable-libraries', impact: 5, label: 'Update vulnerable libraries' },
+      { key: 'js-libraries', impact: 4, label: 'Update outdated JavaScript libraries' },
+      { key: 'deprecations', impact: 3, label: 'Fix deprecated APIs' },
+      { key: 'errors-in-console', impact: 4, label: 'Fix console errors' },
+      { key: 'image-aspect-ratio', impact: 3, label: 'Display images with correct aspect ratio' },
+      { key: 'csp-xss', impact: 5, label: 'Add Content Security Policy' }
+    ];
+
+    bestPracticesAudits.forEach(audit => {
+      const auditData = audits[audit.key];
+      if (auditData && auditData.score !== null && auditData.score < 1) {
+        issues.bestPractices.push(audit.label);
+        bestPracticesGain += audit.impact;
+      }
+    });
+
+    // Cap gains to realistic maximums
+    performanceGain = Math.min(performanceGain, Math.min(50, 100 - currentScores.performance));
+    accessibilityGain = Math.min(accessibilityGain, Math.min(30, 100 - currentScores.accessibility));
+    seoGain = Math.min(seoGain, Math.min(25, 100 - currentScores.seo));
+    bestPracticesGain = Math.min(bestPracticesGain, Math.min(30, 100 - currentScores.bestPractices));
+
+    // Calculate estimated load time saved (in seconds)
+    estimatedLoadTimeSaved = Math.min(estimatedLoadTimeSaved, 5.0).toFixed(1);
+  }
+
+  return {
+    performanceGain,
+    accessibilityGain,
+    seoGain,
+    bestPracticesGain,
+    estimatedLoadTimeSaved,
+    issues
+  };
+}
+
 // PageSpeed Insights API Integration
 exports.runPageSpeedTest = onCall(
   { secrets: [pageSpeedApiKey], timeoutSeconds: 120 },
@@ -527,20 +681,24 @@ exports.runPageSpeedTest = onCall(
           bestPractices: Math.round(data.lighthouseResult.categories['best-practices'].score * 100)
         };
 
-        // Cache the result
+        // Cache the result with full audit data
         await cacheRef.set({
           url,
           scores: currentScores,
+          audits: data.lighthouseResult.audits,
           timestamp: now
         });
       }
 
-      // Calculate optimized scores (WebFront improvements)
+      // Analyze the website and extract specific issues
+      const analysis = analyzeWebsite(cacheDoc.exists ? cacheDoc.data().audits : null, currentScores);
+
+      // Calculate optimized scores based on actual issues found
       const optimizedScores = {
-        performance: Math.min(100, currentScores.performance + 45),
-        accessibility: Math.min(100, currentScores.accessibility + 20),
-        seo: Math.min(100, currentScores.seo + 18),
-        bestPractices: Math.min(100, currentScores.bestPractices + 25)
+        performance: Math.min(100, currentScores.performance + analysis.performanceGain),
+        accessibility: Math.min(100, currentScores.accessibility + analysis.accessibilityGain),
+        seo: Math.min(100, currentScores.seo + analysis.seoGain),
+        bestPractices: Math.min(100, currentScores.bestPractices + analysis.bestPracticesGain)
       };
 
       const avgImprovement = Math.round(
@@ -552,7 +710,7 @@ exports.runPageSpeedTest = onCall(
 
       const improvements = {
         avgImprovement,
-        loadTimeSaved: '2.3',
+        loadTimeSaved: analysis.estimatedLoadTimeSaved,
         conversionBoost: Math.round(avgImprovement * 0.35) // Rough estimate
       };
 
@@ -567,6 +725,7 @@ exports.runPageSpeedTest = onCall(
         currentScores,
         optimizedScores,
         improvements,
+        issues: analysis.issues, // Store specific issues found
         timestamp: now,
         createdAt: new Date().toISOString()
       });
@@ -588,7 +747,8 @@ exports.runPageSpeedTest = onCall(
           url,
           currentScores,
           optimizedScores,
-          improvements
+          improvements,
+          issues: analysis.issues
         }
       };
 

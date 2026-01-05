@@ -245,41 +245,36 @@ function MetricCircle({ value, color, label, size = 'md' }) {
   const colors = colorClasses[color] || colorClasses.green;
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <svg width={dimensions} height={dimensions} className="transform -rotate-90">
-        <circle
-          cx={dimensions / 2}
-          cy={dimensions / 2}
-          r={radius}
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          fill="none"
-          className="text-zinc-800"
-        />
-        <circle
-          cx={dimensions / 2}
-          cy={dimensions / 2}
-          r={radius}
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          className={`${colors.stroke} transition-all duration-1000 ease-out`}
-          strokeLinecap="round"
-        />
-        <text
-          x="50%"
-          y="50%"
-          textAnchor="middle"
-          dy=".3em"
-          className={`text-2xl font-bold ${colors.text} transform rotate-90`}
-          style={{ transform: `rotate(90deg)`, transformOrigin: 'center' }}
-        >
-          {value}
-        </text>
-      </svg>
-      <span className="text-xs text-zinc-400 text-center">{label}</span>
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative">
+        <svg width={dimensions} height={dimensions} className="transform -rotate-90">
+          <circle
+            cx={dimensions / 2}
+            cy={dimensions / 2}
+            r={radius}
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            fill="none"
+            className="text-zinc-800"
+          />
+          <circle
+            cx={dimensions / 2}
+            cy={dimensions / 2}
+            r={radius}
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            className={`${colors.stroke} transition-all duration-1000 ease-out`}
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className={`text-2xl font-bold ${colors.text}`}>{value}</span>
+        </div>
+      </div>
+      <span className="text-sm text-zinc-300 text-center font-medium">{label}</span>
     </div>
   );
 }
@@ -311,25 +306,31 @@ function PageSpeedShowcase({ onTestWebsite }) {
       </FadeIn>
 
       <FadeIn delay={100}>
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
-              <input
-                type="text"
-                value={inputUrl}
-                onChange={(e) => setInputUrl(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Enter your website URL..."
-                className="w-full bg-black/50 border border-zinc-700 rounded-lg pl-12 pr-4 py-4 text-white placeholder:text-zinc-500 focus:outline-none focus:border-blue-500 transition-colors"
-              />
+        <div className="relative">
+          {/* Enhanced glow effect background */}
+          <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/20 via-purple-500/30 to-blue-500/20 rounded-3xl blur-2xl opacity-75"></div>
+
+          {/* Main input container */}
+          <div className="relative bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
+                <input
+                  type="text"
+                  value={inputUrl}
+                  onChange={(e) => setInputUrl(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Enter your website URL..."
+                  className="w-full bg-black/50 border border-zinc-700 rounded-lg pl-12 pr-4 py-4 text-white placeholder:text-zinc-500 focus:outline-none focus:border-blue-500 transition-colors"
+                />
+              </div>
+              <button
+                onClick={handleAnalyze}
+                className="bg-white text-black font-bold px-8 py-4 rounded-lg hover:bg-gray-200 transition-colors transform active:scale-95 whitespace-nowrap"
+              >
+                ANALYZE SPEED
+              </button>
             </div>
-            <button
-              onClick={handleAnalyze}
-              className="bg-white text-black font-bold px-8 py-4 rounded-lg hover:bg-gray-200 transition-colors transform active:scale-95 whitespace-nowrap"
-            >
-              ANALYZE SPEED
-            </button>
           </div>
         </div>
       </FadeIn>
@@ -537,6 +538,107 @@ function PageSpeedResults({ results, shareableId, onBack }) {
           </div>
         </div>
       </Card>
+
+      {/* Detailed Analysis Section */}
+      {results.issues && (
+        <div className="space-y-6">
+          <h3 className="text-2xl font-bold text-center mb-6">What We Can Improve</h3>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Performance Issues */}
+            {results.issues.performance && results.issues.performance.length > 0 && (
+              <Card className="p-6 border-red-500/10">
+                <h4 className="text-lg font-bold mb-4 text-red-400 flex items-center gap-2">
+                  <Zap size={20} />
+                  Performance Optimizations
+                </h4>
+                <ul className="space-y-2 text-sm">
+                  {results.issues.performance.slice(0, 5).map((issue, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-zinc-300">
+                      <Check size={16} className="text-green-400 mt-1 flex-shrink-0" />
+                      <span>{issue}</span>
+                    </li>
+                  ))}
+                  {results.issues.performance.length > 5 && (
+                    <li className="text-zinc-500 text-xs mt-2">
+                      +{results.issues.performance.length - 5} more optimizations
+                    </li>
+                  )}
+                </ul>
+              </Card>
+            )}
+
+            {/* Accessibility Issues */}
+            {results.issues.accessibility && results.issues.accessibility.length > 0 && (
+              <Card className="p-6 border-blue-500/10">
+                <h4 className="text-lg font-bold mb-4 text-blue-400 flex items-center gap-2">
+                  <Users size={20} />
+                  Accessibility Fixes
+                </h4>
+                <ul className="space-y-2 text-sm">
+                  {results.issues.accessibility.slice(0, 5).map((issue, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-zinc-300">
+                      <Check size={16} className="text-green-400 mt-1 flex-shrink-0" />
+                      <span>{issue}</span>
+                    </li>
+                  ))}
+                  {results.issues.accessibility.length > 5 && (
+                    <li className="text-zinc-500 text-xs mt-2">
+                      +{results.issues.accessibility.length - 5} more fixes
+                    </li>
+                  )}
+                </ul>
+              </Card>
+            )}
+
+            {/* SEO Issues */}
+            {results.issues.seo && results.issues.seo.length > 0 && (
+              <Card className="p-6 border-purple-500/10">
+                <h4 className="text-lg font-bold mb-4 text-purple-400 flex items-center gap-2">
+                  <TrendingUp size={20} />
+                  SEO Enhancements
+                </h4>
+                <ul className="space-y-2 text-sm">
+                  {results.issues.seo.slice(0, 5).map((issue, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-zinc-300">
+                      <Check size={16} className="text-green-400 mt-1 flex-shrink-0" />
+                      <span>{issue}</span>
+                    </li>
+                  ))}
+                  {results.issues.seo.length > 5 && (
+                    <li className="text-zinc-500 text-xs mt-2">
+                      +{results.issues.seo.length - 5} more enhancements
+                    </li>
+                  )}
+                </ul>
+              </Card>
+            )}
+
+            {/* Best Practices Issues */}
+            {results.issues.bestPractices && results.issues.bestPractices.length > 0 && (
+              <Card className="p-6 border-orange-500/10">
+                <h4 className="text-lg font-bold mb-4 text-orange-400 flex items-center gap-2">
+                  <Shield size={20} />
+                  Best Practices Updates
+                </h4>
+                <ul className="space-y-2 text-sm">
+                  {results.issues.bestPractices.slice(0, 5).map((issue, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-zinc-300">
+                      <Check size={16} className="text-green-400 mt-1 flex-shrink-0" />
+                      <span>{issue}</span>
+                    </li>
+                  ))}
+                  {results.issues.bestPractices.length > 5 && (
+                    <li className="text-zinc-500 text-xs mt-2">
+                      +{results.issues.bestPractices.length - 5} more updates
+                    </li>
+                  )}
+                </ul>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
         <Button variant="primary" onClick={() => window.location.href = 'tel:8627540435'} className="flex items-center gap-2">
