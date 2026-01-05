@@ -13,7 +13,7 @@ import activity from 'react-useanimations/lib/activity';
 import alertTriangle from 'react-useanimations/lib/alertTriangle';
 import alertCircle from 'react-useanimations/lib/alertCircle';
 import searchToX from 'react-useanimations/lib/searchToX';
-import checkbox from 'react-useanimations/lib/checkbox';
+import checkbox from 'react-useanimations/lib/checkBox';
 
 export const iconMappings = {
   // Priority 0 - Critical

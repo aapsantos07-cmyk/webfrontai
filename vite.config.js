@@ -22,7 +22,7 @@ export default defineConfig({
       'react-useanimations/lib/alertTriangle',
       'react-useanimations/lib/alertCircle',
       'react-useanimations/lib/searchToX',
-      'react-useanimations/lib/checkbox',
+      'react-useanimations/lib/checkBox',
     ],
   },
   build: {
